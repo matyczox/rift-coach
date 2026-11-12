@@ -43,6 +43,9 @@ export interface GameInfo {
   /** Champion names: own team first. */
   allies: string[];
   enemies: string[];
+  /** Data Dragon ids (same order as allies / enemies), for portraits. */
+  allyIds?: string[];
+  enemyIds?: string[];
 }
 
 export interface CaptureStatus {
@@ -100,6 +103,8 @@ export interface ReplayFile {
 
 export interface AppStatus {
   version: string;
+  /** Data Dragon version for champion portraits (null until static data loads). */
+  ddragonVersion: string | null;
   liveApi: SourceState;
   lcu: SourceState;
   lcuPhase: string | null;

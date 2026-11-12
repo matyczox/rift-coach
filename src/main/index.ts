@@ -129,6 +129,7 @@ function status(): AppStatus {
   const gameData = replay ? replayGame : live.last;
   return {
     version: app.getVersion(),
+    ddragonVersion: staticData?.version ?? null,
     liveApi: live.state,
     lcu: lcu.state,
     lcuPhase: lcu.phase,
@@ -861,6 +862,8 @@ app.whenReady().then(() => {
   } else if (SMOKE) setTimeout(() => {
     const out = process.argv.find(a => a.startsWith('--smoke-frame='))?.slice(14);
     if (out && lastCrop) writeFileSync(out, lastCrop.png);
+    const shot = process.argv.find(a => a.startsWith('--shot='))?.slice(7);
+    if (shot && control) void control.webContents.capturePage().then(img => writeFileSync(shot, img.toPNG()));
     console.log('SMOKE', JSON.stringify(status()));
     app.quit();
   }, 12000);

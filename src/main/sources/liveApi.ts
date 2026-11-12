@@ -18,6 +18,9 @@ export interface AllGameData {
 
 const URL_ALL = 'https://127.0.0.1:2999/liveclientdata/allgamedata';
 
+/** Data Dragon id from rawChampionName ("game_character_displayname_MonkeyKing"), else the name without spaces/apostrophes. */
+const ddId = (p: AllGameData['allPlayers'][number]) => /displayname_(.+)$/.exec(p.rawChampionName ?? '')?.[1] ?? p.championName.replace(/[^A-Za-z]/g, '');
+
 export function toGameInfo(d: AllGameData): GameInfo {
   const meId = d.activePlayer.riotId ?? d.activePlayer.summonerName;
   const me = d.allPlayers.find(p => (p.riotId ?? p.summonerName) === meId);
@@ -29,6 +32,8 @@ export function toGameInfo(d: AllGameData): GameInfo {
     activeChampion: me?.championName ?? null,
     allies: d.allPlayers.filter(p => p.team === myTeam).map(p => p.championName),
     enemies: d.allPlayers.filter(p => p.team !== myTeam).map(p => p.championName),
+    allyIds: d.allPlayers.filter(p => p.team === myTeam).map(ddId),
+    enemyIds: d.allPlayers.filter(p => p.team !== myTeam).map(ddId),
   };
 }
 
