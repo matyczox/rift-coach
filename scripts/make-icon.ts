@@ -1,4 +1,4 @@
-// Generates assets/icon.png (256 px) and assets/icon.ico (PNG-in-ICO, 256/64/48/32/16).
+// Legacy pixel icon generator (replaced by assets/icon.svg + scripts/render-icon.cjs).
 // The mark: a dark rounded square with a minimap-like frame, the mid-lane diagonal,
 // and a translucent "fog prediction" circle with a solid dot — what the app does.
 import { writeFileSync, mkdirSync } from 'node:fs';
