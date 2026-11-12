@@ -20,7 +20,7 @@ function Run($exe, [string[]]$argv) {
 Push-Location $repo
 try {
   if (-not $SkipUi) {
-    if (-not $SkipNpmCi -or -not (Test-Path node_modules)) { Step 'npm ci'; Run npm @('ci', '--no-audit', '--no-fund') }
+    if (-not $SkipNpmCi -or -not (Test-Path node_modules)) { Step 'npm ci'; try { Run npm @('ci', '--no-audit', '--no-fund') } catch { Step 'npm ci failed (older npm / lock out of sync) - npm install'; Run npm @('install', '--no-audit', '--no-fund') } }
     Step 'npm run build (UI -> dist\renderer)'; Run npm @('run', 'build')
   }
   if (-not (Test-Path 'dist\renderer\control.html')) { throw 'dist\renderer is missing - run without -SkipUi' }

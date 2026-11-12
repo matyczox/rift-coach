@@ -18,7 +18,7 @@ screen (minimap) and Riot's official local APIs; it never sends input to the gam
 | Codex app | `Get-AppxPackage OpenAI.Codex` | alternative AI backend |
 | Riot API developer key | user gets it at https://developer.riotgames.com | optional (enemy profiles) |
 
-Only to build from source (not needed with a ready installer): Node.js 22+, `npm`, Rust via rustup with
+Only to build from source (not needed with a ready installer): Node.js 22+ with npm 10+ (tested Node 24 / npm 11; with an older npm `npm ci` may report the lock file out of sync - use `npm install`, the build script falls back to it automatically), `npm`, Rust via rustup with
 the `stable-x86_64-pc-windows-gnu` toolchain (`rustup toolchain install stable-x86_64-pc-windows-gnu`),
 internet access. MSVC / Visual Studio is **not** needed.
 
