@@ -1,5 +1,5 @@
 // HUD overlay plumbing shared by src/main/hud.ts, src/main/hud-preload.ts and
-// the hud renderers. Pure types/constants only (no electron / DOM imports).
+// the hud renderers. Pure types/constants only (no DOM imports).
 import type { HudState, ObjectiveCall, ObjectiveTimer } from '../../shared/intel';
 
 /** The single IPC channel the Hud uses (main -> hud windows). */

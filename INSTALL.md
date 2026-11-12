@@ -78,7 +78,7 @@ Exit codes: `0` installed and smoke test passed (or `-CheckOnly` / `-Uninstall` 
 
 NSIS exit codes: `0` success, `1` aborted, `2` script error. `/S` closes a running copy installed in the
 same folder. The install is registered in `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\Rift Coach`
-(`InstallLocation`, `MainBinaryName`). Shortcuts: "Rift Coach (Rust)" in the Start menu and on the desktop.
+(`InstallLocation`, `MainBinaryName`). Shortcuts: "Rift Coach" in the Start menu and on the desktop.
 
 ## 4. Verify
 
@@ -122,7 +122,7 @@ An agent cannot (and must not) do these:
 
 ## Po polsku (dla ludzi)
 
-1. Pobierz `Rift Coach_<wersja>_x64-setup.exe` i uruchom go (bez uprawnień administratora). Skrót „Rift Coach (Rust)” pojawi się na pulpicie i w menu Start.
+1. Pobierz `Rift Coach_<wersja>_x64-setup.exe` i uruchom go (bez uprawnień administratora). Skrót „Rift Coach” pojawi się na pulpicie i w menu Start.
 2. Albo w terminalu w folderze repozytorium: `powershell -ExecutionPolicy Bypass -File scripts\install.ps1` — sprawdzi wymagania, zbuduje i zainstaluje aplikację, a na końcu wypisze podsumowanie.
 3. Zaloguj się do Claude Code (`claude auth login`) albo zainstaluj aplikację Codex — bez tego coach AI milczy.
 4. Opcjonalnie: klucz Riot API (https://developer.riotgames.com, ważny 24 h) wklej w Ustawieniach aplikacji.

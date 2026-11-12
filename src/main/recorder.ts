@@ -2,7 +2,8 @@ import { createWriteStream, mkdirSync, writeFileSync, readFileSync, readdirSync,
 import { createGzip, gunzipSync, constants as zc, type Gzip } from 'node:zlib';
 import path from 'node:path';
 import type { RecordingStatus, RecordingSummary } from '../shared/types';
-import type { CropFrame, SceneFrame } from './capture';
+export interface CropFrame { at: number; width: number; height: number; png: Buffer }
+export interface SceneFrame { at: number; width: number; height: number; kind: 'png' | 'jpeg'; data: Buffer }
 import type { AllGameData } from './sources/liveApi';
 import { toGameInfo } from './sources/liveApi';
 

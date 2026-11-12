@@ -34,7 +34,9 @@ subscribe(({ state }) => {
   const al = live && state.alert && isLive(state.alert.expiresAt, state.gameTime) ? state.alert : null;
   const o = live && state.objective && objectiveUrgent(state.objective) ? state.objective : null;
   const extra = [al?.text, o ? `${o.objective}: ${VERDICT[o.verdict].word}` : null].filter((x): x is string => !!x);
-  const d = live ? (state.danger ?? (extra.length ? { level: 0.25, label: 'uważaj', reasons: [] } as DangerState : null)) : null;
+  const d0 = live ? (state.danger ?? (extra.length ? { level: 0.25, label: 'uważaj', reasons: [] } as DangerState : null)) : null;
+  // Glanceable: nothing to say when it is safe and nothing happened.
+  const d = d0 && (d0.label !== 'bezpiecznie' || extra.length) ? d0 : null;
   setOn(root, !!(p || d));
 
   danger.classList.toggle('hidden', !d);
@@ -44,9 +46,10 @@ subscribe(({ state }) => {
     dgLabel.textContent = d.label.charAt(0).toUpperCase() + d.label.slice(1);
     const filled = lvl <= 0 ? 0 : Math.max(1, Math.ceil(lvl * 4 - 1e-6));
     dgSegs.forEach((s, i) => s.classList.toggle('on', i < filled));
-    const lines = [...extra, ...d.reasons].slice(0, 2);
-    dgWhy.textContent = lines.join(' · ');
-    dgWhy.classList.toggle('hidden', lines.length === 0);
+    // One reason only, never a sentence to read.
+    const why = [...extra, ...d.reasons][0] ?? '';
+    dgWhy.textContent = why;
+    dgWhy.classList.toggle('hidden', !why);
   }
 
   pw.classList.toggle('hidden', !p);
@@ -60,21 +63,22 @@ subscribe(({ state }) => {
   fill.classList.toggle('mid', v >= 0.4 && v < 0.6);
   fill.classList.toggle('low', v < 0.4);
   // Percentage label only when the segment is wide enough to hold it.
-  pct.textContent = v >= 0.16 ? `${Math.round(v * 100)}%` : '';
+  pct.textContent = '';
   const ln = p.lane;
   if (ln) {
-    const tile = (label: string, v: number, unit = '') => {
-      const d = document.createElement('div');
+    // One line of coloured numbers: +450 g  +12 CS  +1 lvl
+    const stat = (v: number, unit: string) => {
+      const d = document.createElement('span');
       d.className = 'pw-stat ' + (v > 0 ? 'up' : v < 0 ? 'down' : '');
       const b = document.createElement('b');
-      b.textContent = `${v > 0 ? '+' : ''}${v}${unit}`;
+      b.textContent = `${v > 0 ? '+' : ''}${v}`;
       const sm = document.createElement('small');
-      sm.textContent = label;
+      sm.textContent = unit;
       d.append(b, sm);
       return d;
     };
     detail.className = 'pw-stats';
-    detail.replaceChildren(tile('złoto', ln.gold), tile('CS', ln.cs), tile('poziom', ln.level));
+    detail.replaceChildren(stat(ln.gold, 'g'), stat(ln.cs, 'CS'), stat(ln.level, 'lvl'));
   } else {
     detail.className = 'pw-detail';
     detail.textContent = p.detail;

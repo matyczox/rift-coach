@@ -3,7 +3,7 @@
 Instalator NSIS dla wersji Rust: `Rift Coach_<wersja>_x64-setup.exe`.
 
 - instalacja na użytkownika (bez uprawnień administratora) do `%LOCALAPPDATA%\Rift Coach`,
-- skróty „Rift Coach (Rust)” w menu Start i na pulpicie (ikona aplikacji) — nie kolidują ze skrótem „Rift Coach” wersji Electron,
+- skróty „Rift Coach” w menu Start i na pulpicie (ikona aplikacji),
 - wpis w Ustawienia → Aplikacje (dezinstalator `uninstall.exe`),
 - WebView2: wbudowany bootstrapper Microsoftu instaluje środowisko, jeśli go brak (wymaga internetu),
 - język polski (gdy Windows jest po polsku), w pozostałych przypadkach angielski,
@@ -26,7 +26,7 @@ Wymagania: Node 22+, Rust z toolchainem `stable-x86_64-pc-windows-gnu` (wybieran
 
 - `cargo install tauri-cli` nie działa bez MSVC/MinGW: zależność `ring` wymaga kompilatora C. Dlatego używamy gotowej binarki CLI z npm (`@tauri-apps/cli`, wersja przypięta w skrypcie). CLI tylko uruchamia `cargo` i bundler.
 - NSIS i wtyczkę `nsis_tauri_utils.dll` Tauri pobiera sam do `%LOCALAPPDATA%\tauri\NSIS` (zwykły `makensis.exe`, bez MSVC). Bootstrapper WebView2 trafia do `%LOCALAPPDATA%\tauri\WebView2*`.
-- `nsis\installer.nsi` to kopia szablonu z tauri-bundler 2.10.4 (z tauri-cli 2.12.4) z jedną zmianą: nazwa skrótów `SHORTCUTNAME` = „Rift Coach (Rust)” zamiast nazwy produktu. Przy aktualizacji `@tauri-apps/cli` trzeba skopiować nowy szablon i powtórzyć tę zmianę (zamiana `${PRODUCTNAME}.lnk` → `${SHORTCUTNAME}.lnk`).
+- `nsis\installer.nsi` to kopia szablonu z tauri-bundler 2.10.4 (z tauri-cli 2.12.4) z jedną zmianą: nazwa skrótów `SHORTCUTNAME` = „Rift Coach”. Przy aktualizacji `@tauri-apps/cli` trzeba skopiować nowy szablon i powtórzyć tę zmianę (zamiana `${PRODUCTNAME}.lnk` → `${SHORTCUTNAME}.lnk`).
 - `nsis\Polish.nsh` — polskie teksty Tauri (Tauri nie ma własnego tłumaczenia; teksty NSIS/MUI są z NSIS).
 
 ## Instalacja z terminala (cicha)

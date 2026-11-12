@@ -157,7 +157,7 @@ Mgła na minimapie jest ciemniejsza. Odczyt maski pól z wizją na siatce 64×64
 ## 8. Architektura
 
 ```
-Electron (main, TypeScript)
+Rust / Tauri (rust/app + crates rc-core, rc-vision); UI w TypeScript/React (src/renderer)
 ├─ sources/   live-api · lcu · riot-api (cache) · ddragon · capture
 ├─ recorder/  zapis i odtwarzanie sesji
 ├─ tracker/   (worker) kalibracja · detektor · maska wizji · stan · predykcja · ostrzeżenia

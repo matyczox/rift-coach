@@ -44,7 +44,7 @@ ${StrLoc}
 !define MANUFACTURER "{{manufacturer}}"
 !define PRODUCTNAME "{{product_name}}"
 ; Rift Coach: shortcut name differs from the product name (Electron and Rust builds side by side).
-!define SHORTCUTNAME "Rift Coach (Rust)"
+!define SHORTCUTNAME "Rift Coach"
 !define VERSION "{{version}}"
 !define VERSIONWITHBUILD "{{version_with_build}}"
 !define HOMEPAGE "{{homepage}}"

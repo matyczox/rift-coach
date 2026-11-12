@@ -8,7 +8,6 @@ const GREEN = '60,207,142';
 const RED = '255,90,79';
 /** Ghost areas: muted rose, so they inform without shouting over the minimap. */
 const GHOST = '214,150,142';
-const GHOST_FED = '232,182,90';
 const OUTLINE = 'rgba(0,0,0,0.55)';
 
 const canvas = document.getElementById('c') as HTMLCanvasElement;
@@ -79,7 +78,7 @@ window.addEventListener('resize', resize);
 resize();
 
 // ---- drawing ----
-function drawGhost(gh: Ghost, fed: boolean): void {
+function drawGhost(gh: Ghost): void {
   const { g } = gh;
   const cx = gh.x * W, cy = gh.y * H;
   const iconD = Math.max(14, 0.075 * W);
@@ -91,16 +90,15 @@ function drawGhost(gh: Ghost, fed: boolean): void {
   const conf = Math.max(0, Math.min(1, g.confidence));
   const zf = !gh.area ? 0 : g.age <= 15 ? 1 : g.age >= 40 ? 0 : 1 - (g.age - 15) / 25;
   const a = gh.alpha;
-  const col = fed ? GHOST_FED : GHOST;
 
   if (zf > 0) {
     ctx.beginPath();
     ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(${col},${(fed ? 0.16 : 0.05 + 0.05 * conf) * a * zf})`;
+    ctx.fillStyle = `rgba(${GHOST},${(0.05 + 0.05 * conf) * a * zf})`;
     ctx.fill();
     ctx.setLineDash([Math.max(3, W * 0.012), Math.max(3, W * 0.012)]);
-    ctx.lineWidth = fed ? 1.6 : 1.1;
-    ctx.strokeStyle = `rgba(${col},${(fed ? 0.85 : 0.55) * a * zf})`;
+    ctx.lineWidth = 1.1;
+    ctx.strokeStyle = `rgba(${GHOST},${0.55 * a * zf})`;
     ctx.stroke();
     ctx.setLineDash([]);
   }
@@ -119,26 +117,6 @@ function drawGhost(gh: Ghost, fed: boolean): void {
     ctx.drawImage(img, c, c, img.naturalWidth - 2 * c, img.naturalHeight - 2 * c,
       cx - iconD / 2, cy - iconD / 2, iconD, iconD);
     ctx.restore();
-  }
-
-  if (fed) {
-    // Tiny "FED" tag on the top edge of the area.
-    const fs = Math.max(8, Math.round(W * 0.026));
-    ctx.font = `800 ${fs}px ${FONT}`;
-    const tw = ctx.measureText('FED').width;
-    const pw = tw + fs * 0.7, ph = fs * 1.3;
-    const tx = Math.max(1, Math.min(W - pw - 1, cx - pw / 2));
-    const ty = Math.max(1, cy - r - ph * 0.55);
-    ctx.globalAlpha = a;
-    ctx.beginPath();
-    ctx.roundRect(tx, ty, pw, ph, 3);
-    ctx.fillStyle = `rgb(${RED})`;
-    ctx.fill();
-    ctx.fillStyle = '#1a0806';
-    ctx.textBaseline = 'middle';
-    ctx.textAlign = 'center';
-    ctx.fillText('FED', tx + pw / 2, ty + ph / 2 + 0.5);
-    ctx.globalAlpha = 1;
   }
 }
 
@@ -344,7 +322,6 @@ function frame(now: number): void {
   }
 
   // ghosts: ease toward latest target, fade in/out
-  const fedSet = new Set((st?.fed ?? []).map((f) => f.toLowerCase()));
   const k = 1 - Math.exp(-dt * 6);
   const withArea = new Set([...ghosts.values()].filter(gh => !gh.gone && gh.g.age >= 2).sort((p, q) => p.g.age - q.g.age).slice(0, 3).map(gh => gh.g.champion));
   for (const [name, gh] of ghosts) {
@@ -355,7 +332,7 @@ function frame(now: number): void {
     const target = gh.gone || !st?.visible ? 0 : 1;
     gh.alpha += (target - gh.alpha) * (1 - Math.exp(-dt * 10));
     if (gh.gone && gh.alpha < 0.01) { ghosts.delete(name); continue; }
-    drawGhost(gh, fedSet.has(name.toLowerCase()));
+    drawGhost(gh);
   }
 
   if (st && st.visible) {
