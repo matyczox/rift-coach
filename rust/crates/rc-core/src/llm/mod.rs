@@ -2,6 +2,7 @@
 //!   claude-*          -> Claude Code (`claude -p`, Claude subscription)
 //!   gpt-* / codex:*   -> Codex CLI (`codex exec`, ChatGPT/Codex subscription)
 
+pub mod caller;
 pub mod claude;
 pub mod codex;
 pub mod profiles;

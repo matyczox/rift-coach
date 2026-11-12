@@ -16,6 +16,9 @@ regex = "1"
 anyhow = "1"
 log = "0.4"
 tempfile = "3"
+futures-util = "0.3"
+# gzip for recordings (api.jsonl.gz) and self-training observation logs; pure-Rust backend.
+flate2 = "1"
 
 # Fake claude.exe / codex.exe for tests/llm_fake.rs (test helper, not shipped).
 [[bin]]
