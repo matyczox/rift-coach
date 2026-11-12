@@ -209,6 +209,8 @@ export interface PowerBarState {
   advice: string;
   /** Matchup winrate from meta stats (patch), if known. */
   metaWinRate: number | null;
+  /** Lead over the lane opponent (me minus them): item gold, CS, level. */
+  lane?: { gold: number; cs: number; level: number };
 }
 
 /** Next items to buy (AI build advisor), shown next to the minimap. */

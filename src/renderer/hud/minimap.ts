@@ -6,6 +6,9 @@ import { fmtClock, isLive, objectiveKind, secondsUntil, VERDICT } from './types'
 
 const GREEN = '60,207,142';
 const RED = '255,90,79';
+/** Ghost areas: muted rose, so they inform without shouting over the minimap. */
+const GHOST = '214,150,142';
+const GHOST_FED = '232,182,90';
 const OUTLINE = 'rgba(0,0,0,0.55)';
 
 const canvas = document.getElementById('c') as HTMLCanvasElement;
@@ -19,6 +22,7 @@ interface Ghost {
   x: number; y: number; r: number; // displayed (eased) values, normalized
   alpha: number;          // presence fade 0..1
   gone: boolean;
+  area?: boolean;         // draws its area (only the 3 most recent ghosts do)
 }
 const ghosts = new Map<string, Ghost>();
 
@@ -79,27 +83,34 @@ function drawGhost(gh: Ghost, fed: boolean): void {
   const { g } = gh;
   const cx = gh.x * W, cy = gh.y * H;
   const iconD = Math.max(14, 0.075 * W);
-  // Long in fog the area covers half the map and says little: cap its size, fade it from 30 s, gone at 60 s.
-  const r = Math.max(iconD * 0.5 + 3, Math.min(gh.r, 0.28) * W);
+  // Readability (a real game had 2.6 ghosts at once, overlapping 43% of the time, median radius 0.41):
+  // small capped area, fading from 15 s and gone at 40 s; the portrait (who) stays a bit longer.
+  // Just-lost enemies (< 2 s) get no area yet: they are still where you saw them.
+  if (g.age < 2) return;
+  const r = Math.max(iconD * 0.5 + 3, Math.min(gh.r, 0.16) * W);
   const conf = Math.max(0, Math.min(1, g.confidence));
-  const zf = g.age <= 30 ? 1 : g.age >= 60 ? 0 : 1 - (g.age - 30) / 30;
-  if (zf <= 0) return;
-  const a = gh.alpha * zf;
+  const zf = !gh.area ? 0 : g.age <= 15 ? 1 : g.age >= 40 ? 0 : 1 - (g.age - 15) / 25;
+  const a = gh.alpha;
+  const col = fed ? GHOST_FED : GHOST;
 
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fillStyle = `rgba(${RED},${(fed ? 0.28 : 0.11 + 0.07 * conf) * a})`;
-  ctx.fill();
-  ctx.lineWidth = fed ? 2 : 1.25;
-  ctx.strokeStyle = `rgba(${RED},${(fed ? 1 : 0.8) * a})`;
-  ctx.stroke();
+  if (zf > 0) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${col},${(fed ? 0.16 : 0.05 + 0.05 * conf) * a * zf})`;
+    ctx.fill();
+    ctx.setLineDash([Math.max(3, W * 0.012), Math.max(3, W * 0.012)]);
+    ctx.lineWidth = fed ? 1.6 : 1.1;
+    ctx.strokeStyle = `rgba(${col},${(fed ? 0.85 : 0.55) * a * zf})`;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
 
-  // Portrait: ~55% opacity, fades from 30 s to 45 s since last seen.
-  const pf = g.age <= 30 ? 1 : g.age >= 45 ? 0 : 1 - (g.age - 30) / 15;
+  // Portrait: who it is, always readable; fades out from 35 s to 45 s since last seen.
+  const pf = g.age <= 35 ? 1 : g.age >= 45 ? 0 : 1 - (g.age - 35) / 10;
   const img = pf > 0 ? image(g.iconUrl) : null;
   if (img) {
     ctx.save();
-    ctx.globalAlpha = 0.55 * pf * a;
+    ctx.globalAlpha = 0.8 * pf * a;
     ctx.beginPath();
     ctx.arc(cx, cy, iconD / 2, 0, Math.PI * 2);
     ctx.clip();
@@ -335,7 +346,9 @@ function frame(now: number): void {
   // ghosts: ease toward latest target, fade in/out
   const fedSet = new Set((st?.fed ?? []).map((f) => f.toLowerCase()));
   const k = 1 - Math.exp(-dt * 6);
+  const withArea = new Set([...ghosts.values()].filter(gh => !gh.gone && gh.g.age >= 2).sort((p, q) => p.g.age - q.g.age).slice(0, 3).map(gh => gh.g.champion));
   for (const [name, gh] of ghosts) {
+    gh.area = withArea.has(gh.g.champion);
     gh.x += (gh.g.x - gh.x) * k;
     gh.y += (gh.g.y - gh.y) * k;
     gh.r += (gh.g.radius - gh.r) * k;

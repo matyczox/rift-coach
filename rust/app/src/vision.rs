@@ -296,7 +296,33 @@ pub fn read_relative_colors() -> bool {
     true
 }
 
+/// The icon the GAME draws on the minimap (CommunityDragon `<champ>_circle_0.png`; the minimap ignores
+/// skins). For most champions it equals the Data Dragon square, but Briar's square matched her minimap
+/// icon at 0.25 (others 0.99), so she was never detected. Same lookup as `src/main/vision/icons.ts`.
+async fn load_game_circle_icon(dir: &Path, dd_id: &str) -> Option<rc_vision::Rgba> {
+    let id = dd_id.to_lowercase();
+    let file = dir.join(format!("cd-{id}-0.png"));
+    let miss = dir.join(format!("cd-{id}-0.png.missing"));
+    if !file.exists() && !miss.exists() {
+        let _ = std::fs::create_dir_all(dir);
+        let url = format!("https://raw.communitydragon.org/latest/game/assets/characters/{id}/hud/{id}_circle_0.png");
+        let res = rc_core::intel::ddragon::web_client().get(url).timeout(Duration::from_secs(10)).send().await.ok()?;
+        if res.status().as_u16() == 404 {
+            let _ = std::fs::write(&miss, b"");
+            return None;
+        }
+        if !res.status().is_success() {
+            return None;
+        }
+        std::fs::write(&file, res.bytes().await.ok()?).ok()?;
+    }
+    if file.exists() { rc_vision::image::load_png(&file).ok() } else { None }
+}
+
 async fn load_icon(dir: &Path, version: &str, dd_id: &str) -> anyhow::Result<rc_vision::Rgba> {
+    if let Some(icon) = load_game_circle_icon(dir, dd_id).await {
+        return Ok(icon);
+    }
     let file = rc_vision::icons::icon_path(dir, version, dd_id);
     if !file.exists() {
         std::fs::create_dir_all(dir)?;

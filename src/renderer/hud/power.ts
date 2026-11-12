@@ -61,8 +61,23 @@ subscribe(({ state }) => {
   fill.classList.toggle('low', v < 0.4);
   // Percentage label only when the segment is wide enough to hold it.
   pct.textContent = v >= 0.16 ? `${Math.round(v * 100)}%` : '';
-  detail.textContent = p.metaWinRate != null
-    ? `${p.detail} · meta ${Math.round(p.metaWinRate * 100)}%`
-    : p.detail;
+  const ln = p.lane;
+  if (ln) {
+    const tile = (label: string, v: number, unit = '') => {
+      const d = document.createElement('div');
+      d.className = 'pw-stat ' + (v > 0 ? 'up' : v < 0 ? 'down' : '');
+      const b = document.createElement('b');
+      b.textContent = `${v > 0 ? '+' : ''}${v}${unit}`;
+      const sm = document.createElement('small');
+      sm.textContent = label;
+      d.append(b, sm);
+      return d;
+    };
+    detail.className = 'pw-stats';
+    detail.replaceChildren(tile('złoto', ln.gold), tile('CS', ln.cs), tile('poziom', ln.level));
+  } else {
+    detail.className = 'pw-detail';
+    detail.textContent = p.detail;
+  }
   advice.textContent = p.advice;
 });

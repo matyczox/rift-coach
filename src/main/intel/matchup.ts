@@ -129,6 +129,7 @@ export function powerBar(intel: GameIntel, brief: MatchupBrief | null, icon: (c:
     me: { champion: me.champion, iconUrl: icon(me.champion), level: me.level },
     enemy: { champion: opp.champion, iconUrl: icon(opp.champion), level: opp.level },
     pMe, detail, advice, metaWinRate: brief?.winRate ?? null,
+    lane: { gold, cs, level: me.level - opp.level },
   };
 }
 

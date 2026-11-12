@@ -195,6 +195,15 @@ pub struct PowerBarState {
     pub detail: String,
     pub advice: String,
     pub meta_win_rate: Option<f64>,
+    /// Lead over the lane opponent (me minus them): item gold, CS, level.
+    pub lane: LaneLead,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize)]
+pub struct LaneLead {
+    pub gold: i64,
+    pub cs: i64,
+    pub level: i64,
 }
 
 fn signed(n: i64) -> String {
@@ -240,6 +249,7 @@ pub fn power_bar(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dyn Fn(
         detail,
         advice,
         meta_win_rate: brief.and_then(|b| b.win_rate),
+        lane: LaneLead { gold: gold as i64, cs: cs as i64, level: me.level as i64 - opp.level as i64 },
     })
 }
 
