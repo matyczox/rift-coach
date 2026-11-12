@@ -162,6 +162,8 @@ export interface MinimapGhost {
   age: number;
   confidence: number;      // 0..1
   iconUrl: string;
+  /** Other likely places (each >= 20% of the probability), drawn as weaker zones. */
+  zones?: Array<{ x: number; y: number; radius: number; mass: number }>;
 }
 
 export interface MinimapHint {

@@ -281,9 +281,16 @@ pub fn fog_tracks(g: &Game) -> Vec<FogTrack> {
         .tracker
         .as_ref()
         .map(|t| {
+            let gt = g.intel.as_ref().map(|i| i.game_time).unwrap_or(0.0);
+            let my_role = g.intel.as_ref().and_then(|i| i.me.as_ref()).map(|m| rc_vision::tracker::Role::parse(&m.role));
             t.all()
                 .into_iter()
-                .map(|tr| FogTrack { champion: tr.champion, in_fog: tr.state == rc_vision::tracker::TrackState::Fog, estimate: tr.estimate.map(|e| FogEstimate { x: e.x, y: e.y, radius: e.radius }) })
+                .map(|tr| FogTrack {
+                    gank_ready: rc_vision::tracker::alerts::gank_ready(&tr, my_role, gt),
+                    champion: tr.champion,
+                    in_fog: tr.state == rc_vision::tracker::TrackState::Fog,
+                    estimate: tr.estimate.map(|e| FogEstimate { x: e.x, y: e.y, radius: e.radius }),
+                })
                 .collect()
         })
         .unwrap_or_default()

@@ -88,6 +88,8 @@ pub struct Ghost {
     pub radius: f64,
     pub age: f64,
     pub confidence: f64,
+    /// Other places the enemy may well be (each >= 20% of the probability), besides the main one.
+    pub zones: Vec<super::predictor::Zone>,
 }
 
 struct Internal {
@@ -137,7 +139,21 @@ impl EnemyTracker {
                 if t - fs >= 120.0 {
                     return None;
                 }
-                Some(Ghost { champion: p.champion.clone(), x: e.x, y: e.y, radius: e.radius, age: t - fs, confidence: e.confidence })
+                // Two or three real options (e.g. Dragon or top): the main ghost sits on the most likely
+                // one and the others are shown as weaker zones instead of one circle in between.
+                let mut z = tr.pf.as_ref().map(|pf| pf.zones(3)).unwrap_or_default();
+                let (mut x, mut y) = (e.x, e.y);
+                if z.len() >= 2 && z[1].mass >= 0.2 {
+                    if (x - z[0].x).hypot(y - z[0].y) > z[0].radius {
+                        x = z[0].x;
+                        y = z[0].y;
+                    }
+                    z.remove(0);
+                    z.retain(|zz| zz.mass >= 0.2);
+                } else {
+                    z.clear();
+                }
+                Some(Ghost { champion: p.champion.clone(), x, y, radius: e.radius, age: t - fs, confidence: e.confidence, zones: z })
             })
             .collect()
     }
@@ -240,7 +256,9 @@ impl EnemyTracker {
 
             // Bought something while unseen -> was in the fountain just now (proven recall).
             if let (Some(prev), Some(cur)) = (prev_item_gold, e.item_gold) {
-                if cur - prev >= 250.0 && tr.pub_.state != TrackState::Visible {
+                // A recall channel is 8 s: someone lost from sight a moment ago cannot have bought in base.
+                let unseen_for = tr.pub_.fog_since.map_or(f64::INFINITY, |fs| f.t - fs);
+                if cur - prev >= 250.0 && tr.pub_.state != TrackState::Visible && unseen_for >= 6.0 {
                     tr.pub_.state = TrackState::Fog;
                     tr.pub_.fog_since = Some(f.t);
                     tr.pub_.last = Some(Sighting { x: fp.0, y: fp.1, t: f.t });

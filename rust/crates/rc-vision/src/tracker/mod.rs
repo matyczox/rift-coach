@@ -8,5 +8,5 @@ pub mod terrain;
 
 pub use enemy::{EnemyInput, EnemyTrack, EnemyTracker, FrameInput, Ghost, Sighting, TrackState};
 pub use learning::Learner;
-pub use predictor::{Estimate, GoalKind, ParticleFilter, PriorContext, Rng, Role, MAP_UNITS};
+pub use predictor::{Estimate, GoalKind, ParticleFilter, PriorContext, Rng, Role, Zone, MAP_UNITS};
 pub use terrain::GridTerrain;

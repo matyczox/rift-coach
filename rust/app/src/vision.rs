@@ -64,6 +64,8 @@ pub struct MinimapGhost {
     pub age: f64,
     pub confidence: f64,
     pub icon_url: String,
+    /// Other likely places (x, y, radius, mass), drawn as weaker zones.
+    pub zones: Vec<rc_vision::tracker::Zone>,
 }
 
 /// A champion seen on the minimap this frame, with a smoothed velocity.
@@ -143,6 +145,8 @@ pub struct Field {
     pub my_pos_at: f64,
     /// Last vision result (Date.now() ms): when vision stops, everything spatial expires.
     pub last_vision_at: f64,
+    /// CommunityDragon was unreachable at roster load (square icons in use): retry at this time (ms).
+    pub icon_retry_at: f64,
     /// Recalls already announced: (champion, recalled_at game time). Vision runs faster than the Live
     /// API, so the same recall shows up on several frames.
     pub recall_seen: Vec<(String, f64)>,
@@ -179,6 +183,7 @@ impl Field {
             my_pos: None,
             my_pos_at: 0.0,
             last_vision_at: 0.0,
+            icon_retry_at: 0.0,
             recall_seen: Vec::new(),
             allies: Vec::new(),
             visible_enemies: Vec::new(),
@@ -390,19 +395,32 @@ pub fn read_relative_colors() -> bool {
 /// The icon the GAME draws on the minimap (CommunityDragon `<champ>_circle_0.png`; the minimap ignores
 /// skins). For most champions it equals the Data Dragon square, but Briar's square matched her minimap
 /// icon at 0.25 (others 0.99), so she was never detected. Same lookup as `src/main/vision/icons.ts`.
-async fn load_game_circle_icon(dir: &Path, dd_id: &str) -> Option<rc_vision::Rgba> {
+/// In-game minimap icon from CommunityDragon (cached). `net` = may use the network; `net_failed` is
+/// set when CommunityDragon did not answer (not a 404), so the caller stops trying for this load.
+async fn load_game_circle_icon(dir: &Path, dd_id: &str, net: bool, net_failed: &mut bool) -> Option<rc_vision::Rgba> {
     let id = dd_id.to_lowercase();
     let file = dir.join(format!("cd-{id}-0.png"));
     let miss = dir.join(format!("cd-{id}-0.png.missing"));
     if !file.exists() && !miss.exists() {
+        if !net {
+            return None;
+        }
         let _ = std::fs::create_dir_all(dir);
         let url = format!("https://raw.communitydragon.org/latest/game/assets/characters/{id}/hud/{id}_circle_0.png");
-        let res = rc_core::intel::ddragon::web_client().get(url).timeout(Duration::from_secs(10)).send().await.ok()?;
+        // Short: 10 champions x 10 s left the detector off for the first ~100 s of a game when it was down.
+        let res = match rc_core::intel::ddragon::web_client().get(url).timeout(Duration::from_secs(3)).send().await {
+            Ok(r) => r,
+            Err(_) => {
+                *net_failed = true;
+                return None;
+            }
+        };
         if res.status().as_u16() == 404 {
             let _ = std::fs::write(&miss, b"");
             return None;
         }
         if !res.status().is_success() {
+            *net_failed = true;
             return None;
         }
         std::fs::write(&file, res.bytes().await.ok()?).ok()?;
@@ -410,9 +428,22 @@ async fn load_game_circle_icon(dir: &Path, dd_id: &str) -> Option<rc_vision::Rgb
     if file.exists() { rc_vision::image::load_png(&file).ok() } else { None }
 }
 
-async fn load_icon(dir: &Path, version: &str, dd_id: &str) -> anyhow::Result<rc_vision::Rgba> {
-    if let Some(icon) = load_game_circle_icon(dir, dd_id).await {
+/// Circle icon if possible (network only while CommunityDragon answers), else the Data Dragon square.
+/// `square_used` is set when the square was used because CommunityDragon was unreachable.
+async fn load_icon(dir: &Path, version: &str, dd_id: &str, net_failed: &mut bool, square_used: &mut bool) -> anyhow::Result<rc_vision::Rgba> {
+    // 1) cache, 2) the local League install (always there, no server), 3) CommunityDragon.
+    if !dir.join(format!("cd-{}-0.png", dd_id.to_lowercase())).exists() {
+        let d = dd_id.to_string();
+        if let Ok(Some(icon)) = tokio::task::spawn_blocking(move || crate::game_icons::circle_icon(&d)).await {
+            return Ok(icon);
+        }
+    }
+    let net = !*net_failed;
+    if let Some(icon) = load_game_circle_icon(dir, dd_id, net, net_failed).await {
         return Ok(icon);
+    }
+    if *net_failed && !dir.join(format!("cd-{}-0.png.missing", dd_id.to_lowercase())).exists() {
+        *square_used = true;
     }
     let file = rc_vision::icons::icon_path(dir, version, dd_id);
     if !file.exists() {
@@ -436,8 +467,14 @@ pub fn sync_roster(rt: &tokio::runtime::Handle, st: &Arc<AppState>, g: &mut Game
     let my_team = intel.me.as_ref().map(|m| m.team.clone()).unwrap_or_else(|| "ORDER".into());
     let key = format!("{}{my_team}|{map}", intel.players.iter().map(|p| p.champion.as_str()).collect::<Vec<_>>().join("|"));
     if key == g.field.roster_key {
-        return;
+        // Square icons because CommunityDragon was down: try again every 2 min, swap in the circle icons.
+        if g.field.icon_retry_at > 0.0 && now_ms() >= g.field.icon_retry_at && g.field.roster_ready {
+            g.field.icon_retry_at = 0.0;
+        } else {
+            return;
+        }
     }
+    let retry_only = key == g.field.roster_key;
     g.field.roster_key = key.clone();
     g.field.roster_ready = false;
     g.field.map11 = map == 11;
@@ -447,11 +484,12 @@ pub fn sync_roster(rt: &tokio::runtime::Handle, st: &Arc<AppState>, g: &mut Game
         let dir = icons_dir(&st);
         let mut champions = Vec::new();
         let mut err = None;
+        let (mut net_failed, mut square_used) = (false, false);
         // Other maps: no templates (the detector only knows Summoner's Rift); health bars still work.
         if map == 11 {
             for (champ, team) in &players {
                 let dd = sd.champion_ids.get(champ).cloned().unwrap_or_else(|| champ.clone());
-                match load_icon(&dir, &sd.version, &dd).await {
+                match load_icon(&dir, &sd.version, &dd, &mut net_failed, &mut square_used).await {
                     Ok(icon) => champions.push(RosterEntry { champion: champ.clone(), team: Team::parse(team).unwrap_or(Team::Order), icon }),
                     Err(e) => err = Some(e),
                 }
@@ -468,9 +506,16 @@ pub fn sync_roster(rt: &tokio::runtime::Handle, st: &Arc<AppState>, g: &mut Game
         }
         g.field.detect = !champions.is_empty();
         st.vision.service.set_roster(Roster { champions, own_team: Team::parse(&my_team).unwrap_or(Team::Order), relative_colors: read_relative_colors() });
-        g.field.camps.reset();
-        if let Some(t) = g.field.tracker.as_mut() {
-            t.reset();
+        // A retry only swaps the icons: keep the tracker's current knowledge.
+        if !retry_only {
+            g.field.camps.reset();
+            if let Some(t) = g.field.tracker.as_mut() {
+                t.reset();
+            }
+        }
+        g.field.icon_retry_at = if square_used { now_ms() + 120_000.0 } else { 0.0 };
+        if square_used {
+            log::warn!("vision: CommunityDragon unreachable, square icons for now (retry in 2 min)");
         }
         g.field.roster_ready = true;
         log::info!("vision roster ready (map {map}, detector {})", g.field.detect);
@@ -891,7 +936,9 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     // New recalls only (once per recall, not once per vision frame).
     let mut new_recalls: Vec<String> = Vec::new();
     for tr in &tracks {
-        if let Some(at) = tr.recalled_at.filter(|at| t - at < 5.0) {
+        // His health bar was on my screen a moment ago: he was not in base (the minimap only lost him).
+        let seen_on_screen = intel.players.iter().any(|p| p.champion == tr.champion && p.hp_seen_at.is_some_and(|s| t - s < 8.0));
+        if let Some(at) = tr.recalled_at.filter(|at| t - at < 5.0 && !seen_on_screen) {
             if !f.recall_seen.iter().any(|(c, a)| *c == tr.champion && (*a - at).abs() < 1e-6) {
                 f.recall_seen.retain(|(c, _)| *c != tr.champion);
                 f.recall_seen.push((tr.champion.clone(), at));
@@ -923,7 +970,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         .into_iter()
         .map(|gh| {
             let icon_url = icons.iter().find(|(c, _)| *c == gh.champion).map(|(_, u)| u.clone()).unwrap_or_default();
-            MinimapGhost { champion: gh.champion, x: gh.x, y: gh.y, radius: gh.radius, age: gh.age, confidence: gh.confidence, icon_url }
+            MinimapGhost { champion: gh.champion, x: gh.x, y: gh.y, radius: gh.radius, age: gh.age, confidence: gh.confidence, icon_url, zones: gh.zones }
         })
         .collect();
     // Self-training: one observation per second of what we saw (real Summoner's Rift games only).
@@ -945,7 +992,8 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             br: obj_round(obj_in(baron)),
         });
     }
-    for a in tracker_alerts(&tracks, f.my_pos, my_team_t, t, now) {
+    let my_role = intel.me.as_ref().map(|m| rc_vision::tracker::Role::parse(&m.role));
+    for a in tracker_alerts(&tracks, f.my_pos, my_team_t, my_role, t, now) {
         let kind = serde_json::to_value(a.kind).ok().and_then(|v| v.as_str().map(String::from)).unwrap_or_default();
         let al = Alert { kind, text: a.text, confidence: a.confidence, expires_at: a.expires_at };
         match f.alerts.iter().position(|x| x.kind == al.kind) {

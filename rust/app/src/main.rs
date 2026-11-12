@@ -2,6 +2,7 @@
 
 mod bridge;
 mod game;
+mod game_icons;
 mod harvest;
 mod hotkeys;
 mod hud;

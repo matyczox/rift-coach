@@ -385,6 +385,16 @@ impl IntelTracker {
         };
         let player_champ: HashMap<String, String> = d.all_players.iter().map(|p| (name_of(p), p.champion_name.clone())).collect();
         let me_champ = me_idx.map(|i| d.all_players[i].champion_name.clone());
+        // No position from the game (Practice Tool / custom with bots gives "NONE" for the player): take
+        // the role nobody else in the team has, for me and for a single unknown enemy.
+        for ally in [true, false] {
+            let roles = ["TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"];
+            let missing: Vec<&str> = roles.iter().copied().filter(|r| !players.iter().any(|p| p.is_ally == ally && p.role == *r)).collect();
+            let unknown: Vec<usize> = players.iter().enumerate().filter(|(_, p)| p.is_ally == ally && p.role == "UNKNOWN").map(|(i, _)| i).collect();
+            if missing.len() == 1 && unknown.len() == 1 {
+                players[unknown[0]].role = missing[0].to_string();
+            }
+        }
         let swift = d.game_data.game_mode == "SWIFTPLAY";
         let mut ev = events(&d.events.events, t, &my_team, &team_of, &players, &me_name, me_champ.as_deref(), &player_champ, swift);
         ev.ally.est_gold = players.iter().filter(|p| p.is_ally).map(|p| p.est_gold).sum();

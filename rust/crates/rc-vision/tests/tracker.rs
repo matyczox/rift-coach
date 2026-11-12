@@ -118,8 +118,16 @@ fn item_purchase_in_fog_puts_enemy_in_fountain() {
         upd(&mut tr, t, &[det(0.3, 0.6)], &e(2000.0));
         t += 0.1;
     }
-    for _ in 0..40 {
+    // Out of sight for 2 s only: a recall (8 s channel) is impossible, the purchase is not proof.
+    for _ in 0..20 {
         upd(&mut tr, t, &[], &e(2000.0));
+        t += 0.1;
+    }
+    upd(&mut tr, t, &[], &e(2600.0));
+    assert!(tr.all()[0].recalled_at.is_none());
+    // Out of sight for 8 s: proven recall.
+    for _ in 0..60 {
+        upd(&mut tr, t, &[], &e(2600.0));
         t += 0.1;
     }
     upd(&mut tr, t, &[], &e(3300.0));
@@ -254,4 +262,26 @@ fn particles_never_walk_into_walls() {
         pf.step(1.0, 380.0, &mut rng);
         assert!(pf.particles.iter().all(|p| terrain.walkable(p.x, p.y)), "particle inside a wall");
     }
+}
+
+/// Several real options: zones split the cloud into its groups (most likely first).
+#[test]
+fn zones_split_two_options() {
+    let terrain = Arc::new(GridTerrain::open(64));
+    let mut pf = ParticleFilter::new(terrain, goals_for(Team::Chaos), 200);
+    let mut pts = Vec::new();
+    for k in 0..30 {
+        pts.push((0.30 + (k % 5) as f64 * 0.004, 0.30 + (k / 5) as f64 * 0.004));
+    }
+    for k in 0..20 {
+        pts.push((0.70 + (k % 5) as f64 * 0.004, 0.70 + (k / 5) as f64 * 0.004));
+    }
+    pf.set_points(&pts);
+    let z = pf.zones(3);
+    assert_eq!(z.len(), 2, "{z:?}");
+    assert!((z[0].x - 0.31).abs() < 0.03 && (z[0].mass - 0.6).abs() < 0.05, "{:?}", z[0]);
+    assert!((z[1].x - 0.71).abs() < 0.03 && (z[1].mass - 0.4).abs() < 0.05, "{:?}", z[1]);
+    // One group: one zone.
+    pf.set_points(&pts[..30]);
+    assert_eq!(pf.zones(3).len(), 1);
 }

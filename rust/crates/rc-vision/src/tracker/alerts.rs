@@ -24,9 +24,17 @@ pub struct AlertState {
 }
 
 /// `me` = my champion's minimap position (from the detector); `now` = wall-clock ms.
-pub fn tracker_alerts(tracks: &[EnemyTrack], me: Option<(f64, f64)>, my_team: Team, game_time: f64, now: f64) -> Vec<AlertState> {
+/// A gank warning needs the enemy to be out of sight for a while: 4 s for anyone, 10 s for my lane
+/// opponent (stepping behind his tower or into a bush for a second is lane play, not a gank).
+pub fn gank_ready(t: &EnemyTrack, my_role: Option<Role>, game_time: f64) -> bool {
+    let age = game_time - t.fog_since.unwrap_or(game_time);
+    let lane_opp = my_role.is_some_and(|r| r != Role::Unknown && r == t.role);
+    age >= if lane_opp { 10.0 } else { 4.0 }
+}
+
+pub fn tracker_alerts(tracks: &[EnemyTrack], me: Option<(f64, f64)>, my_team: Team, my_role: Option<Role>, game_time: f64, now: f64) -> Vec<AlertState> {
     let mut out = Vec::new();
-    let fog: Vec<&EnemyTrack> = tracks.iter().filter(|t| t.state == TrackState::Fog && t.estimate.is_some() && t.fog_since.is_some()).collect();
+    let fog: Vec<&EnemyTrack> = tracks.iter().filter(|t| t.state == TrackState::Fog && t.estimate.is_some() && t.fog_since.is_some() && gank_ready(t, my_role, game_time)).collect();
     let near = |t: &EnemyTrack, p: (f64, f64), r: f64| {
         let e = t.estimate.unwrap();
         let d = (e.x - p.0).hypot(e.y - p.1);

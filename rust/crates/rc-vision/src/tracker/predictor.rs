@@ -272,6 +272,16 @@ pub struct Particle {
     pub arrived: bool,
 }
 
+/// One group of the particle cloud: where a fogged enemy may be, with its share of the probability.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Zone {
+    pub x: f64,
+    pub y: f64,
+    pub radius: f64,
+    /// Share of the probability in this zone, 0..1.
+    pub mass: f64,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Estimate {
     pub x: f64,
@@ -653,6 +663,62 @@ impl ParticleFilter {
         }
         let spread: f64 = self.particles.iter().map(|p| p.w * (p.x - mx).hypot(p.y - my)).sum();
         Estimate { x: mx, y: my, radius: radius.max(0.02), confidence: (1.0 - radius / 0.35).clamp(0.0, 1.0), spread }
+    }
+
+/// Up to `max` separate groups of the cloud, most likely first (greedy: densest remaining
+    /// particle -> mean-shift -> take its group out). Groups under 15% of the mass are dropped.
+    pub fn zones(&self, max: usize) -> Vec<Zone> {
+        let n = self.particles.len();
+        if n == 0 {
+            return Vec::new();
+        }
+        let total: f64 = self.particles.iter().map(|p| p.w).sum::<f64>().max(1e-12);
+        let mut taken = vec![false; n];
+        let mut out = Vec::new();
+        let step = (n / 80).max(1);
+        for _ in 0..max {
+            let near_free = |q: (f64, f64), r: f64, taken: &[bool]| -> f64 {
+                self.particles.iter().zip(taken).filter(|(p, t)| !**t && (p.x - q.0).hypot(p.y - q.1) <= r).map(|(p, _)| p.w).sum()
+            };
+            let Some(seed) = (0..n).step_by(step).filter(|&i| !taken[i]).max_by(|&a, &b| {
+                let (pa, pb) = (self.particles[a], self.particles[b]);
+                near_free((pa.x, pa.y), 0.05, &taken).total_cmp(&near_free((pb.x, pb.y), 0.05, &taken))
+            }) else {
+                break;
+            };
+            let (mut cx, mut cy) = (self.particles[seed].x, self.particles[seed].y);
+            for _ in 0..3 {
+                let (mut sx, mut sy, mut sw) = (0.0, 0.0, 0.0);
+                for (p, t) in self.particles.iter().zip(&taken) {
+                    if *t {
+                        continue;
+                    }
+                    let k = (-((p.x - cx).powi(2) + (p.y - cy).powi(2)) / (2.0 * 0.05f64.powi(2))).exp() * p.w;
+                    sx += p.x * k;
+                    sy += p.y * k;
+                    sw += k;
+                }
+                if sw > 1e-12 {
+                    cx = sx / sw;
+                    cy = sy / sw;
+                }
+            }
+            if !self.terrain.walkable(cx, cy) {
+                cx = self.particles[seed].x;
+                cy = self.particles[seed].y;
+            }
+            let members: Vec<usize> = (0..n).filter(|&i| !taken[i] && (self.particles[i].x - cx).hypot(self.particles[i].y - cy) <= 0.12).collect();
+            let mass: f64 = members.iter().map(|&i| self.particles[i].w).sum::<f64>() / total;
+            if mass < 0.15 {
+                break;
+            }
+            let spread = members.iter().map(|&i| self.particles[i].w * (self.particles[i].x - cx).hypot(self.particles[i].y - cy)).sum::<f64>() / (mass * total);
+            for i in members {
+                taken[i] = true;
+            }
+            out.push(Zone { x: cx, y: cy, radius: (spread * 1.6).max(0.02), mass });
+        }
+        out
     }
 
     /// Probability mass within r of q.

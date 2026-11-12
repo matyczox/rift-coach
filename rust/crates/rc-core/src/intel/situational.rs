@@ -49,6 +49,8 @@ pub struct FogTrack {
     /// `state === 'fog'`
     pub in_fog: bool,
     pub estimate: Option<FogEstimate>,
+    /// Out of sight long enough to call it a gank threat (4 s; my lane opponent 10 s).
+    pub gank_ready: bool,
 }
 
 /// `AlertState` from shared/intel.ts.
@@ -161,7 +163,7 @@ pub fn danger_at(intel: &GameIntel, me: Option<Pos>, tracks: &[FogTrack], visibl
         score += w;
         reasons.push((w, format!("{} blisko{}", e.champion, if is_fed { " (fed)" } else { "" })));
     }
-    for t in tracks {
+    for t in tracks.iter().filter(|t| t.gank_ready) {
         let w = ghost_threat(t, me, 0.12) * if fed.contains(&t.champion) { 1.5 } else { 1.0 } * 0.35 * shield;
         if w > 0.03 {
             score += w;
@@ -369,7 +371,7 @@ mod tests {
         assert!((d.level - 0.84).abs() < 1e-9);
         assert_eq!(d.label, "uciekaj");
         assert_eq!(d.reasons, ["Zed blisko (fed)", "słabszy w matchupie"]);
-        let fog = |c: &str| FogTrack { champion: c.into(), in_fog: true, estimate: Some(FogEstimate { x: 0.52, y: 0.5, radius: 0.05 }) };
+        let fog = |c: &str| FogTrack { champion: c.into(), in_fog: true, gank_ready: true, estimate: Some(FogEstimate { x: 0.52, y: 0.5, radius: 0.05 }) };
         let d = danger_at(&i, me, &[fog("A"), fog("B"), fog("C")], &[], None, &[]).unwrap();
         assert_eq!(d.reasons[0], "A gank");
         assert!(d.level > 0.5);

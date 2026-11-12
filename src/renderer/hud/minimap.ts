@@ -101,6 +101,34 @@ function drawGhost(gh: Ghost): void {
     ctx.strokeStyle = `rgba(${GHOST},${0.55 * a * zf})`;
     ctx.stroke();
     ctx.setLineDash([]);
+    // Other real options (e.g. Dragon or top): weaker zones with a small portrait, so one circle in the
+    // middle does not pretend to know.
+    for (const z of g.zones ?? []) {
+      const zx = z.x * W, zy = z.y * H;
+      const zr = Math.max(iconD * 0.35 + 3, Math.min(z.radius, 0.12) * W);
+      const za = a * zf * Math.min(1, z.mass / 0.5);
+      ctx.beginPath();
+      ctx.arc(zx, zy, zr, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(${GHOST},${0.05 * za})`;
+      ctx.fill();
+      ctx.setLineDash([Math.max(2, W * 0.008), Math.max(3, W * 0.014)]);
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = `rgba(${GHOST},${0.45 * za})`;
+      ctx.stroke();
+      ctx.setLineDash([]);
+      const zimg = image(g.iconUrl);
+      if (zimg) {
+        const d = iconD * 0.6;
+        ctx.save();
+        ctx.globalAlpha = 0.5 * za;
+        ctx.beginPath();
+        ctx.arc(zx, zy, d / 2, 0, Math.PI * 2);
+        ctx.clip();
+        const c = zimg.naturalWidth * 0.08;
+        ctx.drawImage(zimg, c, c, zimg.naturalWidth - 2 * c, zimg.naturalHeight - 2 * c, zx - d / 2, zy - d / 2, d, d);
+        ctx.restore();
+      }
+    }
   }
 
   // Portrait: who it is, always readable; fades out from 35 s to 45 s since last seen.

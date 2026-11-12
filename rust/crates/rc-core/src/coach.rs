@@ -74,7 +74,7 @@ Zasady:
 - "ward": gdzie postawić ward TERAZ (spot z listy wardSpots, nazwy względem strony gracza: my-* = jego dżungla, enemy-* = wroga) i krótki powód, albo null. Wybieraj miejsca o wyższej wartości (więcej wizji); faelight-* to Faelighty (2026): ward postawiony NA nich daje dużo większy zasięg wizji — preferuj je, gdy dostępne (mid-* dopiero po przemianie mapy po 2. smoku); plant-* to rośliny wizji — uderzenie odsłania duży obszar za darmo. Proponuj ward przed objective (60–90 s przed smokiem/baronem), przy pushowaniu linii bez wizji, gdy jungler wroga zniknął.
 - "deathReview": TYLKO gdy me.stan = "NIE ŻYJE" (jeśli "żyje", deathReview = null — także gdy zginął przed chwilą i już się odrodził): 3–5 krótkich punktów: dlaczego zginął (masz myDeath: kto zabił, kto asystował, czy to gank — używaj tego, nie zgaduj), co zrobić po respawnie (back/farm/gdzie iść), czy grać pasywnie czy agresywnie przez najbliższe minuty i dlaczego. Inaczej null.
 - Pisz bez form rodzajowych (nie "zginąłeś"/"zginęłaś", nie "byłeś"): np. "Gank Yasuo z Talonem", "Śmierć: brak wizji w rzece", "Po respawnie: back i ward".
-- "ttlSec": jak długo porada jest aktualna (10–40).
+- "ttlSec": jak długo porada jest aktualna (30–60).
 Opieraj się na liczbach: przewaga złota, kto martwy i jak długo, timery, power spike'i, gdzie prawdopodobnie są wrogowie. Jeśli nic ważnego się nie dzieje — "call": null."#;
 
 pub fn schema() -> Value {
@@ -722,11 +722,12 @@ fn ward_call(value: &Value) -> Option<String> {
 
 /// Same objective and same stance ("Przygotuj się do smoka" / "Zbierzcie się na smoka"): a real game
 /// had three of those in a row. "Odpuść smoka" after "Smok teraz" is a change, not a repeat.
-/// The schema is only asked for: enforce it. TTL 10–40 s (a 3600 s ttl kept old advice for half a
+/// The schema is only asked for: enforce it. TTL 30–60 s (a 3600 s ttl kept old advice for half a
 /// game), known tone, short call.
 pub fn sanitize_advice(v: &mut Value) {
     let Some(o) = v.as_object_mut() else { return };
-    let ttl = o.get("ttlSec").and_then(Value::as_f64).filter(|t| t.is_finite()).unwrap_or(25.0).clamp(10.0, 40.0);
+    // At least 30 s: a call must stay up until the next one replaces it (10-15 s ttls made it vanish).
+    let ttl = o.get("ttlSec").and_then(Value::as_f64).filter(|t| t.is_finite()).unwrap_or(40.0).clamp(30.0, 60.0);
     o.insert("ttlSec".into(), json!(ttl));
     let tone = o.get("tone").and_then(Value::as_str).filter(|t| ["go", "wait", "danger", "farm"].contains(t)).unwrap_or("farm").to_string();
     o.insert("tone".into(), json!(tone));
@@ -851,7 +852,7 @@ mod tests {
         assert!(adv.is_none());
         let mut v = json!({ "call": "Dragon teraz", "tone": "weird", "ttlSec": 3600 });
         sanitize_advice(&mut v);
-        assert_eq!(v["ttlSec"], 40.0);
+        assert_eq!(v["ttlSec"], 60.0);
         assert_eq!(v["tone"], "farm");
     }
 
