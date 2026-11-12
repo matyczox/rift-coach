@@ -84,7 +84,7 @@ export const Portrait = memo(function Portrait({ id, name, version, side }: { id
   );
 });
 
-function SystemPill({ items }: { items: Item[] }) {
+function SystemPill({ items, thinking }: { items: Item[]; thinking?: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -98,7 +98,7 @@ function SystemPill({ items }: { items: Item[] }) {
   const PASSIVE = ['Gra (Live API)', 'Obraz gry', 'Powtórka', 'Zbieranie danych'];
   const warns = items.filter(i => i.state === 'waiting' && !PASSIVE.includes(i.label)).length;
   const tone = errors ? 'error' : warns ? 'waiting' : 'connected';
-  const text = errors ? `${errors} ${errors === 1 ? 'problem' : 'problemy'}` : warns ? `${warns} do uwagi` : 'Wszystko działa';
+  const text = thinking && !errors ? 'Coach myśli…' : errors ? `${errors} ${errors === 1 ? 'problem' : 'problemy'}` : warns ? `${warns} do uwagi` : 'Wszystko działa';
   return (
     <div className="sys" ref={ref}>
       <button type="button" className={`sys-pill s-${tone}`} onClick={() => setOpen(o => !o)} aria-expanded={open}>
@@ -124,14 +124,7 @@ export const StatusBar = memo(function StatusBar({ status, error }: { status: Ap
   const coach = coachOf(status.coach);
   return (
     <div className="tb-status">
-      {status.coach.state !== 'off' && (
-        <div className={`coach-badge s-${coach.state}`} title={status.coach.lastError ?? status.coach.model ?? undefined}>
-          <span className="coach-dot" />
-          <span className="coach-label">Coach</span>
-          <span className="coach-value">{status.coach.state === 'thinking' ? 'myśli…' : coach.state === 'error' ? coach.value : modelLabel(status.coach.model)}</span>
-        </div>
-      )}
-      <SystemPill items={systemItems(status)} />
+      <SystemPill items={systemItems(status)} thinking={status.coach.state === 'thinking'} />
     </div>
   );
 });

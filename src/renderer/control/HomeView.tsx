@@ -22,7 +22,7 @@ function TeamList({ names, ids, side, me, version }: { names: string[]; ids?: st
   );
 }
 
-const LiveCard = memo(function LiveCard({ game, advice, version }: { game: GameInfo; advice: CoachAdvice | null; version: string | null }) {
+const LiveCard = memo(function LiveCard({ game, advice, version, coach }: { game: GameInfo; advice: CoachAdvice | null; version: string | null; coach: AppStatus['coach'] }) {
   return (
     <section className="live-card">
       <header className="live-head">
@@ -32,16 +32,16 @@ const LiveCard = memo(function LiveCard({ game, advice, version }: { game: GameI
       </header>
       <div className="live-body">
         <TeamList names={game.allies} ids={game.allyIds} side="ally" me={game.activeChampion} version={version} />
-        <div className="live-coach">
-          <div className="card-label">Coach</div>
+        <div className={'live-coach' + (coach.state === 'thinking' ? ' thinking' : '')}>
+          <div className="coach-head"><CoachMark size={26} active={coach.state === 'thinking'} /><span>Coach</span>{coach.state === 'thinking' && <span className="dots"><i /><i /><i /></span>}</div>
           {advice ? (
             <div className={`coach-call tone-${advice.tone}`}>
               <span className="tone-tag">{TONE[advice.tone]}</span>
               <div className="coach-call-text">{advice.call}</div>
-              <div className="coach-call-meta num">{fmtClock(advice.gameTime)} · {(advice.latencyMs / 1000).toFixed(1)} s{advice.item ? ` · kup: ${advice.item}` : ''}</div>
+              <div className="coach-call-meta num">{fmtClock(advice.gameTime)}{advice.item ? ` · kup: ${advice.item}` : ''}</div>
               {advice.deathReview?.length ? <ul className="coach-review">{advice.deathReview.map((p, i) => <li key={i}>{p}</li>)}</ul> : null}
             </div>
-          ) : <div className="muted small">Pierwsza porada pojawi się po kilkunastu sekundach gry.</div>}
+          ) : <div className="coach-wait">Pierwsza porada pojawi się po kilkunastu sekundach gry.</div>}
         </div>
         <TeamList names={game.enemies} ids={game.enemyIds} side="enemy" version={version} />
       </div>
@@ -67,7 +67,6 @@ const modelName = (m: string) => m.replace(/^gpt-[\d.]+-/, '').replace(/^claude-
 function ReadyCard({ status }: { status: AppStatus }) {
   const rows: Array<[string, boolean, string]> = [
     ['Klient LoL', status.lcu === 'connected', status.lcu === 'connected' ? 'połączony' : 'nie działa'],
-    ['Coach AI', status.coach.state === 'idle' || status.coach.state === 'thinking', status.coach.state === 'not-logged-in' ? 'niezalogowany' : status.coach.state === 'off' ? 'wyłączony' : status.coach.state === 'error' ? 'błąd' : 'gotowy'],
     ['Minimapa', Boolean(status.settings.calibration), status.settings.calibration ? 'skalibrowana' : 'brak'],
     ['Klucz Riot', status.profiles.state !== 'no-key', status.profiles.state === 'no-key' ? 'brak' : 'jest'],
     ['Auto runy', status.settings.autoRunes, status.settings.autoRunes ? 'włączone' : 'wyłączone'],
@@ -82,15 +81,42 @@ function ReadyCard({ status }: { status: AppStatus }) {
   );
 }
 
-function ModelsCard({ status }: { status: AppStatus }) {
-  const c = status.settings.coach;
-  const rows: Array<[string, string]> = [['W grze', c.liveModel], ['Po śmierci i meczu', c.reviewModel], ['Patch i matchup', c.researchModel], ['Runy i draft', c.draftModel]];
+/** Coach glyph: a spark inside a ring (pulses while the coach is thinking). */
+function CoachMark({ size = 40, active = false }: { size?: number; active?: boolean }) {
   return (
-    <div className="side-card">
-      <div className="side-title">Modele coacha</div>
-      {rows.map(([l, m]) => (
-        <div key={l} className="side-row"><span className="side-label">{l}</span><span className={'model-chip ' + (m.startsWith('gpt') ? 'gpt' : 'claude')}>{modelName(m)}</span></div>
-      ))}
+    <span className={'coach-mark' + (active ? ' active' : '')} style={{ width: size, height: size }}>
+      <svg viewBox="0 0 40 40" width={size} height={size}>
+        <defs><linearGradient id="cm" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stopColor="#22c7bd" /><stop offset="1" stopColor="#e8b65a" /></linearGradient></defs>
+        <circle cx="20" cy="20" r="18" fill="none" stroke="url(#cm)" strokeWidth="2.5" />
+        <path d="M22 7 L12 22 H19 L17 33 L28 17 H21 Z" fill="url(#cm)" />
+      </svg>
+    </span>
+  );
+}
+
+const PROVIDER = (m: string) => (m.startsWith('gpt') ? 'Codex' : 'Claude');
+
+function CoachCard({ status }: { status: AppStatus }) {
+  const c = status.coach, s = status.settings.coach;
+  const state = c.state === 'thinking' ? 'Myśli…' : c.state === 'idle' ? 'Gotowy' : c.state === 'off' ? 'Wyłączony' : c.state === 'not-logged-in' ? 'Niezalogowany' : 'Błąd';
+  const tone = c.state === 'idle' || c.state === 'thinking' ? 'ok' : c.state === 'off' ? 'off' : 'bad';
+  const rows: Array<[string, string]> = [['W grze', s.liveModel], ['Po śmierci i meczu', s.reviewModel], ['Patch i matchup', s.researchModel], ['Runy', s.draftModel]];
+  return (
+    <div className={'side-card coach-card' + (c.state === 'thinking' ? ' thinking' : '')}>
+      <div className="coach-top">
+        <CoachMark active={c.state === 'thinking'} />
+        <div className="coach-top-text">
+          <div className="side-title">Twój coach</div>
+          <div className={'coach-state ' + tone}><i />{state}{c.lastLatencyMs != null && tone === 'ok' ? <span className="muted"> · odpowiada w {(c.lastLatencyMs / 1000).toFixed(1)} s</span> : null}</div>
+        </div>
+        {c.calls > 0 && <div className="coach-calls num"><b>{c.calls}</b><small>porad</small></div>}
+      </div>
+      {c.lastError && tone === 'bad' && <div className="error-text small">{c.lastError}</div>}
+      <div className="coach-models">
+        {rows.map(([l, m]) => (
+          <div key={l} className="coach-model"><span>{l}</span><b>{modelName(m)}{m === 'gpt-6.1-terra' ? <em> fast</em> : null}</b><small>{PROVIDER(m)}</small></div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -176,11 +202,11 @@ export function HomeView({ status }: { status: AppStatus }) {
         <aside className="home-side">
           <RanksCard me={status.me} />
           <ReadyCard status={status} />
-          <ModelsCard status={status} />
+          <CoachCard status={status} />
           <ChampsCard items={items} version={status.ddragonVersion} />
         </aside>
         <div className="home-main">
-          {status.game ? <LiveCard game={status.game} advice={status.lastAdvice} version={status.ddragonVersion} /> : <IdleCard status={status} />}
+          {status.game ? <LiveCard game={status.game} advice={status.lastAdvice} version={status.ddragonVersion} coach={status.coach} /> : <IdleCard status={status} />}
           <LastMatchView ddragonVersion={status.ddragonVersion} onItems={onItems} />
         </div>
       </div>
