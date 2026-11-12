@@ -172,7 +172,7 @@ export class Hud {
 
     // Top bar + alert pill: centered, ~6% of game height below the top edge.
     const tw = 600 * s, th = 150 * s;
-    set('topbar', { x: g.x + (g.width - tw) / 2, y: g.y + g.height * 0.06, width: tw, height: th });
+    set('topbar', { x: g.x + (g.width - tw) / 2, y: g.y + g.height * 0.085, width: tw, height: th });
 
     // Death card: right-center.
     const dw = 380 * s, dh = 380 * s;

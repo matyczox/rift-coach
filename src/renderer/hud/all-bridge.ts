@@ -70,7 +70,7 @@ function place(el: HTMLElement, r: Box): boolean {
 function layout(m: HudMessage, s: number): void {
   const W = viewW(), H = viewH();
   const tw = 600 * s, th = 150 * s;
-  place(panels.get('topbar')!, { x: (W - tw) / 2, y: H * 0.06, width: tw, height: th });
+  place(panels.get('topbar')!, { x: (W - tw) / 2, y: H * 0.085, width: tw, height: th });
   const dw = 380 * s, dh = 380 * s;
   place(panels.get('death')!, { x: W - dw - W * 0.02, y: H * 0.42 - dh / 2, width: dw, height: dh });
   // Power/danger: compact, mid-height, left of the enemy portraits column on the right edge.

@@ -41,6 +41,7 @@ Dostajesz stan meczu (JSON): jego postać, itemy, złoto, wszyscy gracze, timery
 Zasady:
 - "call": MAKSYMALNIE 5 słów, po polsku: co zrobić w ciągu najbliższych 5–20 sekund, ZANIM to się stanie (np. "Smok teraz — 3 martwych", "Nie pushuj — jungler top", "Back po tej fali"). Bez lania wody, bez emotek.
 - NIE opisuj tego, co gracz już widzi na ekranie (jego HP, złoto, timery, że ktoś zniknął) i NIE powtarzaj poprzednich porad (previousCalls) ani ich sensu innymi słowami. Ogólniki typu "farm pod wieżą", "uważaj na ganka" tylko gdy coś się zmieniło.
+- Smoki, baron, herold i timery celów pokazuje graczowi osobny panel (werdykt IDŹ / WALCZ / ODPUŚĆ). NIE pisz o nich, chyba że Twoja decyzja jest INNA niż oczywista (np. "Odpuść smoka — Yi za wami").
 - Gdy nie masz NOWEJ, konkretnej decyzji: "call": null (gracz nic nie zobaczy — to lepsze niż szum).
 - "tone": go = zrób to teraz, wait = czekaj/przygotuj się, danger = zagrożenie, farm = spokojnie farm.
 - "mapHint": gdzie iść/co unikać, albo null. target to np. "dragon", "baron", "herald", "top", "mid", "bot", "my-jungle", "enemy-jungle", "base".
@@ -189,14 +190,14 @@ export class Coach extends EventEmitter {
     this.lastSeen.dead = dead;
 
     const eventsNow = i.recent.length ? i.recent[0]!.at : 0;
-    if (!reason && eventsNow > this.lastSeen.events && i.recent[0] && /Smok|Baron|Herald|Atakhan|Wieża|Inhibitor/.test(i.recent[0].text)) reason = 'event';
+    if (!reason && eventsNow > this.lastSeen.events && i.recent[0] && /Wieża|Inhibitor/.test(i.recent[0].text)) reason = 'event';
     this.lastSeen.events = Math.max(this.lastSeen.events, eventsNow);
 
     if (!reason && me && me.level >= 6 && this.lastSeen.myLevel < 6 && this.lastSeen.myLevel > 0) reason = 'level6';
     if (me) this.lastSeen.myLevel = me.level;
 
     const soon = i.objectives.find(o => o.spawnsAt && o.spawnsAt - i.gameTime < 60 && o.spawnsAt - i.gameTime > 45);
-    if (!reason && soon && i.gameTime - this.lastCallGameTime > 15) reason = 'objective-soon';
+    void soon; // objectives: shown by the HUD objective panel, no coach call
     const newAlert = ctx.alerts.find(a => a.confidence > 0.6 && !this.seenAlerts.has(a.text));
     for (const a of ctx.alerts) this.seenAlerts.set(a.text, i.gameTime);
     for (const [t, at] of this.seenAlerts) if (i.gameTime - at > 60) this.seenAlerts.delete(t);

@@ -254,7 +254,8 @@ pub fn compose_hud(i: &HudInputs) -> Value {
     let top_bar = match advice {
         Some(a) if !dead => {
             let tag = next_obj.map(|o| format!("{} {}", o.label.to_lowercase(), fmt_t(o.spawns_at.unwrap_or(game_time) - game_time)));
-            json!({ "call": a.get("call"), "tone": a.get("tone"), "tag": tag, "expiresAt": now + 3000.0 })
+            let _ = tag; // objective timers live in the HUD objective panel, not the coach bar
+            json!({ "call": a.get("call"), "tone": a.get("tone"), "tag": Value::Null, "expiresAt": now + 3000.0 })
         }
         _ => Value::Null,
     };

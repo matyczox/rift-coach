@@ -118,7 +118,7 @@ export function composeHud(i: HudInputs): HudState {
   return {
     visible: i.visible && Boolean(intel),
     gameTime,
-    topBar: advice && !dead ? { call: advice.call, tone: advice.tone, tag: nextObj ? `${nextObj.label.toLowerCase()} ${fmt(nextObj.spawnsAt! - gameTime)}` : undefined, expiresAt: now + 3000 } : null,
+    topBar: advice && !dead ? { call: advice.call, tone: advice.tone, tag: undefined, expiresAt: now + 3000 } : null,
     alert: i.alerts.filter(a => a.expiresAt > now).sort((a, b) => b.confidence - a.confidence)[0] ?? null,
     deathCard: dead && intel?.me ? {
       title: `Nie żyjesz · respawn ${fmt(intel.me.respawnIn)}`,
