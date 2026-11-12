@@ -94,6 +94,9 @@ function CoachMark({ size = 40, active = false }: { size?: number; active?: bool
   );
 }
 
+/** Polish plural: 1 porada, 2–4 porady, 5+ porad (12–14 porad). */
+const plural = (n: number, one: string, few: string, many: string) => (n === 1 ? one : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? few : many);
+
 const PROVIDER = (m: string) => (m.startsWith('gpt') ? 'Codex' : 'Claude');
 
 function CoachCard({ status }: { status: AppStatus }) {
@@ -107,9 +110,10 @@ function CoachCard({ status }: { status: AppStatus }) {
         <CoachMark active={c.state === 'thinking'} />
         <div className="coach-top-text">
           <div className="side-title">Twój coach</div>
-          <div className={'coach-state ' + tone}><i />{state}{c.lastLatencyMs != null && tone === 'ok' ? <span className="muted"> · odpowiada w {(c.lastLatencyMs / 1000).toFixed(1)} s</span> : null}</div>
+          <div className={'coach-state ' + tone}><i />{state}</div>
+          {c.lastLatencyMs != null && tone === 'ok' ? <div className="coach-latency">odpowiedź w {(c.lastLatencyMs / 1000).toFixed(1).replace('.', ',')} s</div> : null}
         </div>
-        {c.calls > 0 && <div className="coach-calls num"><b>{c.calls}</b><small>porad</small></div>}
+        {c.calls > 0 && <div className="coach-calls num"><b>{c.calls}</b><small>{plural(c.calls, 'porada', 'porady', 'porad')}</small></div>}
       </div>
       {c.lastError && tone === 'bad' && <div className="error-text small">{c.lastError}</div>}
       <div className="coach-models">

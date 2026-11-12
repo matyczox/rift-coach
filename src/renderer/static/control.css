@@ -643,3 +643,10 @@ body { font-feature-settings: "tnum" 0, "cv11" 1; letter-spacing: -0.005em; }
 .live-coach.thinking .coach-call { animation: callFade 1.6s ease-in-out infinite; }
 @keyframes callFade { 50% { opacity: .75; } }
 .coach-wait { color: var(--text-dim); font-size: 13px; padding: 12px 0; }
+/* Tighter top: no gap between the tabs and the profile header */
+.content { padding-top: 12px; }
+.home-wrap { gap: 12px; }
+.profile { min-height: 0; }
+.profile-inner { padding: 6px 6px 10px; }
+.coach-latency { font-size: 11.5px; color: var(--text-faint); margin-top: 1px; }
+.coach-state { white-space: nowrap; }

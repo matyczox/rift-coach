@@ -98,6 +98,8 @@ function SystemPill({ items, thinking }: { items: Item[]; thinking?: boolean }) 
   const PASSIVE = ['Gra (Live API)', 'Obraz gry', 'Powtórka', 'Zbieranie danych'];
   const warns = items.filter(i => i.state === 'waiting' && !PASSIVE.includes(i.label)).length;
   const tone = errors ? 'error' : warns ? 'waiting' : 'connected';
+  // All fine and the coach idle: the Gotowość card already says so; keep the title bar clean.
+  if (!errors && !warns && !thinking) return null;
   const text = thinking && !errors ? 'Coach myśli…' : errors ? `${errors} ${errors === 1 ? 'problem' : 'problemy'}` : warns ? `${warns} do uwagi` : 'Wszystko działa';
   return (
     <div className="sys" ref={ref}>
