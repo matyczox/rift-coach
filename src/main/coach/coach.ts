@@ -194,6 +194,9 @@ export class Coach extends EventEmitter {
       const sig = this.signature(ctx);
       if (sig !== this.lastSignature || i.gameTime - this.lastCallGameTime > this.config.periodSec * 2) reason = 'periodic';
     }
+    // While dead: one death review only. Other triggers (kills, alerts, periodic) would ask the live
+    // model, which sees "NIE ŻYJE" and writes a second death review over the first.
+    if (dead && reason !== 'death') return null;
     return reason;
   }
 
