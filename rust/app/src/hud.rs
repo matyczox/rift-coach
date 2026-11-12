@@ -192,6 +192,7 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
         let mut g = st.game.lock().unwrap();
         g.field.alerts.retain(|a| a.expires_at > now);
         g.field.toasts.retain(|t| t.expires_at > now);
+        g.field.expire_if_stale(now);
         let g = &*g;
         let icon = |c: &str| champion_icon(g, c);
         let vis_fn = |x: f64, y: f64| g.field.visible_at(x, y).unwrap_or(0.0);
@@ -199,8 +200,12 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
         use crate::knowledge as k;
         // Fight here and now (who is near, HP, mana...). With the edge on our side a gank warning is noise:
         // the ganker is the one in trouble.
-        let fight_p = g.intel.as_ref().and_then(|i| rc_core::intel::matchup::power_bar_near(i, g.matchup.as_ref(), &|c: &str| c.to_string(), &k::nearby(g))).map(|p| p.p_me);
-        let alerts: Vec<crate::vision::Alert> = g.field.alerts.iter().filter(|a| !(a.kind == "gank" && fight_p.is_some_and(|p| p >= 0.6))).cloned().collect();
+        // Only a real local fight counts (someone near); and a gank warning is muted only when allies
+        // are actually with me and the fight there is clearly ours.
+        let fight = g.intel.as_ref().and_then(|i| rc_core::intel::matchup::power_bar_near(i, g.matchup.as_ref(), &|c: &str| c.to_string(), &k::nearby(g))).filter(|p| p.local);
+        let fight_p = fight.as_ref().map(|p| p.p_me);
+        let mute_gank = fight.as_ref().is_some_and(|p| p.p_me >= 0.6 && !p.allies.is_empty());
+        let alerts: Vec<crate::vision::Alert> = g.field.alerts.iter().filter(|a| !(a.kind == "gank" && mute_gank)).cloned().collect();
         let profiles: Vec<Value> = g.profiles.iter().filter_map(|p| serde_json::to_value(p).ok()).collect();
         let (power, danger, objective, fed) = match g.intel.as_ref() {
             Some(i) => {

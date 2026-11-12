@@ -85,6 +85,9 @@ pub fn on_live_lost(st: &Arc<AppState>) {
     // Per-game tip counter and the whole coach session (clocks, history, pending answers).
     g.coach.status.calls = 0;
     g.coach.reset_session();
+    g.build_trigger = Default::default();
+    g.profiles_key.clear();
+    g.matchup_key.clear();
     g.field.on_live_lost();
     drop(g);
     st.ui.lock().unwrap().last_advice = None;
@@ -141,6 +144,7 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
 
     let action = {
         let g = &mut *g;
+        g.field.expire_if_stale(now_ms());
         let (camps, covered, brief, matchup) = match g.intel.as_ref() {
             Some(i) => (crate::vision::camp_summary(i, &g.field), crate::vision::covered_spots(i, &g.field), crate::knowledge::brief_text(g, i), matchup_for_coach(i, g.matchup.as_ref())),
             None => (Vec::new(), Vec::new(), None, None),
@@ -158,7 +162,7 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
                 let r2 = |v: f64| (v * 100.0).round() / 100.0;
                 let pos = |u: &crate::vision::SeenUnit| serde_json::json!({ "champ": u.champion, "x": r2(u.x), "y": r2(u.y) });
                 let me = i.me.as_ref().map(|m| m.champion.clone()).unwrap_or_default();
-                let fight = rc_core::intel::matchup::power_bar_near(i, g.matchup.as_ref(), &|c: &str| c.to_string(), &crate::knowledge::nearby(g)).map(|p| r2(p.p_me));
+                let fight = rc_core::intel::matchup::power_bar_near(i, g.matchup.as_ref(), &|c: &str| c.to_string(), &crate::knowledge::nearby(g)).filter(|p| p.local).map(|p| r2(p.p_me));
                 serde_json::json!({
                     "me": g.field.my_pos.map(|(x, y)| serde_json::json!({ "x": r2(x), "y": r2(y) })),
                     "allies": g.field.allies.iter().filter(|a| a.champion != me).map(pos).collect::<Vec<_>>(),

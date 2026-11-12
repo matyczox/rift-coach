@@ -78,13 +78,14 @@ pub fn maybe_load_profiles(st: &Arc<AppState>, g: &mut Game, d: &AllGameData, ap
     if key == g.profiles_key {
         return;
     }
-    g.profiles_key = key.clone();
-    g.profiles.clear();
     let set = |s: ProfilesStatus| st.ui.lock().unwrap().profiles = s;
     if !api_key_set {
+        // Not remembered as done: when a key is added during the game, the next tick fetches.
         set(ProfilesStatus { state: "no-key".into(), count: 0, error: None });
         return;
     }
+    g.profiles_key = key.clone();
+    g.profiles.clear();
     let my_team = g.intel.as_ref().and_then(|i| i.me.as_ref()).map(|m| m.team.clone()).unwrap_or_else(|| "ORDER".into());
     let players: Vec<ProfilePlayer> = d
         .all_players
@@ -141,7 +142,12 @@ pub fn maybe_load_matchup(st: &Arc<AppState>, g: &mut Game) {
     g.matchup_key = k.clone();
     let dir = st.data_dir.join("matchups");
     g.matchup = load_cached_matchup(&dir, &q);
-    if g.matchup.is_some() || !coach_usable(g) {
+    if g.matchup.is_some() {
+        return;
+    }
+    if !coach_usable(g) {
+        // Retry once the coach is usable (auth comes after the first intel tick).
+        g.matchup_key.clear();
         return;
     }
     let st = st.clone();
@@ -212,7 +218,16 @@ fn build_session(intel: &GameIntel) -> String {
 
 /// Build panel: re-ask the build model on item / enemy-item / death changes or every 3 min.
 pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64) {
-    let (Some(sd), Some(intel)) = (g.static_data.clone(), g.intel.as_ref()) else { return };
+    let (Some(sd), Some(_)) = (g.static_data.clone(), g.intel.as_ref()) else { return };
+    // Just bought something from the plan: drop it from the panel now, not after the next answer.
+    if let (Some(b), Some(me)) = (g.build.as_mut(), g.intel.as_ref().and_then(|i| i.me.as_ref())) {
+        let owned: Vec<String> = me.items.iter().map(|i| i.name.to_lowercase()).collect();
+        b.items.retain(|it| !owned.contains(&it.name.to_lowercase()));
+        if b.items.is_empty() {
+            g.build = None;
+        }
+    }
+    let intel = g.intel.as_ref().unwrap();
     if intel.me.is_none() || g.build_busy || !coach_usable(g) || !g.build_trigger.should_refresh(intel, now) {
         return;
     }
@@ -239,9 +254,8 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
                 // Bought while the model was thinking: never recommend what I already have.
                 let owned: Vec<String> = intel.me.as_ref().map(|m| m.items.iter().map(|i| i.name.to_lowercase()).collect()).unwrap_or_default();
                 b.items.retain(|it| !owned.contains(&it.name.to_lowercase()));
-                if !b.items.is_empty() {
-                    g.build = Some(b);
-                }
+                // An answer with nothing left replaces the old plan too (it may hold bought items).
+                g.build = if b.items.is_empty() { None } else { Some(b) };
             }
             Err(e) => log::warn!("build {e}"),
         }
@@ -260,6 +274,9 @@ pub fn seen(units: &[SeenUnit]) -> Vec<situational::SeenUnit> {
 
 /// Fog tracks as the situational calls see them.
 pub fn fog_tracks(g: &Game) -> Vec<FogTrack> {
+    if g.field.is_stale(crate::vision::now_ms()) {
+        return Vec::new();
+    }
     g.field
         .tracker
         .as_ref()

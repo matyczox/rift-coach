@@ -454,7 +454,8 @@ impl Coach {
         }
         let i = ctx.intel.expect("intel");
         let game_key = i.players.iter().map(|p| p.champion.as_str()).collect::<Vec<_>>().join("|");
-        if game_key != self.last_seen.game_key {
+        // New game, or the clock jumped back (Practice Tool reset, replay seek): new session.
+        if game_key != self.last_seen.game_key || i.game_time + 30.0 < self.last_call_game_time {
             self.reset_session();
             self.last_seen.game_key = game_key;
         }
@@ -724,7 +725,9 @@ pub fn same_objective_topic(a: &str, b: &str) -> bool {
     let norm = |x: &str| strip_diacritics(&x.to_lowercase());
     let topic = |s: &str| ["smok", "drag", "elder", "baron", "herol", "heral", "larw", "grub", "atakh"].into_iter().find(|t| s.contains(t)).map(|t| match t { "drag" | "elder" => "smok", "heral" => "herol", "grub" => "larw", x => x });
     let (na, nb) = (norm(a), norm(b));
-    matches!((topic(&na), topic(&nb)), (Some(x), Some(y)) if x == y) && negated(a) == negated(b)
+    // Same objective AND the same step of the decision: prepare (vision, group up) -> go now -> give up.
+    let prep = |s: &str| ["przygot", "zbier", "ward", "wizj", "ustaw", "czekaj"].iter().any(|w| s.contains(w));
+    matches!((topic(&na), topic(&nb)), (Some(x), Some(y)) if x == y) && negated(a) == negated(b) && prep(&na) == prep(&nb)
 }
 
 pub fn similar_call(a: &str, b: &str) -> bool {
@@ -1011,6 +1014,9 @@ mod tests {
         assert!(!similar_call("Dragon teraz", "Nie rób Dragona"));
         assert!(!similar_call("Pushuj", "Nie pushuj"));
         assert!(!same_objective_topic("Dragon teraz", "Nie rób Dragona"));
+        // Audit V3 F02: prepare -> go is a new decision.
+        assert!(!same_objective_topic("Przygotuj się do Dragona", "Dragon teraz"));
+        assert!(same_objective_topic("Przygotuj wizję Dragona", "Ward przed Dragonem"));
         assert!(similar_call("Farmuj pod wieżą", "Farmuj pod wieżą — gank"));
         assert!(similar_call("Nie pushuj — jungler top", "nie PUSHUJ, jungler top!"));
         assert!(similar_call("Zaczekaj na smoka", "Zaczekaj z grupą na smoka teraz"));

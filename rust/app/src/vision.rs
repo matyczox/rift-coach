@@ -141,6 +141,8 @@ pub struct Field {
     pub my_pos: Option<(f64, f64)>,
     /// When my portrait was last seen (Date.now() ms): the position expires after a few seconds.
     pub my_pos_at: f64,
+    /// Last vision result (Date.now() ms): when vision stops, everything spatial expires.
+    pub last_vision_at: f64,
     /// Recalls already announced: (champion, recalled_at game time). Vision runs faster than the Live
     /// API, so the same recall shows up on several frames.
     pub recall_seen: Vec<(String, f64)>,
@@ -176,6 +178,7 @@ impl Field {
             alerts: Vec::new(),
             my_pos: None,
             my_pos_at: 0.0,
+            last_vision_at: 0.0,
             recall_seen: Vec::new(),
             allies: Vec::new(),
             visible_enemies: Vec::new(),
@@ -185,6 +188,22 @@ impl Field {
             roster_ready: false,
             detect: false,
             map11: false,
+        }
+    }
+
+    /// Vision stopped (no result for 2 s) while the Live API goes on: positions, ghosts and the fog
+    /// mask are unknown now, not "as last seen".
+    pub fn is_stale(&self, now: f64) -> bool {
+        now - self.last_vision_at > 2000.0
+    }
+
+    pub fn expire_if_stale(&mut self, now: f64) {
+        if self.is_stale(now) {
+            self.my_pos = None;
+            self.allies.clear();
+            self.visible_enemies.clear();
+            self.ghosts.clear();
+            self.mask = None;
         }
     }
 
@@ -767,6 +786,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     let Game { intel, field: f, team_watcher, obs, obs_game_key, profiles, .. } = &mut *guard;
     let intel = intel.as_ref().unwrap();
     let now = now_ms();
+    f.last_vision_at = now;
     let my_team = intel.me.as_ref().map(|m| m.team.as_str()).unwrap_or("ORDER");
     let my_team_t = Team::parse(my_team).unwrap_or(Team::Order);
     if let Some(me) = intel.me.as_ref() {

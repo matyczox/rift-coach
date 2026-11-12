@@ -342,12 +342,48 @@ impl ParticleFilter {
         let n = self.n;
         self.particles = (0..n)
             .map(|_| {
-                let x = clamp01(at.0 + (rng.next() - 0.5) * 0.01);
-                let y = clamp01(at.1 + (rng.next() - 0.5) * 0.01);
+                let (x, y) = self.walkable_near((clamp01(at.0 + (rng.next() - 0.5) * 0.01), clamp01(at.1 + (rng.next() - 0.5) * 0.01)), at);
                 let goal = self.sample_goal(None, rng);
                 Particle { x, y, goal, w: 1.0 / n as f64, arrived: false }
             })
             .collect();
+    }
+
+    /// Jittered point if walkable, else the unjittered one, else the nearest walkable cell.
+    fn walkable_near(&self, q: (f64, f64), fallback: (f64, f64)) -> (f64, f64) {
+        if self.terrain.walkable(q.0, q.1) {
+            return q;
+        }
+        if self.terrain.walkable(fallback.0, fallback.1) {
+            return fallback;
+        }
+        self.nearest_walkable(fallback)
+    }
+
+    /// Nearest walkable point by a small ring search (up to ~0.06 map); the point itself if none.
+    fn nearest_walkable(&self, q: (f64, f64)) -> (f64, f64) {
+        let step = 0.004;
+        for ring in 1..=15 {
+            let r = ring as f64 * step;
+            for k in 0..(8 * ring) {
+                let a = k as f64 / (8 * ring) as f64 * std::f64::consts::TAU;
+                let (x, y) = (clamp01(q.0 + r * a.cos()), clamp01(q.1 + r * a.sin()));
+                if self.terrain.walkable(x, y) {
+                    return (x, y);
+                }
+            }
+        }
+        q
+    }
+
+    /// Goal-kind shares the filter actually samples from (role/time prior, learned multipliers,
+    /// heading, the dynamic Stay goal): what the learner must compare credit against.
+    pub fn prior_by_kind(&self) -> KindMap {
+        let mut out = KindMap::new();
+        for (g, w) in self.goals.iter().zip(&self.goal_w) {
+            *out.entry(g.kind).or_insert(0.0) += *w;
+        }
+        out
     }
 
     /// Update goal weights. `motion` = (position, heading velocity).
@@ -483,6 +519,9 @@ impl ParticleFilter {
     /// hypothesis is contradicted (weights left unnormalised, as in TS).
     pub fn observe_absent(&mut self, visible: &dyn Fn(f64, f64) -> f64, rng: &mut Rng) -> bool {
         let before: f64 = self.particles.iter().map(|p| p.w).sum();
+        // Mass in cells the fog reader calls visible (>= 0.52, fog.rs): if nearly all of it is there and
+        // nobody is seen, the hypothesis is contradicted even when v < 1 (v = 0.8 used to survive).
+        let seen: f64 = self.particles.iter().filter(|p| visible(clamp01(p.x), clamp01(p.y)) >= 0.52).map(|p| p.w).sum();
         let mut total = 0.0;
         for p in self.particles.iter_mut() {
             let v = visible(clamp01(p.x), clamp01(p.y));
@@ -493,7 +532,7 @@ impl ParticleFilter {
         // Almost all of the mass sat where we can see and nobody is there: the whole hypothesis is
         // contradicted. (Normalizing would bring the same distribution back — e.g. full map vision
         // left a ghost at ~95% confidence.)
-        if !(total > 1e-9) || total < before * 0.12 {
+        if !(total > 1e-9) || total < before * 0.12 || seen > before * 0.9 {
             return false;
         }
         for p in self.particles.iter_mut() {
@@ -550,8 +589,7 @@ impl ParticleFilter {
                 c += self.particles[i].w;
             }
             let p = self.particles[i];
-            let x = clamp01(p.x + (rng.next() - 0.5) * 0.004);
-            let y = clamp01(p.y + (rng.next() - 0.5) * 0.004);
+            let (x, y) = self.walkable_near((clamp01(p.x + (rng.next() - 0.5) * 0.004), clamp01(p.y + (rng.next() - 0.5) * 0.004)), (p.x, p.y));
             out.push(Particle { x, y, goal: p.goal, w: step, arrived: p.arrived });
         }
         self.particles = out;
@@ -584,11 +622,13 @@ impl ParticleFilter {
             let best = self
                 .particles
                 .iter()
+                .filter(|p| self.terrain.walkable(p.x, p.y))
                 .step_by((self.particles.len() / 80).max(1))
-                .max_by(|a, b| self.mass_near((a.x, a.y), 0.05).total_cmp(&self.mass_near((b.x, b.y), 0.05)))
-                .unwrap();
-            mx = best.x;
-            my = best.y;
+                .max_by(|a, b| self.mass_near((a.x, a.y), 0.05).total_cmp(&self.mass_near((b.x, b.y), 0.05)));
+            (mx, my) = match best {
+                Some(b) => (b.x, b.y),
+                None => self.nearest_walkable((mx, my)),
+            };
         }
         let mut ds: Vec<(f64, f64)> = self.particles.iter().map(|p| ((p.x - mx).hypot(p.y - my), p.w)).collect();
         ds.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));

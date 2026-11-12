@@ -214,17 +214,28 @@ pub fn objective_call(intel: &GameIntel, tracks: &[FogTrack], allies: &[SeenUnit
         .filter(|x| matches!(x.kind, "dragon" | "baron" | "herald" | "grubs") && (x.alive || x.spawns_at.is_some_and(|s| s - gt <= 60.0)))
         .collect();
     cands.sort_by(|a, b| wait(a).total_cmp(&wait(b)));
-    let o = *cands.first()?;
-    let pos = obj_pos(o.kind)?;
-    let near = |x: f64, y: f64, r: f64| (x - pos.x).hypot(y - pos.y) <= r;
     let ally_alive = intel.ally.alive_count as f64;
     let enemy_alive = intel.enemy.alive_count as f64;
-    let allies_near = allies.iter().filter(|a| near(a.x, a.y, 0.2)).count();
-    let enemies_seen_near = visible_enemies.iter().filter(|e| near(e.x, e.y, 0.2)).count();
-    let enemies_likely_near = tracks.iter().filter(|t| t.in_fog && t.estimate.is_some_and(|e| near(e.x, e.y, 0.2 + e.radius * 0.5))).count();
-    let enemy_near = enemies_seen_near as f64 + 0.6 * enemies_likely_near as f64;
     let gold_k = intel.gold_diff / 1000.0;
-    let score = (ally_alive - enemy_alive) * 0.9 + (allies_near as f64 - enemy_near) * 0.6 + gold_k * 0.25 + if o.kind == "baron" { -0.4 } else { 0.0 };
+    // Score every candidate and take the best one (ties: the sooner one). Taking the first in the list
+    // said "Dragon / skip" with 4 of us at Baron and 3 enemies at Dragon.
+    let score_of = |o: &super::game_intel::ObjectiveTimer| -> Option<(f64, usize, Pos)> {
+        let pos = obj_pos(o.kind)?;
+        let near = |x: f64, y: f64, r: f64| (x - pos.x).hypot(y - pos.y) <= r;
+        let allies_near = allies.iter().filter(|a| near(a.x, a.y, 0.2)).count();
+        let enemies_seen_near = visible_enemies.iter().filter(|e| near(e.x, e.y, 0.2)).count();
+        let enemies_likely_near = tracks.iter().filter(|t| t.in_fog && t.estimate.is_some_and(|e| near(e.x, e.y, 0.2 + e.radius * 0.5))).count();
+        let enemy_near = enemies_seen_near as f64 + 0.6 * enemies_likely_near as f64;
+        let score = (ally_alive - enemy_alive) * 0.9 + (allies_near as f64 - enemy_near) * 0.6 + gold_k * 0.25 + if o.kind == "baron" { -0.4 } else { 0.0 };
+        Some((score, allies_near, pos))
+    };
+    let (o, (score, allies_near, pos)) = cands
+        .iter()
+        .filter_map(|o| score_of(o).map(|s| (*o, s)))
+        .fold(None::<(&super::game_intel::ObjectiveTimer, (f64, usize, Pos))>, |best, cur| match best {
+            Some(b) if b.1 .0 >= cur.1 .0 - 1e-9 => Some(b),
+            _ => Some(cur),
+        })?;
     let dead_enemies = 5 - intel.enemy.alive_count as i64;
     let (verdict, reason) = if score >= 1.2 {
         (
@@ -350,6 +361,21 @@ mod tests {
         assert_eq!(d.reasons[0], "A gank");
         assert!(d.level > 0.5);
         assert!(danger_at(&i, None, &[], &[], None, &[]).is_none());
+    }
+
+    /// Audit V3 F12: two live objectives -> the better one, not the first in the list.
+    #[test]
+    fn best_objective_not_first() {
+        let mut i = intel(vec![player("Ahri", true, true, "MIDDLE", 14)]);
+        i.game_time = 1500.0;
+        i.objectives = vec![
+            ObjectiveTimer { kind: "dragon", label: "Dragon".into(), spawns_at: None, alive: true },
+            ObjectiveTimer { kind: "baron", label: "Baron".into(), spawns_at: None, alive: true },
+        ];
+        let allies = [unit("A", 0.33, 0.3), unit("B", 0.34, 0.31), unit("C", 0.32, 0.29), unit("D", 0.35, 0.3)];
+        let enemies = [unit("X", 0.67, 0.7), unit("Y", 0.68, 0.71), unit("Z", 0.66, 0.69)];
+        let c = objective_call(&i, &[], &allies, &enemies).unwrap();
+        assert_eq!((c.objective.as_str(), c.verdict), ("Baron", "go"));
     }
 
     #[test]

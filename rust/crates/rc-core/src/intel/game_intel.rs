@@ -374,7 +374,8 @@ impl IntelTracker {
         };
         let player_champ: HashMap<String, String> = d.all_players.iter().map(|p| (name_of(p), p.champion_name.clone())).collect();
         let me_champ = me_idx.map(|i| d.all_players[i].champion_name.clone());
-        let mut ev = events(&d.events.events, t, &my_team, &team_of, &players, &me_name, me_champ.as_deref(), &player_champ);
+        let swift = d.game_data.game_mode == "SWIFTPLAY";
+        let mut ev = events(&d.events.events, t, &my_team, &team_of, &players, &me_name, me_champ.as_deref(), &player_champ, swift);
         ev.ally.est_gold = players.iter().filter(|p| p.is_ally).map(|p| p.est_gold).sum();
         ev.enemy.est_gold = players.iter().filter(|p| !p.is_ally).map(|p| p.est_gold).sum();
         ev.ally.alive_count = players.iter().filter(|p| p.is_ally && !p.is_dead).count();
@@ -431,6 +432,8 @@ fn events(
     me_name: &str,
     me_champ: Option<&str>,
     player_champ: &HashMap<String, String>,
+    // Swiftplay (26.1): no Voidgrubs / Herald, Baron at 12:00.
+    swift: bool,
 ) -> EventsOut {
     let blank = || TeamIntel { alive_count: 5, ..Default::default() };
     let (mut ally, mut enemy) = (blank(), blank());
@@ -601,16 +604,18 @@ fn events(
         spawns_at: (dragon_at > t).then_some(dragon_at),
         alive: dragon_at <= t,
     });
-    if t < obj::HERALD_FIRST + 5.0 * 60.0 && grubs_taken < 6 {
+    // One encounter of 3 Voidgrubs (the second spawn was removed in 25.09).
+    if !swift && t < obj::HERALD_FIRST + 5.0 * 60.0 && grubs_taken < 3 {
         objectives.push(ObjectiveTimer { kind: "grubs", label: "Voidgrubs".into(), spawns_at: (obj::GRUBS_FIRST > t).then_some(obj::GRUBS_FIRST), alive: obj::GRUBS_FIRST <= t });
     }
-    if !herald_taken && t < obj::BARON_FIRST - 10.0 {
+    if !swift && !herald_taken && t < obj::BARON_FIRST - 10.0 {
         objectives.push(ObjectiveTimer { kind: "herald", label: "Herald".into(), spawns_at: (obj::HERALD_FIRST > t).then_some(obj::HERALD_FIRST), alive: obj::HERALD_FIRST <= t });
     }
     if obj::ATAKHAN_FIRST.is_finite() && !atakhan_taken && t < obj::BARON_FIRST + 60.0 {
         objectives.push(ObjectiveTimer { kind: "atakhan", label: "Atakhan".into(), spawns_at: (obj::ATAKHAN_FIRST > t).then_some(obj::ATAKHAN_FIRST), alive: obj::ATAKHAN_FIRST <= t });
     }
-    let baron_at = last_baron.map(|l| l + obj::BARON_RESPAWN).unwrap_or(obj::BARON_FIRST);
+    let baron_first = if swift { 12.0 * 60.0 } else { obj::BARON_FIRST };
+    let baron_at = last_baron.map(|l| l + obj::BARON_RESPAWN).unwrap_or(baron_first);
     objectives.push(ObjectiveTimer { kind: "baron", label: "Baron".into(), spawns_at: (baron_at > t).then_some(baron_at), alive: baron_at <= t });
     for &(at, mine, name) in &inhibs {
         let back = at + obj::INHIB_RESPAWN;

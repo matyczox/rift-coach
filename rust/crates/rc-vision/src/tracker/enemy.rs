@@ -401,10 +401,9 @@ impl EnemyTracker {
         let sigma = (((e.move_speed * 0.5) / MAP_UNITS) * gap).max(0.02);
         let (r, d) = (0.05, (q.0 - base.0).hypot(q.1 - base.1));
         let mass_baseline = ((r * r) / (2.0 * sigma * sigma) * (-(d * d) / (2.0 * sigma * sigma)).exp()).min(1.0);
-        let mut prior = KindMap::new();
-        for g in goals_for(e.team) {
-            *prior.entry(g.kind).or_insert(0.0) += 1.0;
-        }
+        // The distribution the filter really sampled from (not a count of goals per kind): with the
+        // wrong prior, observations that matched the model still moved the weights.
+        let prior = pf.prior_by_kind();
         self.learner.observe(Observation {
             champion: &e.champion,
             role: e.role,

@@ -62,7 +62,8 @@ pub fn build_context(intel: &GameIntel, items: &HashMap<i64, ItemData>, profiles
             e.insert("champion".into(), json!(p.champion));
             e.insert("role".into(), json!(p.role));
             e.insert("kda".into(), json!(format!("{}/{}/{}", p.kills, p.deaths, p.assists)));
-            e.insert("items".into(), json!(p.items.iter().filter(|i| i.price >= 900.0).map(|i| &i.name).collect::<Vec<_>>()));
+            // Components count too (a Null-Magic Mantle already changes what to build).
+            e.insert("items".into(), json!(p.items.iter().filter(|i| i.price >= 400.0).map(|i| &i.name).collect::<Vec<_>>()));
             e.insert("fed".into(), json!(fed.contains(&p.champion)));
             if let Some(pr) = profiles.iter().find(|pr| pr.champion == p.champion) {
                 e.insert("profile".into(), json!(pr.summary));
@@ -148,8 +149,15 @@ impl BuildTrigger {
     /// `now` in ms; true on item/enemy-item/death changes or every 3 min.
     pub fn should_refresh(&mut self, intel: &GameIntel, now: f64) -> bool {
         let Some(me) = &intel.me else { return false };
-        let enemy_items: usize = intel.players.iter().filter(|p| !p.is_ally).map(|p| p.completed_items).sum();
-        let key = format!("{}|{}|{}", me.items.iter().map(|i| i.id.to_string()).collect::<Vec<_>>().join(","), enemy_items, me.is_dead);
+        // Per enemy: items >= 400 g (resist components too, swaps with the same count) and kills in
+        // steps of 3 (someone suddenly fed).
+        let enemies: Vec<String> = intel
+            .players
+            .iter()
+            .filter(|p| !p.is_ally)
+            .map(|p| format!("{}:{}:{}", p.champion, p.items.iter().filter(|i| i.price >= 400.0).map(|i| i.id.to_string()).collect::<Vec<_>>().join("."), p.kills / 3))
+            .collect();
+        let key = format!("{}|{}|{}", me.items.iter().map(|i| i.id.to_string()).collect::<Vec<_>>().join(","), enemies.join(","), me.is_dead);
         if key != self.last_key || now - self.last_at > 180_000.0 {
             self.last_key = key;
             self.last_at = now;
@@ -219,10 +227,14 @@ mod tests {
         let mut i = intel(vec![player("Ahri", true, true, "MIDDLE", 9), player("Zed", false, false, "MIDDLE", 10)]);
         assert!(t.should_refresh(&i, 0.0));
         assert!(!t.should_refresh(&i, 1000.0));
-        i.players[1].completed_items = 1;
+        // Audit V3 F05: a cheap resist component counts, and so does a sudden kill streak.
+        i.players[1].items.push(crate::intel::game_intel::PlayerItem { id: 1033, name: "Null-Magic Mantle".into(), price: 400.0 });
         assert!(t.should_refresh(&i, 2000.0));
-        assert!(!t.should_refresh(&i, 182_000.0));
-        assert!(t.should_refresh(&i, 182_001.0));
+        assert!(!t.should_refresh(&i, 3000.0));
+        i.players[1].kills = 6;
+        assert!(t.should_refresh(&i, 4000.0));
+        assert!(!t.should_refresh(&i, 184_000.0));
+        assert!(t.should_refresh(&i, 184_001.0));
         assert!(!t.should_refresh(&intel(vec![]), 0.0));
     }
 }

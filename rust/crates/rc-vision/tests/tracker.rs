@@ -206,3 +206,21 @@ fn estimate_not_inside_a_wall() {
     let est = pf.estimate(0.7);
     assert!(terrain.walkable(est.x, est.y), "center in a wall: {:?}", (est.x, est.y));
 }
+
+/// Audit V3 F04: partial visibility (v = 0.8, above the fog reader's 0.52 "visible") also leaves no ghost.
+#[test]
+fn partial_vision_leaves_no_ghost() {
+    let mut tr = EnemyTracker::new(open(), Learner::new(None), 200);
+    let e = [ww()];
+    let mostly_visible = |_x: f64, _y: f64| 0.8;
+    let mut t = 200.0;
+    for _ in 0..5 {
+        tr.update(&FrameInput { t, detections: &[det(0.6, 0.4)], visible: Some(&mostly_visible), enemies: &e, dragon_in: None, baron_in: None });
+        t += 0.1;
+    }
+    for _ in 0..10 {
+        tr.update(&FrameInput { t, detections: &[], visible: Some(&mostly_visible), enemies: &e, dragon_in: None, baron_in: None });
+        t += 0.1;
+    }
+    assert!(tr.all()[0].estimate.is_none(), "ghost under 80% vision: {:?}", tr.all()[0].estimate);
+}

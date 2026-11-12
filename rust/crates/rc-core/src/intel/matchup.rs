@@ -220,6 +220,9 @@ pub struct PowerBarState {
     pub allies: Vec<NearSide>,
     /// Other enemies next to me: seen now (sure) or a fresh fog estimate close by (not sure).
     pub enemies: Vec<NearSide>,
+    /// true = a fight around me (someone is near); false = nobody near, the bar shows the lane 1v1
+    /// and must not be used as "fight here" (gank warnings, coach).
+    pub local: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -313,15 +316,47 @@ pub fn power_bar_near(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dy
     if me.is_dead {
         return None;
     }
-    let (_, base) = power_score(intel, opp, brief);
-    let p_me = sigmoid(base + nearby_delta(intel, opp, near));
+    // Who is the fight against? The lane opponent only if he is actually near (seen, a fog estimate
+    // close by, or heading to me). Otherwise the strongest enemy near me (no lane matchup curve:
+    // it is not that matchup). Nobody near: the lane 1v1, flagged non-local.
+    let alive_enemy = |c: &str| intel.players.iter().find(|p| p.champion == c && !p.is_ally && !p.is_dead);
+    let opp_near = !opp.is_dead && (near.enemies.iter().any(|(c, _)| *c == opp.champion) || near.enemies_coming.contains(&opp.champion));
+    let alive: Vec<&PlayerIntel> = intel.players.iter().filter(|p| !p.is_dead).collect();
+    let n = alive.len().max(1) as f64;
+    let (avg_lvl, avg_gold) = (alive.iter().map(|p| p.level as f64).sum::<f64>() / n, alive.iter().map(|p| p.item_gold).sum::<f64>() / n);
+    let strongest_near = near
+        .enemies
+        .iter()
+        .filter_map(|(c, sure)| alive_enemy(c).map(|p| (p, unit_strength(p, avg_lvl, avg_gold, hp_eff(intel, p)) * if *sure { 1.0 } else { 0.6 })))
+        .max_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|x| x.0);
+    let (primary, primary_brief, local) = if opp_near {
+        (opp, brief, true)
+    } else if let Some(p) = strongest_near {
+        (p, None, true)
+    } else {
+        (opp, brief, false)
+    };
+    let (_, base) = power_score(intel, primary, primary_brief);
+    let p_me = sigmoid(base + if local { nearby_delta(intel, primary, near) } else { 0.0 });
     let side = |c: &str, sure: bool| intel.players.iter().find(|p| p.champion == c && !p.is_dead).map(|p| NearSide { champion: p.champion.clone(), icon_url: icon(&p.champion), level: p.level, sure });
     let allies: Vec<NearSide> = near.allies.iter().filter(|c| intel.players.iter().any(|p| &p.champion == *c && p.is_ally && !p.is_me)).filter_map(|c| side(c, true)).collect();
-    let enemies: Vec<NearSide> = near.enemies.iter().filter(|(c, _)| *c != opp.champion && intel.players.iter().any(|p| &p.champion == c && !p.is_ally)).filter_map(|(c, s)| side(c, *s)).collect();
+    let enemies: Vec<NearSide> = near.enemies.iter().filter(|(c, _)| *c != primary.champion && intel.players.iter().any(|p| &p.champion == c && !p.is_ally)).filter_map(|(c, s)| side(c, *s)).collect();
     let gold = (js_round((me.item_gold - opp.item_gold) / 50.0) * 50.0) as i64;
     let cs = me.cs - opp.cs;
     let detail = format!("lvl {} vs {} · {} g · CS {}", me.level, opp.level, signed(gold), signed(cs));
-    let advice = if opp.is_dead {
+    let advice = if local && primary.champion != opp.champion {
+        // A fight with someone else (roam, gank, objective): no lane wording.
+        if let Some(hp) = hp_fresh(intel, primary).filter(|&h| h < 0.35 && p_me >= 0.55) {
+            format!("{} {}% HP → wchodź", primary.champion, js_round(hp * 100.0) as i64)
+        } else if p_me >= 0.6 {
+            "Przewaga tutaj → wchodź".into()
+        } else if p_me <= 0.4 {
+            "Słabsi tutaj → odejdź".into()
+        } else {
+            "Wyrównane tutaj → ostrożnie".into()
+        }
+    } else if opp.is_dead {
         format!("{} nie żyje → push / płytki", opp.champion)
     } else if let Some(hp) = hp_fresh(intel, opp).filter(|&h| h < 0.35 && p_me >= 0.55) {
         format!("{} {}% HP → all-in", opp.champion, js_round(hp * 100.0) as i64)
@@ -341,7 +376,7 @@ pub fn power_bar_near(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dy
     };
     Some(PowerBarState {
         me: PowerSide { champion: me.champion.clone(), icon_url: icon(&me.champion), level: me.level },
-        enemy: PowerSide { champion: opp.champion.clone(), icon_url: icon(&opp.champion), level: opp.level },
+        enemy: PowerSide { champion: primary.champion.clone(), icon_url: icon(&primary.champion), level: primary.level },
         p_me,
         detail,
         advice,
@@ -349,6 +384,7 @@ pub fn power_bar_near(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dy
         lane: LaneLead { gold: gold as i64, cs: cs as i64, level: me.level as i64 - opp.level as i64 },
         allies,
         enemies,
+        local,
     })
 }
 
@@ -377,6 +413,39 @@ pub(crate) mod tests {
     use crate::llm::caller::FakeCaller;
     use std::collections::BTreeMap;
 
+    /// Audit V3 F01: an absent lane opponent must not decide a fight somewhere else.
+    #[test]
+    fn absent_lane_opponent_does_not_count() {
+        let mut me = player("Ahri", true, true, "MIDDLE", 10);
+        me.item_gold = 4000.0;
+        let mut zed = player("Zed", false, false, "MIDDLE", 1);
+        zed.item_gold = 0.0;
+        let mut ez = player("Ezreal", false, false, "BOTTOM", 12);
+        ez.item_gold = 8000.0;
+        let icon = |c: &str| c.to_string();
+        let near = Nearby { enemies: vec![("Ezreal".into(), true)], ..Default::default() };
+        let i = intel(vec![me.clone(), zed.clone(), ez.clone()]);
+        let pb = power_bar_near(&i, None, &icon, &near).unwrap();
+        assert!(pb.local);
+        assert_eq!(pb.enemy.champion, "Ezreal");
+        assert!(pb.p_me < 0.4, "weak vs a stronger Ezreal: {}", pb.p_me);
+        assert!(!pb.advice.contains("Zed"), "{}", pb.advice);
+        // Changing only the far-away Zed changes nothing here.
+        let mut zed2 = zed.clone();
+        zed2.level = 18;
+        zed2.item_gold = 20000.0;
+        let i2 = intel(vec![me.clone(), zed2, ez.clone()]);
+        assert!((power_bar_near(&i2, None, &icon, &near).unwrap().p_me - pb.p_me).abs() < 1e-9);
+        // Zed dead, Ezreal next to me: no "push" lane instruction.
+        let mut zed3 = zed.clone();
+        zed3.is_dead = true;
+        let i3 = intel(vec![me.clone(), zed3, ez.clone()]);
+        let pb3 = power_bar_near(&i3, None, &icon, &near).unwrap();
+        assert!(!pb3.advice.contains("push"), "{}", pb3.advice);
+        // Nobody near: lane view, not a local fight.
+        assert!(!power_bar_near(&i, None, &icon, &Nearby::default()).unwrap().local);
+    }
+
     #[test]
     fn nearby_jungler_lowers_the_odds() {
         let mut me = player("Jinx", true, true, "BOTTOM", 9);
@@ -389,12 +458,13 @@ pub(crate) mod tests {
         jg.item_gold = 7000.0;
         let i = intel(vec![me, sup, opp, jg]);
         let icon = |c: &str| c.to_string();
-        let solo = power_bar(&i, None, &icon).unwrap().p_me;
-        let with_sup = power_bar_near(&i, None, &icon, &Nearby { allies: vec!["Lulu".into()], ..Default::default() }).unwrap().p_me;
-        let fog_jg = power_bar_near(&i, None, &icon, &Nearby { allies: vec!["Lulu".into()], enemies: vec![("Briar".into(), false)], ..Default::default() }).unwrap();
-        let jg_coming = power_bar_near(&i, None, &icon, &Nearby { allies: vec!["Lulu".into()], enemies_coming: vec!["Briar".into()], ..Default::default() }).unwrap().p_me;
+        let cait = ("Caitlyn".to_string(), true);
+        let solo = power_bar_near(&i, None, &icon, &Nearby { enemies: vec![cait.clone()], ..Default::default() }).unwrap().p_me;
+        let with_sup = power_bar_near(&i, None, &icon, &Nearby { allies: vec!["Lulu".into()], enemies: vec![cait.clone()], ..Default::default() }).unwrap().p_me;
+        let fog_jg = power_bar_near(&i, None, &icon, &Nearby { allies: vec!["Lulu".into()], enemies: vec![cait.clone(), ("Briar".into(), false)], ..Default::default() }).unwrap();
+        let jg_coming = power_bar_near(&i, None, &icon, &Nearby { allies: vec!["Lulu".into()], enemies: vec![cait.clone()], enemies_coming: vec!["Briar".into()], ..Default::default() }).unwrap().p_me;
         assert!(jg_coming < with_sup && jg_coming > fog_jg.p_me - 0.2);
-        let seen_jg = power_bar_near(&i, None, &icon, &Nearby { allies: vec!["Lulu".into()], enemies: vec![("Briar".into(), true)], ..Default::default() }).unwrap().p_me;
+        let seen_jg = power_bar_near(&i, None, &icon, &Nearby { allies: vec!["Lulu".into()], enemies: vec![cait.clone(), ("Briar".into(), true)], ..Default::default() }).unwrap().p_me;
         assert!(with_sup > solo);
         assert!(fog_jg.p_me < with_sup && seen_jg < fog_jg.p_me);
         assert_eq!(fog_jg.allies.len(), 1);
