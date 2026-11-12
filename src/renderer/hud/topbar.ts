@@ -49,15 +49,22 @@ subscribe(({ state }) => {
     }
   }
 
-  // Only the coach's call lives up here; alerts and the objective verdict are shown in the danger panel.
-  const al = null as AlertState | null;
+  // Warning under the coach's call: gank / invade / missing alerts, else a high danger reason.
+  // (Moved here from the power panel: a warning must be seen at a glance, next to the advice.)
+  const live = state.visible && state.alert && isLive(state.alert.expiresAt, state.gameTime) ? state.alert : null;
+  const dg = state.visible && !state.deathCard ? state.danger : null;
+  const al: AlertState | null = live && ['gank', 'invade', 'missing'].includes(live.kind)
+    ? live
+    : dg && (dg.label === 'niebezpiecznie' || dg.label === 'uciekaj') && dg.reasons[0]
+      ? { kind: 'gank', text: dg.reasons[0], confidence: dg.level, expiresAt: Date.now() + 1000 }
+      : null;
   if (!al) {
     alert.classList.add('hidden');
     lastAlertKey = '';
   } else {
     const key = `${al.kind}|${al.text}`;
     alertTxt.textContent = al.text;
-    alertConf.textContent = `· ${Math.round(Math.max(0, Math.min(1, al.confidence)) * 100)}%`;
+    alertConf.textContent = '';
     alert.classList.remove('hidden', 'red', 'amber', 'green');
     alert.classList.add(alertColor(al));
     if (key !== lastAlertKey) {

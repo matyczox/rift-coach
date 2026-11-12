@@ -162,7 +162,7 @@ pub fn danger_at(intel: &GameIntel, me: Option<Pos>, tracks: &[FogTrack], visibl
         let w = ghost_threat(t, me, 0.12) * if fed.contains(&t.champion) { 1.5 } else { 1.0 } * 0.35;
         if w > 0.03 {
             score += w;
-            reasons.push((w, format!("{} we mgle blisko", t.champion)));
+            reasons.push((w, format!("{} gank", t.champion)));
         }
     }
     let hp = match &intel.my_stats {
@@ -185,7 +185,7 @@ pub fn danger_at(intel: &GameIntel, me: Option<Pos>, tracks: &[FogTrack], visibl
     if missing >= 3 {
         let w = 0.05 * missing as f64;
         score += w;
-        reasons.push((w, format!("{missing} wrogów niewidocznych")));
+        reasons.push((w, format!("{missing} we mgle")));
     }
     let level = score.clamp(0.0, 1.0);
     let label = if level < 0.25 {
@@ -344,7 +344,7 @@ mod tests {
         assert_eq!(d.reasons, ["Zed blisko (fed)", "słabszy w matchupie"]);
         let fog = |c: &str| FogTrack { champion: c.into(), in_fog: true, estimate: Some(FogEstimate { x: 0.52, y: 0.5, radius: 0.05 }) };
         let d = danger_at(&i, me, &[fog("A"), fog("B"), fog("C")], &[], None, &[]).unwrap();
-        assert_eq!(d.reasons[0], "A we mgle blisko");
+        assert_eq!(d.reasons[0], "A gank");
         assert!(d.level > 0.5);
         assert!(danger_at(&i, None, &[], &[], None, &[]).is_none());
     }

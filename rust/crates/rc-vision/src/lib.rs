@@ -14,6 +14,7 @@ pub mod healthbars;
 pub mod icons;
 pub mod image;
 pub mod pipeline;
+pub mod teamframes;
 pub mod terrain;
 pub mod tracker;
 

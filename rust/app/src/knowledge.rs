@@ -261,9 +261,10 @@ pub fn current_p_me(g: &Game) -> Option<f64> {
 }
 
 /// Who is around me on the minimap, for the power bar's fight estimate (fast, local): allies and
-/// visible enemies within ~1/8 of the map, plus enemies whose fresh fog estimate is that close.
+/// visible enemies within ~1/7 of the map, plus enemies whose fresh fog estimate is that close.
 pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
-    const R: f64 = 0.12;
+    // ~1/7 of the map: a whole dragon / baron pit fight with the bushes around it.
+    const R: f64 = 0.15;
     let mut n = rc_core::intel::matchup::Nearby::default();
     let Some((mx, my)) = g.field.my_pos else { return n };
     let me = g.intel.as_ref().and_then(|i| i.me.as_ref()).map(|m| m.champion.clone()).unwrap_or_default();
@@ -276,6 +277,19 @@ pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
         if (e.x - mx).hypot(e.y - my) < R {
             n.enemies.push((e.champion.clone(), true));
         }
+    }
+    // Heading to me from further away (velocity, per minimap frame, points at me): gank / collapse incoming.
+    let coming = |u: &crate::vision::SeenUnit| {
+        let (dx, dy) = (mx - u.x, my - u.y);
+        let d = dx.hypot(dy);
+        let v = u.vx.hypot(u.vy);
+        (R..0.3).contains(&d) && v > 0.001 && (u.vx * dx + u.vy * dy) / (d * v) > 0.7
+    };
+    for a in g.field.allies.iter().filter(|a| a.champion != me && coming(a)) {
+        n.allies_coming.push(a.champion.clone());
+    }
+    for e in g.field.visible_enemies.iter().filter(|e| coming(e)) {
+        n.enemies_coming.push(e.champion.clone());
     }
     for t in fog_tracks(g) {
         let Some(est) = t.estimate.filter(|_| t.in_fog) else { continue };

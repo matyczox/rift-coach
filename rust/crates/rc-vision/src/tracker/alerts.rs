@@ -44,18 +44,19 @@ pub fn tracker_alerts(tracks: &[EnemyTrack], me: Option<(f64, f64)>, my_team: Te
             if in_my_jungle {
                 let p = near(j, me, 0.14);
                 if p > 0.45 {
-                    out.push(AlertState { kind: AlertKind::Invade, text: "Możliwy invade".into(), confidence: p, expires_at: now + 4000.0 });
+                    out.push(AlertState { kind: AlertKind::Invade, text: format!("{} invade", j.champion), confidence: p, expires_at: now + 4000.0 });
                 }
             }
         }
-        let best = fog.iter().map(|t| near(t, me, 0.11)).fold(0.0, f64::max);
-        if out.is_empty() && best > 0.5 {
-            out.push(AlertState { kind: AlertKind::Gank, text: "Możliwy gank".into(), confidence: best, expires_at: now + 4000.0 });
+        // Short on purpose ("Briar gank"): read at a glance, mid-fight.
+        let best = fog.iter().map(|t| (near(t, me, 0.11), t)).max_by(|a, b| a.0.total_cmp(&b.0));
+        if let Some((p, t)) = best.filter(|b| out.is_empty() && b.0 > 0.5) {
+            out.push(AlertState { kind: AlertKind::Gank, text: format!("{} gank", t.champion), confidence: p, expires_at: now + 4000.0 });
         }
     }
     let long_missing = fog.iter().filter(|t| game_time - t.fog_since.unwrap_or(game_time) > 20.0).count();
     if game_time > 12.0 * 60.0 && long_missing >= 3 && out.is_empty() {
-        out.push(AlertState { kind: AlertKind::Missing, text: format!("{long_missing} wrogów niewidocznych"), confidence: (long_missing as f64 / 5.0).min(1.0), expires_at: now + 4000.0 });
+        out.push(AlertState { kind: AlertKind::Missing, text: format!("{long_missing} we mgle"), confidence: (long_missing as f64 / 5.0).min(1.0), expires_at: now + 4000.0 });
     }
     out
 }

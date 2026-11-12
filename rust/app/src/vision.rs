@@ -627,6 +627,37 @@ pub fn champion_icon(g: &Game, champion: &str) -> String {
 }
 
 /// Enemy health bars -> IntelTracker (capture 'hp' in index.ts).
+/// Allies' health bars -> their HP for the fight estimate (my own HP comes from the Live API).
+/// Ally portraits above the minimap -> HP and mana of every ally. Slots follow the team order of the
+/// Live API with me left out. (Read every HP tick; more reliable than bars over champions.)
+fn apply_team_frames(g: &mut Game, frames: &[rc_vision::teamframes::AllyFrame]) {
+    let Game { intel, tracker, .. } = g;
+    let Some(intel) = intel.as_ref() else { return };
+    let allies: Vec<&PlayerIntel> = intel.players.iter().filter(|p| p.is_ally && !p.is_me).collect();
+    if frames.len() != 4 || allies.len() != 4 {
+        return;
+    }
+    for f in frames {
+        if let Some(p) = allies.get(f.slot) {
+            if !p.is_dead {
+                tracker.set_hp(&p.champion, f.hp, intel.game_time);
+                tracker.set_mana(&p.champion, f.mana, intel.game_time);
+            }
+        }
+    }
+}
+
+fn apply_ally_hp(g: &mut Game, bars: &[HealthBar]) {
+    let Game { intel, tracker, .. } = g;
+    let Some(intel) = intel.as_ref() else { return };
+    let cands: Vec<ChampionCandidate> = intel.players.iter().filter(|p| p.is_ally && !p.is_me && !p.is_dead).map(|p| ChampionCandidate { champion: p.champion.clone(), level: p.level.max(0) as u32, screen: None }).collect();
+    for (bar, c) in bars.iter().zip(match_bars_to_champions(bars, &cands, &MatchOptions::default())) {
+        if let Some(c) = c {
+            tracker.set_hp(&c, bar.pct, intel.game_time);
+        }
+    }
+}
+
 fn apply_hp(g: &mut Game, bars: &[HealthBar]) {
     let Game { intel, tracker, field, .. } = g;
     let Some(intel) = intel.as_ref() else { return };
@@ -634,6 +665,9 @@ fn apply_hp(g: &mut Game, bars: &[HealthBar]) {
     for (bar, c) in bars.iter().zip(match_bars_to_champions(bars, &cands, &MatchOptions::default())) {
         if let Some(c) = c {
             tracker.set_hp(&c, bar.pct, intel.game_time);
+            if bar.mana.is_some() {
+                tracker.set_mana(&c, bar.mana, intel.game_time);
+            }
         }
     }
     // Only one enemy bar on screen and only my lane opponent is near me on the minimap -> it's him.
@@ -665,6 +699,12 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     }
     if let Some(bars) = &r.hp {
         apply_hp(&mut guard, bars);
+    }
+    if let Some(bars) = &r.hp_allies {
+        apply_ally_hp(&mut guard, bars);
+    }
+    if let Some(frames) = &r.team_frames {
+        apply_team_frames(&mut guard, frames);
     }
     if !guard.field.detect || !guard.field.map11 || r.width == 0 || guard.field.tracker.is_none() {
         return;
@@ -752,7 +792,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             let ours = my_jg_pos.is_some_and(|p| (p.x - camp.x).hypot(p.y - camp.y) < 0.08);
             let me_there = f.my_pos.is_some_and(|p| (p.0 - camp.x).hypot(p.1 - camp.y) < 0.08);
             if !ours && !me_there {
-                f.alerts.push(Alert::new("invade", format!("Invade: wróg na twoim {}", camp_label(camp.id)), 0.85, now + 6000.0));
+                f.alerts.push(Alert::new("invade", format!("Invade {}", camp_label(camp.id)), 0.85, now + 6000.0));
             }
         }
     }

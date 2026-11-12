@@ -31,6 +31,10 @@ pub struct HealthBar {
     pub shield_compressed: bool,
     pub level: Option<u32>,
     pub confidence: f64,
+    /// Mana fraction from the thin blue strip right under the HP fill (None = no blue strip:
+    /// not a mana champion, or not readable).
+    #[serde(default)]
+    pub mana: Option<f64>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -176,8 +180,33 @@ pub fn read_health_bars(frame: &Rgba, opts: &ReadOptions) -> Vec<HealthBar> {
         }
         y += step;
     }
+    for b in &mut out {
+        b.mana = mana_below(frame, b, fill_h, s);
+    }
     out.sort_by(|a, b| a.y.cmp(&b.y).then(a.x.cmp(&b.x)));
     out
+}
+
+/// The resource strip sits a few px under the HP fill, same left edge and width. Take the row with
+/// the most mana-blue pixels in that band; no blue at all -> None (energy / no resource / unreadable;
+/// an empty mana strip looks like the dark frame, so 0 mana is not claimed from darkness).
+fn mana_below(frame: &Rgba, b: &HealthBar, fill_h: f64, s: f64) -> Option<f64> {
+    let (w, h) = (frame.width as i32, frame.height as i32);
+    let y0 = b.y + fill_h.round() as i32;
+    let y1 = y0 + (8.0 * s).ceil() as i32;
+    let mut best = 0;
+    for y in y0.max(0)..y1.min(h) {
+        let mut n = 0;
+        for x in b.x.max(0)..(b.x + b.width).min(w) {
+            let i = (y as usize * frame.width + x as usize) * 4;
+            let (r, g, bl) = (frame.data[i] as f64, frame.data[i + 1] as f64, frame.data[i + 2] as f64);
+            if bl > 110.0 && bl > r * 1.5 && bl > g * 1.1 {
+                n += 1;
+            }
+        }
+        best = best.max(n);
+    }
+    (best >= 2).then(|| (best as f64 / b.width.max(1) as f64).min(1.0))
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -371,7 +400,7 @@ fn verify(ctx: &Ctx, frame: &Rgba, x0: i32, y0: i32, s: f64, fill_h: f64, inner_
     let shield_pct = if shield_end > last { (1.0 - pct).min((shield_end - last) as f64 / inner_w as f64) } else { 0.0 };
     let shield_compressed = shield_pct >= 0.02 && pct + shield_pct >= 0.97;
     let level = read_level(frame, x0, top, Some(s));
-    Some(HealthBar { x: x0, y: top, width: inner_w, pct, shield_pct, shield_compressed, level, confidence })
+    Some(HealthBar { x: x0, y: top, width: inner_w, pct, shield_pct, shield_compressed, level, confidence, mana: None })
 }
 
 // ---- level digits ----------------------------------------------------------------------

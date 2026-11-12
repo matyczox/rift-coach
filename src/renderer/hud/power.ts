@@ -54,7 +54,9 @@ subscribe(({ state }) => {
   const extra = [al?.text, o ? `${o.objective}: ${VERDICT[o.verdict].word}` : null].filter((x): x is string => !!x);
   const d0 = live ? (state.danger ?? (extra.length ? { level: 0.25, label: 'uważaj', reasons: [] } as DangerState : null)) : null;
   // Glanceable: nothing to say when it is safe and nothing happened.
-  const d = d0 && (d0.label !== 'bezpiecznie' || extra.length) ? d0 : null;
+  // Danger / gank warnings moved to the top bar (next to the coach's call); this panel = the fight bar.
+  void d0;
+  const d = null as DangerState | null;
   setOn(root, !!(p || d));
 
   danger.classList.toggle('hidden', !d);

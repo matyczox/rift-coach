@@ -89,6 +89,12 @@ pub struct VisionResult {
     pub camps: Vec<CampReading>,
     /// Enemy health bars when read this frame (throttled by `hp_every_ms`).
     pub hp: Option<Vec<HealthBar>>,
+    /// Allies' health bars (same read, the other colour).
+    #[serde(skip)]
+    pub hp_allies: Option<Vec<HealthBar>>,
+    /// Ally portraits above the minimap: HP / mana of every ally (team order, me excluded).
+    #[serde(skip)]
+    pub team_frames: Option<Vec<crate::teamframes::AllyFrame>>,
     /// Processing time (ms).
     pub ms: f64,
 }
@@ -152,13 +158,19 @@ impl Vision {
         });
         let mut res = match &minimap {
             Some(m) => self.process_minimap(m, at),
-            None => VisionResult { at, width: 0, detections: Vec::new(), fog_mask: None, fog_grid: self.params.fog_grid, camps: Vec::new(), hp: None, ms: 0.0 },
+            None => VisionResult { at, width: 0, detections: Vec::new(), fog_mask: None, fog_grid: self.params.fog_grid, camps: Vec::new(), hp: None, hp_allies: None, team_frames: None, ms: 0.0 },
         };
         if let Some(every) = self.params.hp_every_ms {
             if self.last_hp_at.is_none_or(|l| at.saturating_sub(l) >= every || at < l) {
                 self.last_hp_at = Some(at);
                 let color = self.roster.enemy_bar_color();
                 res.hp = Some(read_health_bars(frame, &ReadOptions::new(color)));
+                let ally = if color == BarColor::Red { BarColor::Blue } else { BarColor::Red };
+                res.hp_allies = Some(read_health_bars(frame, &ReadOptions::new(ally)));
+                if let Some(c) = self.calibration {
+                    let r = c.rect_for(frame.width as i32, frame.height as i32);
+                    res.team_frames = Some(crate::teamframes::read_team_frames(frame, (r.x, r.y, r.width, r.height)));
+                }
             }
         }
         res.ms = t0.elapsed().as_secs_f64() * 1e3;
@@ -194,7 +206,7 @@ impl Vision {
             _ => None,
         };
         let camps = read_camps(img, &self.params.camps);
-        VisionResult { at, width: img.width, detections, fog_mask, fog_grid: self.params.fog_grid, camps, hp: None, ms: t0.elapsed().as_secs_f64() * 1e3 }
+        VisionResult { at, width: img.width, detections, fog_mask, fog_grid: self.params.fog_grid, camps, hp: None, hp_allies: None, team_frames: None, ms: t0.elapsed().as_secs_f64() * 1e3 }
     }
 }
 

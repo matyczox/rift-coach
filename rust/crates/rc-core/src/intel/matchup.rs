@@ -136,16 +136,25 @@ fn sigmoid(x: f64) -> f64 {
     1.0 / (1.0 + (-x).exp())
 }
 
-fn hp_fresh(intel: &GameIntel, opp: &PlayerIntel) -> Option<f64> {
-    match (opp.hp_pct, opp.hp_seen_at) {
-        (Some(p), Some(at)) if intel.game_time - at <= 4.0 => Some(p),
+/// Last seen HP (health bar on screen), remembered after the bar leaves the screen: it recovers
+/// ~0.6%/s (regen) and is forgotten after 90 s or a death. (Was a 4 s cutoff: someone seen at 30%
+/// counted as full HP 5 s later.)
+fn hp_fresh(intel: &GameIntel, p: &PlayerIntel) -> Option<f64> {
+    if p.is_dead {
+        return None;
+    }
+    match (p.hp_pct, p.hp_seen_at) {
+        (Some(h), Some(at)) => {
+            let age = (intel.game_time - at).max(0.0);
+            (age <= 90.0).then(|| (h + 0.006 * age).min(1.0))
+        }
         _ => None,
     }
 }
 
 /// Live all-in chance: matchup curve at the current levels (main term) + level
 /// difference + item gold / completed-item difference + my HP (and enemy HP from
-/// his health bar, if seen in the last 4 s) + enemy Flash down + kill-threat spells
+/// his health bar, remembered with regen) + enemy Flash down + kill-threat spells
 /// Returns (pMe, score). (Meta win rate is not used: not actionable in game.)
 pub fn power_score(intel: &GameIntel, opp: &PlayerIntel, brief: Option<&MatchupBrief>) -> (f64, f64) {
     let me = intel.me.as_ref().expect("me");
@@ -164,7 +173,9 @@ pub fn power_score(intel: &GameIntel, opp: &PlayerIntel, brief: Option<&MatchupB
     let flash = if opp.flash_in.is_some_and(|f| f > 0.0) { 0.25 } else { 0.0 };
     let threat_re = regex::Regex::new(r"(?i)Ignite|Podpalenie|Exhaust|Wyczerpanie").unwrap();
     let threat = if opp.summoner_spells.iter().any(|s| threat_re.is_match(s)) { -0.15 } else { 0.0 };
-    let score = 1.6 * curve + 0.45 * level_diff + 0.35 * gold_diff + 0.35 * items_diff + 1.5 * (hp - 1.0) - 1.5 * (opp_hp - 1.0) + flash + threat;
+    // My mana (mana champions): below ~40% the all-in gets weaker, at 0 about -0.6.
+    let my_mana = me.mana_pct.map_or(0.0, |m| -0.6 * (1.0 - (m / 0.4).min(1.0)));
+    let score = my_mana + 1.6 * curve + 0.45 * level_diff + 0.35 * gold_diff + 0.35 * items_diff + 1.5 * (hp - 1.0) - 1.5 * (opp_hp - 1.0) + flash + threat;
     (sigmoid(score), score)
 }
 
@@ -218,13 +229,18 @@ pub struct Nearby {
     pub allies: Vec<String>,
     /// (champion, seen now)
     pub enemies: Vec<(String, bool)>,
+    /// A bit further away but heading to me (gank / collapse incoming): counted at half weight.
+    pub allies_coming: Vec<String>,
+    pub enemies_coming: Vec<String>,
 }
 
 /// Weight of one extra champion in a fight: ~1, more for higher level / more item gold than the
 /// game average, scaled by known HP. Fast and local (no model).
 fn unit_strength(p: &PlayerIntel, avg_lvl: f64, avg_gold: f64, hp: Option<f64>) -> f64 {
     let s = 1.0 + 0.1 * (p.level as f64 - avg_lvl) + 0.3 * (p.item_gold - avg_gold) / 1000.0;
-    s.max(0.3) * hp.unwrap_or(1.0).clamp(0.2, 1.0)
+    // Out of mana = few spells: down to 70% at 0 mana (mana champions only).
+    let mana = p.mana_pct.map_or(1.0, |m| 0.7 + 0.3 * m.clamp(0.0, 1.0));
+    s.max(0.3) * hp.unwrap_or(1.0).clamp(0.2, 1.0) * mana
 }
 
 /// Fight score delta from the champions around me: allies add, extra enemies subtract
@@ -241,12 +257,22 @@ pub fn nearby_delta(intel: &GameIntel, opp: &PlayerIntel, near: &Nearby) -> f64 
     let mut d = 0.0;
     for a in &near.allies {
         if let Some(p) = find(a).filter(|p| p.is_ally && !p.is_me) {
-            d += unit_strength(p, avg_lvl, avg_gold, None);
+            d += unit_strength(p, avg_lvl, avg_gold, hp_fresh(intel, p));
         }
     }
     for (e, sure) in &near.enemies {
         if let Some(p) = find(e).filter(|p| !p.is_ally && p.champion != opp.champion) {
             d -= unit_strength(p, avg_lvl, avg_gold, hp_fresh(intel, p)) * if *sure { 1.0 } else { 0.6 };
+        }
+    }
+    for a in &near.allies_coming {
+        if let Some(p) = find(a).filter(|p| p.is_ally && !p.is_me) {
+            d += 0.5 * unit_strength(p, avg_lvl, avg_gold, hp_fresh(intel, p));
+        }
+    }
+    for e in &near.enemies_coming {
+        if let Some(p) = find(e).filter(|p| !p.is_ally && p.champion != opp.champion) {
+            d -= 0.5 * unit_strength(p, avg_lvl, avg_gold, hp_fresh(intel, p));
         }
     }
     1.3 * d
@@ -355,9 +381,11 @@ pub(crate) mod tests {
         let i = intel(vec![me, sup, opp, jg]);
         let icon = |c: &str| c.to_string();
         let solo = power_bar(&i, None, &icon).unwrap().p_me;
-        let with_sup = power_bar_near(&i, None, &icon, &Nearby { allies: vec!["Lulu".into()], enemies: vec![] }).unwrap().p_me;
-        let fog_jg = power_bar_near(&i, None, &icon, &Nearby { allies: vec!["Lulu".into()], enemies: vec![("Briar".into(), false)] }).unwrap();
-        let seen_jg = power_bar_near(&i, None, &icon, &Nearby { allies: vec!["Lulu".into()], enemies: vec![("Briar".into(), true)] }).unwrap().p_me;
+        let with_sup = power_bar_near(&i, None, &icon, &Nearby { allies: vec!["Lulu".into()], ..Default::default() }).unwrap().p_me;
+        let fog_jg = power_bar_near(&i, None, &icon, &Nearby { allies: vec!["Lulu".into()], enemies: vec![("Briar".into(), false)], ..Default::default() }).unwrap();
+        let jg_coming = power_bar_near(&i, None, &icon, &Nearby { allies: vec!["Lulu".into()], enemies_coming: vec!["Briar".into()], ..Default::default() }).unwrap().p_me;
+        assert!(jg_coming < with_sup && jg_coming > fog_jg.p_me - 0.2);
+        let seen_jg = power_bar_near(&i, None, &icon, &Nearby { allies: vec!["Lulu".into()], enemies: vec![("Briar".into(), true)], ..Default::default() }).unwrap().p_me;
         assert!(with_sup > solo);
         assert!(fog_jg.p_me < with_sup && seen_jg < fog_jg.p_me);
         assert_eq!(fog_jg.allies.len(), 1);
@@ -391,6 +419,7 @@ pub(crate) mod tests {
             hp_seen_at: None,
             move_speed: 340.0,
             flash_in: None,
+            mana_pct: None,
         }
     }
 
@@ -454,7 +483,8 @@ pub(crate) mod tests {
         i.players[1].hp_pct = Some(0.2);
         i.players[1].hp_seen_at = Some(598.0);
         let pb = power_bar(&i, None, &icon).unwrap();
-        assert_eq!(pb.advice, "Zed 20% HP → all-in");
+        // Seen 2 s ago at 20%, remembered with regen (+0.6%/s) -> 21%.
+        assert_eq!(pb.advice, "Zed 21% HP → all-in");
         i.players[1].is_dead = true;
         assert_eq!(power_bar(&i, None, &icon).unwrap().advice, "Zed nie żyje → push / płytki");
         let v = serde_json::to_value(power_bar(&i, None, &icon).unwrap()).unwrap();

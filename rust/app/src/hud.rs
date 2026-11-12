@@ -162,7 +162,8 @@ fn wants(st: &Value, has_minimap: bool, now: f64) -> Value {
             || st["objective"].is_object()
             || arr("hints").iter().any(|h| is_live(exp(h), gt, now))
             || arr("timers").iter().any(|t| t["secondsLeft"].as_f64().is_some_and(|s| s > 0.0 && s <= 60.0)));
-    let topbar = (st["topBar"].is_object() && is_live(exp(&st["topBar"]), gt, now)) || (st["alert"].is_object() && is_live(exp(&st["alert"]), gt, now)) || urgent(&st["objective"]);
+    let high_danger = matches!(st["danger"]["label"].as_str(), Some("niebezpiecznie" | "uciekaj")) && !st["deathCard"].is_object();
+    let topbar = (st["topBar"].is_object() && is_live(exp(&st["topBar"]), gt, now)) || (st["alert"].is_object() && is_live(exp(&st["alert"]), gt, now)) || urgent(&st["objective"]) || high_danger;
     json!({
         "minimap": minimap,
         "topbar": topbar,

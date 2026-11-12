@@ -76,6 +76,8 @@ pub struct PlayerIntel {
     pub hp_seen_at: Option<f64>,
     pub move_speed: f64,
     pub flash_in: Option<f64>,
+    /// Mana fraction for mana champions (me: Live API; allies: portraits above the minimap). None = no mana / unknown.
+    pub mana_pct: Option<f64>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
@@ -215,12 +217,18 @@ pub struct IntelTracker {
     flash_used_at: HashMap<String, f64>,
     game_id: String,
     hp: HashMap<String, (f64, f64)>,
+    mana: HashMap<String, (Option<f64>, f64)>,
 }
 
 impl IntelTracker {
     /// HP fraction of a champion read from the screen, at game time t.
     pub fn set_hp(&mut self, champion: &str, pct: f64, t: f64) {
         self.hp.insert(champion.into(), (pct, t));
+    }
+
+    /// Mana fraction of an ally (portraits above the minimap); None = not a mana champion.
+    pub fn set_mana(&mut self, champion: &str, pct: Option<f64>, t: f64) {
+        self.mana.insert(champion.into(), (pct, t));
     }
 
     /// Manual hotkey: "enemy X used Flash".
@@ -284,6 +292,7 @@ impl IntelTracker {
             let hp_pct = if is_me && max_hp.is_some() {
                 Some(ap.stat("currentHealth").unwrap_or(0.0) / max_hp.unwrap())
             } else if p.is_dead {
+                self.hp.remove(&p.champion_name);
                 Some(0.0)
             } else {
                 self.hp.get(&p.champion_name).map(|h| h.0)
@@ -321,6 +330,15 @@ impl IntelTracker {
                 hp_seen_at: if is_me { Some(t) } else { self.hp.get(&p.champion_name).map(|h| h.1) },
                 move_speed,
                 flash_in,
+                mana_pct: if is_me {
+                    let mana = ap.champion_stats.get("resourceType").and_then(|v| v.as_str()) == Some("MANA");
+                    match (mana, ap.stat("resourceValue"), ap.stat("resourceMax")) {
+                        (true, Some(v), Some(m)) if m > 0.0 => Some((v / m).clamp(0.0, 1.0)),
+                        _ => None,
+                    }
+                } else {
+                    self.mana.get(&p.champion_name).filter(|m| t - m.1 <= 20.0).and_then(|m| m.0)
+                },
             });
         }
 
