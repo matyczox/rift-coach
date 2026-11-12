@@ -1,0 +1,1 @@
+//! Rift Coach core logic.

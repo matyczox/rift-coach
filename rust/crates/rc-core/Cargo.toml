@@ -1,0 +1,21 @@
+[package]
+name = "rc-core"
+description = "Rift Coach: non-UI logic (settings, data sources, LLM calls, intel, coach)"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync", "process", "io-util", "fs"] }
+# native-tls = SChannel on Windows: no C compiler needed on the GNU target (rustls' ring/aws-lc need one).
+reqwest = { version = "0.12", default-features = false, features = ["json", "native-tls"] }
+base64 = "0.22"
+regex = "1"
+anyhow = "1"
+log = "0.4"
+tempfile = "3"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "test-util"] }
