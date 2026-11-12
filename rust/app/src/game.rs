@@ -153,6 +153,18 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
             matchup,
             camps,
             covered_ward_spots: covered,
+            field: g.intel.as_ref().map(|i| {
+                let r2 = |v: f64| (v * 100.0).round() / 100.0;
+                let pos = |u: &crate::vision::SeenUnit| serde_json::json!({ "champ": u.champion, "x": r2(u.x), "y": r2(u.y) });
+                let me = i.me.as_ref().map(|m| m.champion.clone()).unwrap_or_default();
+                let fight = rc_core::intel::matchup::power_bar_near(i, g.matchup.as_ref(), &|c: &str| c.to_string(), &crate::knowledge::nearby(g)).map(|p| r2(p.p_me));
+                serde_json::json!({
+                    "me": g.field.my_pos.map(|(x, y)| serde_json::json!({ "x": r2(x), "y": r2(y) })),
+                    "allies": g.field.allies.iter().filter(|a| a.champion != me).map(pos).collect::<Vec<_>>(),
+                    "visibleEnemies": g.field.visible_enemies.iter().map(pos).collect::<Vec<_>>(),
+                    "fightHereNow": fight,
+                })
+            }),
             lane_pushes: { let now = crate::vision::now_ms(); g.field.push_seen.iter().filter(|(_, at)| now - at < 20000.0).map(|(k, _)| k.replace('@', " ")).collect() },
             self_profile,
             // Item plan from the HUD build panel: the coach's "item" must match it.

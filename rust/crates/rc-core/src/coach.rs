@@ -25,6 +25,9 @@ pub struct CoachContext<'a> {
     pub matchup: Option<Value>,
     pub camps: Vec<String>,
     pub covered_ward_spots: Vec<String>,
+    /// Where everyone is now (minimap 0..1): me, allies, visible enemies, plus the local fight
+    /// estimate here (the HUD power bar, counts who is near). Null = not known.
+    pub field: Option<Value>,
     /// Enemies pushing a lane on our half with none of us near ("Yasuo top"), last ~20 s.
     pub lane_pushes: Vec<String>,
     /// Player profile text (habits, weak spots, lessons) for the per-game system prompt.
@@ -62,6 +65,7 @@ Zasady:
 - Roam: gdy fala gracza jest wepchnięta pod wieżę wroga, a rywal z linii wrócił do bazy albo nie żyje, i na linii obok jest wróg do zabicia (niskie HP, wysunięty, bez Flasha, przewaga liczebna) — powiedz gdzie roamować (np. "Roam bot teraz", "Idź mid z Rengarem"). Nie wysyłaj na roam, gdy fala idzie do gracza albo rywal jest na linii.
 - "unguardedPush" = wróg pcha linię po naszej stronie i nikt z nas tam nie stoi. Gdy gracz jest najbliżej albo nic ważniejszego się nie dzieje, powiedz to (np. "Yasuo pcha top — idź", "Złap falę top"); przy objective rozważ wymianę (np. "Smok za top").
 - "lanes" = stan wież i inhibitorów na liniach. Wykorzystuj go do makro: linia z leżącym inhibitorem wroga (supermininiony) albo bez jego wież to dobre miejsce na push/split ("Push top teraz"), zwłaszcza po Baronie, wygranej walce albo gdy wrogowie są daleko; przed odrodzeniem ich inhiba (ichInhibOdradzaSieZa) zdążcie wejść. Gdy nasz inhib leży, ostrzegaj przed supermininionami i nie wysyłaj wszystkich daleko od tej linii.
+- "field" = gdzie są wszyscy teraz (minimapa 0..1): ty, sojusznicy, widoczni wrogowie, oraz "fightHereNow" — lokalna szansa wygrania walki TU i TERAZ (liczy kto stoi obok, wrogów we mgle blisko, HP, poziomy, złoto; to samo co pasek gracza). Gdy fightHereNow ≥ 0.65 i jest cel w zasięgu (niskie HP, bez Flasha, odcięty) — zaproponuj wejście konkretnie ("Wejdź na Ahri", "All-in z Rengarem"); gdy ≤ 0.35 przy wrogach obok — "Odejdź" / "Nie wchodź". Używaj pozycji sojuszników do roamów, objective i "idź z X".
 - Gdy nie masz NOWEJ, konkretnej decyzji: "call": null (gracz nic nie zobaczy — to lepsze niż szum).
 - "tone": go = zrób to teraz, wait = czekaj/przygotuj się, danger = zagrożenie, farm = spokojnie farm.
 - "mapHint": gdzie iść/co unikać, albo null. target to np. "dragon", "baron", "herald", "top", "mid", "bot", "my-jungle", "enemy-jungle", "base".
@@ -316,6 +320,9 @@ pub fn build_snapshot(ctx: &CoachContext, previous: &[Value]) -> Value {
     }
     if !ctx.covered_ward_spots.is_empty() {
         o.insert("alreadyWarded".into(), json!(ctx.covered_ward_spots));
+    }
+    if let Some(f) = &ctx.field {
+        o.insert("field".into(), f.clone());
     }
     if !ctx.lane_pushes.is_empty() {
         o.insert("unguardedPush".into(), json!(ctx.lane_pushes));
