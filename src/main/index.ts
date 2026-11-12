@@ -353,7 +353,8 @@ function onGameData(d: AllGameData) {
       .then(b => { build = b; }, e => console.warn('build', e))
       .finally(() => { buildBusy = false; });
   }
-  coach.setConfig({ enabled: settings.value.coach.enabled, liveModel: pickModel(settings.value.coach.liveModel, 'live'), reviewModel: pickModel(settings.value.coach.reviewModel, 'death'), liveEffort: pick(settings.value.coach.liveModel, 'live').effort, reviewEffort: pick(settings.value.coach.reviewModel, 'death').effort, periodSec: settings.value.coach.periodSec });
+  // Coach only on Summoner's Rift (map 11): not in ARAM, Arena or other modes.
+  coach.setConfig({ enabled: settings.value.coach.enabled && live.last?.gameData.mapNumber === 11, liveModel: pickModel(settings.value.coach.liveModel, 'live'), reviewModel: pickModel(settings.value.coach.reviewModel, 'death'), liveEffort: pick(settings.value.coach.liveModel, 'live').effort, reviewEffort: pick(settings.value.coach.reviewModel, 'death').effort, periodSec: settings.value.coach.periodSec });
   const champions = intel.players.map(p => p.champion);
   if (staticData && !patchBrief) patchBrief = loadCachedBrief(briefDir(), patchOf(staticData.version));
   if (staticData && !patchBrief && !patchBriefRequested && coach.status.state === 'idle') {
@@ -825,7 +826,7 @@ app.whenReady().then(() => {
     lastAdvice = a;
     matchLog.advice(a);
   });
-  live.on('state', s => { if (s !== 'connected') { intel = null; lastAdvice = null; alerts = []; ghosts = []; myPos = null; visionRoster = ''; build = null; allies = []; visibleEnemies = []; learner?.save(); } });
+  live.on('state', s => { if (s !== 'connected') { coach.status.calls = 0; intel = null; lastAdvice = null; alerts = []; ghosts = []; myPos = null; visionRoster = ''; build = null; allies = []; visibleEnemies = []; learner?.save(); } });
 
   registerIpc();
   createControl();

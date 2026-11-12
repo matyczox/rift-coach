@@ -101,7 +101,7 @@ const PROVIDER = (m: string) => (m.startsWith('gpt') ? 'Codex' : 'Claude');
 
 function CoachCard({ status }: { status: AppStatus }) {
   const c = status.coach, s = status.settings.coach;
-  const state = c.state === 'thinking' ? 'Myśli…' : c.state === 'idle' ? 'Gotowy' : c.state === 'off' ? 'Wyłączony' : c.state === 'not-logged-in' ? 'Niezalogowany' : 'Błąd';
+  const state = c.state === 'thinking' ? 'Myśli…' : c.state === 'idle' ? 'Gotowy' : c.state === 'off' ? (status.game && status.game.mapNumber !== 11 && s.enabled ? 'Tylko na Summoner’s Rift' : 'Wyłączony') : c.state === 'not-logged-in' ? 'Niezalogowany' : 'Błąd';
   const tone = c.state === 'idle' || c.state === 'thinking' ? 'ok' : c.state === 'off' ? 'off' : 'bad';
   const rows: Array<[string, string]> = [['W grze', s.liveModel], ['Po śmierci i meczu', s.reviewModel], ['Patch i matchup', s.researchModel], ['Runy', s.draftModel]];
   return (
