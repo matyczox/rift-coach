@@ -7,6 +7,9 @@
 //! naive baseline "still where last seen".
 //!
 //! usage: eval_tracker <session dir|id> [noFog]     env: TRUTH=red|all, NO_ITEMS=1, CAMPS=1
+//!   MODEL=<fog-model.json>  start from this learned model (default: empty)
+//!   TRAIN=1                 learn (reappearances + truth positions every 10 s) and save to MODEL
+//!                           (without TRAIN learning is off: a pure evaluation of the model)
 //!
 //! The game-intel inputs the TS script takes from IntelTracker (role, isDead, move speed,
 //! item gold, dragon/baron timers) are recomputed here from api.jsonl.gz with the same rules
@@ -234,7 +237,25 @@ fn main() {
     let blue_times: Vec<u64> = blue.keys().copied().collect();
 
     let terrain = Arc::new(GridTerrain::from_asset(128));
-    let mut tracker = EnemyTracker::new(terrain, Learner::new(None), 300);
+    let model_path = std::env::var("MODEL").ok().map(std::path::PathBuf::from);
+    let train = std::env::var("TRAIN").is_ok();
+    let learner = match &model_path {
+        Some(p) if train => Learner::new(Some(p.clone())),
+        Some(p) => {
+            // Evaluation only: load, never write back.
+            let mut l = Learner::new(None);
+            if let Ok(bytes) = std::fs::read(p) {
+                if let Ok(m) = serde_json::from_slice(&bytes) {
+                    l.model = m;
+                }
+            }
+            l
+        }
+        None => Learner::new(None),
+    };
+    let mut tracker = EnemyTracker::new(terrain, learner, 300);
+    tracker.learning_enabled = train;
+    let mut last_train_t = 0.0;
     let mut reader: Option<FogReader> = None;
     let mut camp_t = CampTracker::default();
 
@@ -301,7 +322,7 @@ fn main() {
                     let Some(camp) = camp_by_id(&ev.id) else { continue };
                     if let Some(jg) = jg {
                         if ev.kind == CampEventKind::Cleared && camp.side == CampSide::Chaos && ev.earliest.is_none_or(|e| ev.at - e <= 10.0) && !dets.iter().any(|d| d.champion == jg.champion) {
-                            dets.push(Detection { champion: jg.champion.clone(), team: Team::Chaos, x: camp.x, y: camp.y, score: 0.7, margin: 0.0, votes: 0.0 });
+                            tracker.soft_hint(&jg.champion, (camp.x, camp.y));
                         }
                     }
                 }
@@ -321,6 +342,17 @@ fn main() {
         let rt = nearest(&red_times, ms);
         if (rt as i64 - ms as i64).abs() > 300 {
             continue;
+        }
+        if train && t - last_train_t >= 10.0 {
+            last_train_t = t;
+            for tr in &tracks {
+                if tr.state != TrackState::Fog {
+                    continue;
+                }
+                if let Some(truth) = red[&rt].iter().find(|d| d.c == tr.champion && d.t == "CHAOS") {
+                    tracker.train_at(&tr.champion, (truth.x, truth.y), t);
+                }
+            }
         }
         for tr in &tracks {
             let (TrackState::Fog, Some(est), Some(last), Some(fs)) = (tr.state, tr.estimate, tr.last, tr.fog_since) else { continue };
@@ -387,4 +419,19 @@ fn main() {
         println!("{lo}-{hi}s  {}", parts.join("  "));
     }
     println!("learner {}", serde_json::to_string(&tracker.learner.summary()).unwrap());
+    // One machine-readable line for comparing variants.
+    let rows: Vec<serde_json::Value> = buckets
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| stats[*i].n > 0)
+        .map(|(i, &(lo, hi))| {
+            let s = &stats[i];
+            let n = s.n as f64;
+            serde_json::json!({ "lo": lo, "hi": hi, "n": s.n, "errModel": s.err_pred / n, "errBase": s.err_base / n, "better": s.better as f64 / n, "inside": s.inside as f64 / n })
+        })
+        .collect();
+    println!("SUMMARY {}", serde_json::json!({ "buckets": rows }));
+    if train {
+        tracker.learner.save().expect("save model");
+    }
 }

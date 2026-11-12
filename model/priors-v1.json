@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "multipliers": {
+    "JUNGLE|early": { "camp": 1.0, "river": 1.2, "lane-top": 1.0, "lane-mid": 1.1, "lane-bot": 1.0, "dragon": 1.0, "baron": 0.8, "invade": 1.0, "base": 1.0 },
+    "JUNGLE|mid": { "camp": 0.7, "river": 1.3, "lane-top": 1.1, "lane-mid": 1.1, "lane-bot": 1.1, "dragon": 1.3, "baron": 1.2, "invade": 1.0, "base": 1.0 },
+    "JUNGLE|late": { "camp": 0.5, "river": 1.3, "lane-top": 1.0, "lane-mid": 1.0, "lane-bot": 1.0, "dragon": 1.4, "baron": 1.6, "invade": 0.9, "base": 1.3 },
+    "TOP|early": { "lane-top": 1.0, "river": 1.0, "baron": 1.0 },
+    "TOP|mid": { "lane-top": 1.0, "lane-mid": 1.3, "dragon": 1.5, "baron": 1.3, "river": 1.2, "camp": 1.2 },
+    "TOP|late": { "lane-top": 0.8, "lane-mid": 1.4, "dragon": 1.4, "baron": 1.6, "river": 1.3, "base": 1.2 },
+    "MIDDLE|early": { "lane-mid": 1.0, "river": 1.2, "lane-bot": 1.2, "lane-top": 1.1 },
+    "MIDDLE|mid": { "lane-mid": 1.0, "lane-bot": 1.4, "lane-top": 1.2, "dragon": 1.5, "river": 1.3, "camp": 1.3 },
+    "MIDDLE|late": { "lane-mid": 0.9, "baron": 1.5, "dragon": 1.4, "river": 1.3, "camp": 1.2 },
+    "BOTTOM|early": { "lane-bot": 1.0, "dragon": 1.2 },
+    "BOTTOM|mid": { "lane-bot": 0.9, "lane-mid": 1.6, "dragon": 1.4, "camp": 1.3 },
+    "BOTTOM|late": { "lane-mid": 1.4, "baron": 1.4, "dragon": 1.4, "camp": 1.2 },
+    "UTILITY|early": { "lane-bot": 1.0, "river": 1.2, "lane-mid": 1.2, "dragon": 1.2 },
+    "UTILITY|mid": { "river": 1.4, "invade": 1.3, "dragon": 1.4, "lane-mid": 1.3, "baron": 1.2 },
+    "UTILITY|late": { "river": 1.4, "baron": 1.5, "dragon": 1.4, "invade": 1.2 }
+  },
+  "score": { "n": 0, "logModel": 0, "logBaseline": 0, "hits": 0 },
+  "recent": []
+}
