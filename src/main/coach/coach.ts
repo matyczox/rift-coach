@@ -111,7 +111,11 @@ export function buildSnapshot(ctx: CoachContext, previous: CoachAdvice[]) {
     }),
     goldDiff: i.goldDiff,
     score: { kills: `${i.ally.kills}-${i.enemy.kills}`, dragons: `${i.ally.dragons.length}-${i.enemy.dragons.length}`, towers: `${i.ally.towers}-${i.enemy.towers}`, barons: `${i.ally.barons}-${i.enemy.barons}` },
-    objectives: i.objectives.map(o => ({ what: o.label, ...(o.alive ? { status: 'żyje' } : { in: o.spawnsAt ? Math.round(o.spawnsAt - i.gameTime) : null }) })),
+    // Only objectives that are up or spawn within 90 s: a far-off Baron made the model talk about it
+    // ("przygotuj Barona") ten minutes before it exists.
+    objectives: i.objectives
+      .filter(o => o.alive || (o.spawnsAt !== null && o.spawnsAt - i.gameTime <= 90))
+      .map(o => ({ what: o.label, ...(o.alive ? { status: 'żyje' } : { in: Math.round(o.spawnsAt! - i.gameTime) }) })),
     ...(i.buffs.length ? { buffs: i.buffs.map(b => `${b.kind === 'baron' ? 'Baron' : 'Starszy smok'} (${b.team === 'ally' ? 'my' : 'wróg'}) do ${fmt(b.until)}`) } : {}),
     ...(i.ace ? { ace: `${i.ace.team === 'ally' ? 'MY zrobiliśmy ace' : 'WRÓG zrobił ace'} ${Math.round(i.gameTime - i.ace.at)} s temu` } : {}),
     ...(i.me?.isDead && i.myDeaths[0] ? { myDeath: { killer: i.myDeaths[0].killer, assisters: i.myDeaths[0].assisters, enemiesInvolved: i.myDeaths[0].enemiesInvolved, gank: i.myDeaths[0].wasGank, deathsSoFar: i.myDeaths.length } } : {}),

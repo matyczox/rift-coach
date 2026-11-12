@@ -79,9 +79,12 @@ function drawGhost(gh: Ghost, fed: boolean): void {
   const { g } = gh;
   const cx = gh.x * W, cy = gh.y * H;
   const iconD = Math.max(14, 0.075 * W);
-  const r = Math.max(iconD * 0.5 + 3, gh.r * W);
+  // Long in fog the area covers half the map and says little: cap its size, fade it from 30 s, gone at 60 s.
+  const r = Math.max(iconD * 0.5 + 3, Math.min(gh.r, 0.28) * W);
   const conf = Math.max(0, Math.min(1, g.confidence));
-  const a = gh.alpha;
+  const zf = g.age <= 30 ? 1 : g.age >= 60 ? 0 : 1 - (g.age - 30) / 30;
+  if (zf <= 0) return;
+  const a = gh.alpha * zf;
 
   ctx.beginPath();
   ctx.arc(cx, cy, r, 0, Math.PI * 2);
