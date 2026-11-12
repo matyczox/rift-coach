@@ -17,5 +17,12 @@ anyhow = "1"
 log = "0.4"
 tempfile = "3"
 
+# Fake claude.exe / codex.exe for tests/llm_fake.rs (test helper, not shipped).
+[[bin]]
+name = "rc-fake-llm"
+path = "tests/support/fake_llm.rs"
+test = false
+doc = false
+
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "test-util"] }
