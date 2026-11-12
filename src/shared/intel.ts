@@ -16,6 +16,8 @@ export interface PlayerIntel {
   respawnIn: number;               // seconds, 0 if alive
   /** Gold value of current items (shop prices). */
   itemGold: number;
+  /** Gold of shop-only items (recall proof); evolving items excluded. */
+  shopGold: number;
   /** Estimated total gold earned (items + estimated unspent). */
   estGold: number;
   items: Array<{ id: number; name: string; price: number }>;

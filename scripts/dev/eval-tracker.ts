@@ -94,7 +94,7 @@ async function main() {
     const intel = intelT.update({ ...api[apiIdx]!.d, gameData: { ...api[apiIdx]!.d.gameData, gameTime: ms / 1000 } });
     const enemies: EnemyInput[] = intel.players.filter(p => p.team === 'CHAOS').map(p => ({
       champion: p.champion, team: 'CHAOS', role: p.role, isDead: p.isDead, moveSpeed: p.moveSpeed,
-      ...(process.env.NO_ITEMS ? {} : { itemGold: p.itemGold }), hasFlash: true,
+      ...(process.env.NO_ITEMS ? {} : { itemGold: p.shopGold }), hasFlash: true,
     }));
     for (const e of enemies) speedOf.set(e.champion, e.moveSpeed);
     let visible: ((x: number, y: number) => number) | undefined;

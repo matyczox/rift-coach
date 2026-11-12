@@ -461,7 +461,7 @@ function onVision(r: VisionResult) {
   const enemies: EnemyInput[] = intel.players.filter(p => !p.isAlly).map(p => ({
     champion: p.champion, team: p.team, role: p.role, isDead: p.isDead, moveSpeed: p.moveSpeed,
     startTopSide: profiles.find(pr => pr.champion === p.champion)?.jungle?.startTopSide,
-    itemGold: p.itemGold, hasFlash: p.summonerSpells.some(sp => /Flash|Błysk/i.test(sp)),
+    itemGold: p.shopGold, hasFlash: p.summonerSpells.some(sp => /Flash|Błysk/i.test(sp)),
   }));
   const dragon = intel.objectives.find(o => o.kind === 'dragon'), baron = intel.objectives.find(o => o.kind === 'baron');
   const t = intel.gameTime;

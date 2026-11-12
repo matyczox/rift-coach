@@ -6,7 +6,7 @@ import type { GameIntel, PlayerIntel } from '../../src/shared/intel';
 const [me = 'Ambessa', enemy = 'Warwick', role = 'TOP', patch = '16.22'] = process.argv.slice(2);
 
 function player(champion: string, isAlly: boolean, level: number, itemGold: number, completed: number): PlayerIntel {
-  return { champion, team: isAlly ? 'ORDER' : 'CHAOS', isAlly, isMe: isAlly, role: role as PlayerIntel['role'], level, kills: 0, deaths: 0, assists: 0, cs: 0, wardScore: 0, isDead: false, respawnIn: 0, itemGold, estGold: itemGold, items: [], completedItems: completed, spikes: [], summonerSpells: [], moveSpeed: 345, flashIn: null, hpPct: null, hpSeenAt: null };
+  return { champion, team: isAlly ? 'ORDER' : 'CHAOS', isAlly, isMe: isAlly, role: role as PlayerIntel['role'], level, kills: 0, deaths: 0, assists: 0, cs: 0, wardScore: 0, isDead: false, respawnIn: 0, itemGold, shopGold: itemGold, estGold: itemGold, items: [], completedItems: completed, spikes: [], summonerSpells: [], moveSpeed: 345, flashIn: null, hpPct: null, hpSeenAt: null };
 }
 
 async function main() {

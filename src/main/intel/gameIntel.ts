@@ -77,9 +77,12 @@ export class IntelTracker {
     const players: PlayerIntel[] = d.allPlayers.map(p => {
       const items = p.items.map(i => {
         const db = itemDb?.get(i.itemID);
-        return { id: i.itemID, name: db?.name ?? i.displayName, price: db?.total ?? i.price, completed: db?.completed ?? false };
+        return { id: i.itemID, name: db?.name ?? i.displayName, price: db?.total ?? i.price, completed: db?.completed ?? false, shop: !!db?.purchasable };
       });
       const itemGold = items.reduce((s, i) => s + i.price, 0);
+      // Gold of items that can only come from the shop: proof of a base visit. Items that evolve on
+      // their own (jungle pet, support quest, transforms) are not in the shop and must not count.
+      const shopGold = items.filter(i => i.shop).reduce((s, i) => s + i.price, 0);
       const completed = items.filter(i => i.completed).length;
       const sc = p.scores;
       const prev = this.prev.get(p.championName);
@@ -106,6 +109,7 @@ export class IntelTracker {
         isDead: p.isDead,
         respawnIn: p.isDead ? Math.max(0, Math.round(p.respawnTimer)) : 0,
         itemGold,
+        shopGold,
         estGold: Math.round(Math.max(itemGold, estimateGoldEarned(t, { cs: sc.creepScore, kills: sc.kills, assists: sc.assists, wardScore: sc.wardScore }))),
         items: items.map(({ id, name, price }) => ({ id, name, price })),
         completedItems: completed,

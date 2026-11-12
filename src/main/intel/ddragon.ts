@@ -14,6 +14,8 @@ export interface ItemData {
   /** Movement speed bonuses from item stats. */
   flatMs: number;
   pctMs: number;
+  /** Bought in the shop (false: items that evolve by themselves, e.g. jungle pets, support quest items). */
+  purchasable: boolean;
 }
 
 export interface StaticData {
@@ -44,7 +46,7 @@ export function parseItems(json: { data: Record<string, { name: string; gold: { 
     const isBoots = tags.includes('Boots');
     const completed = it.gold.purchasable && !it.consumed && !(it.into && it.into.length) && !tags.includes('Trinket')
       && !tags.includes('Consumable') && (isBoots ? it.gold.total >= 900 : it.gold.total >= 2000);
-    items.set(Number(id), { id: Number(id), name: it.name, total: it.gold.total, completed, tags, flatMs: it.stats?.FlatMovementSpeedMod ?? 0, pctMs: it.stats?.PercentMovementSpeedMod ?? 0 });
+    items.set(Number(id), { id: Number(id), name: it.name, total: it.gold.total, completed, tags, purchasable: it.gold.purchasable, flatMs: it.stats?.FlatMovementSpeedMod ?? 0, pctMs: it.stats?.PercentMovementSpeedMod ?? 0 });
   }
   return items;
 }
