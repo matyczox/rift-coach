@@ -12,3 +12,4 @@ pub mod healthbars;
 pub mod icons;
 pub mod image;
 pub mod terrain;
+pub mod tracker;
