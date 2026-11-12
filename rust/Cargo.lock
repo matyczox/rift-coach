@@ -3091,6 +3091,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
+ "flate2",
  "log",
  "rc-core",
  "rc-vision",
@@ -3100,6 +3101,7 @@ dependencies = [
  "tauri-build",
  "tauri-plugin-global-shortcut",
  "tauri-plugin-single-instance",
+ "tempfile",
  "tokio",
  "windows-sys 0.61.2",
 ]

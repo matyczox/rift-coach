@@ -57,7 +57,17 @@ pub fn register(app: &tauri::AppHandle, st: &Arc<AppState>) {
     };
     let (a, s) = (app.clone(), st.clone());
     bind(&hk.toggle_overlay, Box::new(move || toggle_overlay(&a, &s)));
-    // Recording is not ported yet: the hotkey stays free until it is.
+    let s = st.clone();
+    bind(
+        &hk.toggle_recording,
+        Box::new(move || {
+            if s.recorder.lock().unwrap().active() {
+                crate::recorder::stop_recording(&s);
+            } else {
+                crate::recorder::start_recording(&s);
+            }
+        }),
+    );
     let s = st.clone();
     bind(&hk.enemy_flash, Box::new(move || enemy_flash(&s)));
     *cur = Some(hk);
@@ -95,6 +105,13 @@ pub fn apply_login_item(launch: bool) {
     let Ok(exe) = std::env::current_exe() else { return };
     let cmd = wide(&format!("\"{}\" --background", exe.display()));
     let (key, name) = (wide(RUN_KEY), wide(RUN_VALUE));
+    // The Electron build uses the same entry name and the same settings file: never take over
+    // (or delete) an entry that starts another executable.
+    if let Some(cur) = read_run_value() {
+        if !cur.to_lowercase().contains(&exe.display().to_string().to_lowercase()) {
+            return;
+        }
+    }
     // SAFETY: plain registry calls on a key we open and close here.
     unsafe {
         let mut h: HKEY = std::ptr::null_mut();
@@ -112,3 +129,19 @@ pub fn apply_login_item(launch: bool) {
 
 #[cfg(not(windows))]
 pub fn apply_login_item(_launch: bool) {}
+
+/// Current HKCU Run "Rift Coach" command line, if any.
+#[cfg(windows)]
+fn read_run_value() -> Option<String> {
+    use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_SZ};
+    let (key, name) = (wide(RUN_KEY), wide(RUN_VALUE));
+    let mut buf = vec![0u16; 2048];
+    let mut len = (buf.len() * 2) as u32;
+    // SAFETY: buffer and length describe valid writable memory.
+    let r = unsafe { RegGetValueW(HKEY_CURRENT_USER, key.as_ptr(), name.as_ptr(), RRF_RT_REG_SZ, std::ptr::null_mut(), buf.as_mut_ptr() as *mut _, &mut len) };
+    if r != 0 {
+        return None;
+    }
+    let n = (len as usize / 2).saturating_sub(1).min(buf.len());
+    Some(String::from_utf16_lossy(&buf[..n]))
+}

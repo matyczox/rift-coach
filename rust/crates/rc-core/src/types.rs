@@ -69,11 +69,14 @@ pub struct HarvestStatus {
     pub frames: u64,
     pub error: Option<String>,
     pub queue: Vec<i64>,
+    /// waiting-fog: the replay HUD team view the user must pick before continuing.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub need_fog: Option<String>,
 }
 
 impl Default for HarvestStatus {
     fn default() -> Self {
-        HarvestStatus { state: "idle".into(), game_id: None, pass: None, position_sec: 0.0, length_sec: 0.0, frames: 0, error: None, queue: vec![] }
+        HarvestStatus { state: "idle".into(), game_id: None, pass: None, position_sec: 0.0, length_sec: 0.0, frames: 0, error: None, queue: vec![], need_fog: None }
     }
 }
 
