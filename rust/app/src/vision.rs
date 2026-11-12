@@ -523,10 +523,10 @@ pub fn sync_roster(rt: &tokio::runtime::Handle, st: &Arc<AppState>, g: &mut Game
 }
 
 /// Per Live API sample (onGameData): learning switch + roster.
-pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, g: &mut Game, game_mode: &str, map: i64) {
+pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, g: &mut Game, game_mode: &str, map: i64, bots: bool) {
     if let Some(t) = g.field.tracker.as_mut() {
         // Never from replays (also not with --allow-replay): only real games teach the fog model.
-        t.learning_enabled = LEARN_MODES.contains(&game_mode) && map == 11 && !st.replay_open();
+        t.learning_enabled = LEARN_MODES.contains(&game_mode) && map == 11 && !st.replay_open() && !bots;
     }
     sync_roster(rt, st, g, map);
 }

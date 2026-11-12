@@ -16,7 +16,22 @@ use serde_json::Value;
 use std::sync::Arc;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
+/// What the last coach call asked the player to do, checked every tick (closes the loop: "you did
+/// it" + the next step).
+#[derive(Clone, Debug)]
+pub struct Intent {
+    /// Ward spot id (rc_core::wards) or None for a move.
+    pub ward_spot: Option<String>,
+    /// Move target (minimap 0..1).
+    pub target: Option<(f64, f64)>,
+    pub label: String,
+    pub since: f64,
+    pub ward_score_at: i64,
+    pub was_covered: bool,
+}
+
 pub struct Game {
+    pub intent: Option<Intent>,
     pub static_data: Option<Arc<StaticData>>,
     pub tracker: IntelTracker,
     pub intel: Option<GameIntel>,
@@ -50,6 +65,7 @@ pub struct Game {
 impl Game {
     pub fn new(data_dir: &std::path::Path) -> Self {
         Game {
+            intent: None,
             static_data: None,
             tracker: IntelTracker::default(),
             intel: None,
@@ -88,6 +104,7 @@ pub fn on_live_lost(st: &Arc<AppState>) {
     // Per-game tip counter and the whole coach session (clocks, history, pending answers).
     g.coach.status.calls = 0;
     g.coach.reset_session();
+    g.intent = None;
     g.build_trigger = Default::default();
     g.profiles_key.clear();
     g.matchup_key.clear();
@@ -129,7 +146,9 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
     g.intel = Some(intel);
     crate::knowledge::maybe_load_profiles(st, &mut g, &d, api_key_set);
     crate::knowledge::maybe_load_matchup(st, &mut g);
-    crate::vision::on_game_data(rt, st, &mut g, &d.game_data.game_mode, d.game_data.map_number);
+    // Bots move nothing like people: a game with bots must never teach the fog model.
+    let bots = d.all_players.iter().any(|p| p.is_bot.unwrap_or(false));
+    crate::vision::on_game_data(rt, st, &mut g, &d.game_data.game_mode, d.game_data.map_number, bots);
 
     let b = g.backends;
     let live = pick(&coach_cfg.live_model, Task::Live, b);
@@ -148,6 +167,7 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
     let action = {
         let g = &mut *g;
         g.field.expire_if_stale(now_ms());
+        check_intent(g);
         let (camps, covered, brief, matchup) = match g.intel.as_ref() {
             Some(i) => (crate::vision::camp_summary(i, &g.field), crate::vision::covered_spots(i, &g.field), crate::knowledge::brief_text(g, i), matchup_for_coach(i, g.matchup.as_ref())),
             None => (Vec::new(), Vec::new(), None, None),
@@ -197,6 +217,7 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
                     }
                     if let Some(a) = advice.as_ref() {
                         g.match_log.advice(a);
+                        g.intent = intent_of(&g, a);
                     }
                     (advice, reauth)
                 };
@@ -209,6 +230,48 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
             });
         }
     }
+}
+
+/// Ward to place or place to go from a coach call (None when the call has neither).
+fn intent_of(g: &Game, a: &Value) -> Option<Intent> {
+    let intel = g.intel.as_ref()?;
+    let me = intel.me.as_ref()?;
+    let red = me.team == "CHAOS";
+    let call = a.get("call").and_then(Value::as_str).unwrap_or("").to_string();
+    if let Some(spot) = a.get("ward").and_then(|w| w.get("spot")).and_then(Value::as_str) {
+        let covered = crate::vision::covered_spots(intel, &g.field).iter().any(|s| s == spot);
+        return Some(Intent { ward_spot: Some(spot.to_string()), target: None, label: call, since: intel.game_time, ward_score_at: me.ward_score, was_covered: covered });
+    }
+    let target = a.get("mapHint").and_then(|m| m.get("target")).and_then(Value::as_str)?;
+    let p = crate::hud_state::map_point_for(target, red)?;
+    Some(Intent { ward_spot: None, target: Some(p), label: call, since: intel.game_time, ward_score_at: me.ward_score, was_covered: false })
+}
+
+/// Did the player do what the last call said? Then a short confirmation and the next step now.
+fn check_intent(g: &mut Game) {
+    let Some(it) = g.intent.clone() else { return };
+    let Some(intel) = g.intel.as_ref() else { return };
+    let Some(me) = intel.me.as_ref() else { return };
+    if me.is_dead || intel.game_time - it.since > 120.0 {
+        g.intent = None;
+        return;
+    }
+    let (done, text, reason) = if let Some(spot) = &it.ward_spot {
+        let covered = crate::vision::covered_spots(intel, &g.field).iter().any(|s| s == spot);
+        let placed = me.ward_score > it.ward_score_at || (covered && !it.was_covered);
+        (placed, "Ward postawiony".to_string(), "ward-done")
+    } else if let (Some((x, y)), Some((mx, my))) = (it.target, g.field.my_pos) {
+        ((mx - x).hypot(my - y) < 0.08, "Jesteś na miejscu".to_string(), "arrived")
+    } else {
+        (false, String::new(), "")
+    };
+    if !done {
+        return;
+    }
+    g.intent = None;
+    let now = now_ms();
+    g.field.toasts.push(crate::vision::Toast { id: now as u64 + 31, kind: "done".into(), team: "ally".into(), champion: None, text: format!("✓ {text}"), expires_at: now + 3000.0 });
+    g.coach.request_followup(reason);
 }
 
 pub fn check_auth(rt: &tokio::runtime::Handle, st: &Arc<AppState>) {

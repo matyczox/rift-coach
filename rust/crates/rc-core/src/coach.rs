@@ -67,6 +67,7 @@ Zasady:
 - "unguardedPush" = wróg pcha linię po naszej stronie i nikt z nas tam nie stoi. Gdy gracz jest najbliżej albo nic ważniejszego się nie dzieje, powiedz to (np. "Yasuo pcha top — idź", "Złap falę top"); przy objective rozważ wymianę (np. "Dragon za top").
 - "lanes" = stan wież i inhibitorów na liniach. Wykorzystuj go do makro: linia z leżącym inhibitorem wroga (supermininiony) albo bez jego wież to dobre miejsce na push/split ("Push top teraz"), zwłaszcza po Baronie, wygranej walce albo gdy wrogowie są daleko; przed odrodzeniem ich inhiba (ichInhibOdradzaSieZa) zdążcie wejść. Gdy nasz inhib leży, ostrzegaj przed supermininionami i nie wysyłaj wszystkich daleko od tej linii.
 - "field" = gdzie są wszyscy teraz (minimapa 0..1): ty, sojusznicy, widoczni wrogowie, oraz "fightHereNow" — lokalna szansa wygrania walki TU i TERAZ (liczy kto stoi obok, wrogów we mgle blisko, HP, poziomy, złoto; to samo co pasek gracza). Gdy fightHereNow ≥ 0.65 i jest cel w zasięgu (niskie HP, bez Flasha, odcięty) — zaproponuj wejście konkretnie ("Wejdź na Ahri", "All-in z Rengarem"); gdy ≤ 0.35 przy wrogach obok — "Odejdź" / "Nie wchodź". Używaj pozycji sojuszników do roamów, objective i "idź z X".
+- Powód zapytania "arrived" = gracz dotarł tam, gdzie kazała poprzednia porada; "ward-done" = postawił ward z poprzedniej porady. Wtedy ZAWSZE podaj następny konkretny krok w tym samym planie (np. "Herald teraz", "Czekaj na Rengara", "Ward krzak obok", "Wracaj na linię"), nie powtarzaj wykonanej porady.
 - Gdy nie masz NOWEJ, konkretnej decyzji: "call": null (gracz nic nie zobaczy — to lepsze niż szum).
 - "tone": go = zrób to teraz, wait = czekaj/przygotuj się, danger = zagrożenie, farm = spokojnie farm.
 - "mapHint": gdzie iść/co unikać, albo null. target to np. "dragon", "baron", "herald", "top", "mid", "bot", "my-jungle", "enemy-jungle", "base".
@@ -445,6 +446,14 @@ impl Coach {
         self.session += 1;
     }
 
+/// The player did what the last call said: ask for the next step at the next tick (reason
+    /// "arrived" or "ward-done").
+    pub fn request_followup(&mut self, reason: &str) {
+        if self.pending_reason.is_none() || self.pending_reason.as_deref() == Some("periodic") {
+            self.pending_reason = Some(reason.to_string());
+        }
+    }
+
     /// Call on every intel update (~2/s).
     pub fn tick(&mut self, ctx: &CoachContext, now: Instant) -> TickAction {
         if !self.config.enabled {
@@ -478,7 +487,9 @@ impl Coach {
         if self.in_flight {
             return TickAction::None;
         }
-        if since(self.last_call_at, now) < Duration::from_secs_f64(self.config.min_gap_sec) && pending != "death" {
+        // The player just did what the last call said (ward placed, arrived): the next step now.
+        let followup = pending == "arrived" || pending == "ward-done";
+        if since(self.last_call_at, now) < Duration::from_secs_f64(self.config.min_gap_sec) && pending != "death" && !followup {
             return TickAction::None;
         }
         self.pending_reason = None;
