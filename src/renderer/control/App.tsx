@@ -31,7 +31,7 @@ function Tab({ id, label, active, badge, onClick }: { id: Section; label: string
     <button type="button" className={'tab' + (active ? ' active' : '')} onClick={onClick} aria-current={active ? 'page' : undefined}>
       <svg viewBox="0 0 24 24" width="15" height="15"><path d={ICON[id]} fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" /></svg>
       {label}
-      {badge && <span className="tab-badge">{badge}</span>}
+      {badge && <span className={'tab-badge' + (badge.startsWith('●') ? ' live' : '')}>{badge}</span>}
     </button>
   );
 }
@@ -64,7 +64,7 @@ export function App() {
 
   const badge = (id: Section): string | undefined => {
     if (!status) return undefined;
-    if (id === 'home' && status.game) return fmtClock(status.game.gameTime);
+    if (id === 'home' && status.game) return '● ' + fmtClock(status.game.gameTime);
     if (id === 'recordings' && status.recording.active) return 'REC';
     if (id === 'harvest' && isHarvestBusy(status.harvest)) return 'zbiera';
     return undefined;
@@ -74,10 +74,13 @@ export function App() {
     <div className="app">
       <header className="titlebar">
         <div className="brand"><img src="icon.png" alt="" /><span className="brand-name">RIFT COACH</span><span className="brand-ver">{status ? `v${status.version}` : ''}</span></div>
-        <StatusBar status={status} error={loadError} />
       </header>
       <nav className="tabs">
-        {TABS.map(t => <Tab key={t.id} id={t.id} label={t.label} active={section === t.id} badge={badge(t.id)} onClick={() => setSection(t.id)} />)}
+        <div className="tabs-left" />
+        <div className="tabs-center">
+          {TABS.map(t => <Tab key={t.id} id={t.id} label={t.label} active={section === t.id} badge={badge(t.id)} onClick={() => setSection(t.id)} />)}
+        </div>
+        <StatusBar status={status} error={loadError} />
       </nav>
       <main className="content">
         <div className="page">

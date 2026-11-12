@@ -54,7 +54,7 @@ async function main() {
       if (!templates) {
         templates = [];
         for (const [team, list] of [['ORDER', meta.allies], ['CHAOS', meta.enemies]] as const)
-          for (const c of list as string[]) templates.push(buildTemplate(c, team, await loadChampionIcon(path.join(root, 'ddragon', 'icons'), sd.version, sd.championIds.get(c) ?? c), img.width, p));
+          for (const c of list as string[]) templates.push(buildTemplate(c, team, await loadChampionIcon(path.join(root, 'ddragon', 'icons'), sd.version, sd.championIds.get(c) ?? [...sd.championIds].find(([k]) => k.split(/[ &]/)[0] === c.split(' ')[0])?.[1] ?? c), img.width, p));
       }
       const s = Date.now();
       const { detections } = detect(img, templates, { ...p, ownTeam: ps.ownTeam });

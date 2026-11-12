@@ -22,13 +22,34 @@ import type { AllGameData } from '../../src/main/sources/liveApi';
 
 type Cached = Record<string, Array<{ c: string; t: string; x: number; y: number; s: number }>>;
 
+function mergeTruth(a: Cached, b: Cached): Cached {
+  const bt = Object.keys(b).map(Number).sort((x, y) => x - y);
+  const out: Cached = {};
+  for (const [k, da] of Object.entries(a)) {
+    const t = Number(k);
+    const nb = bt.reduce((best, x) => Math.abs(x - t) < Math.abs(best - t) ? x : best, bt[0]!);
+    const db = Math.abs(nb - t) <= 400 ? b[nb] ?? [] : [];
+    const champs = new Set([...da, ...db].filter(d => d.t === 'CHAOS').map(d => d.c));
+    out[k] = [];
+    for (const c of champs) {
+      const x = da.find(d => d.c === c), y = db.find(d => d.c === c);
+      if (x && y) { if (Math.hypot(x.x - y.x, x.y - y.y) <= 0.04) out[k]!.push({ ...x, x: (x.x + y.x) / 2, y: (x.y + y.y) / 2 }); }
+      else { const z = (x ?? y)!; if (z.s >= 0.75) out[k]!.push(z); }
+    }
+  }
+  return out;
+}
+
 async function main() {
   const [dir, flag] = process.argv.slice(2) as [string, string?];
   const useFog = flag !== 'noFog';
   const root = path.join(process.env.APPDATA!, 'Rift Coach');
   const sd = await loadStaticData(path.join(root, 'ddragon'));
   const blue = JSON.parse(readFileSync(path.join(dir, 'detections-frames.json'), 'utf8')) as Cached;
-  const red = JSON.parse(readFileSync(path.join(dir, `detections-${process.env.TRUTH ?? 'red'}.json`), 'utf8')) as Cached;
+  // Truth: red-team view, full view, or both merged (TRUTH=both): a champion counts only where the two
+  // passes agree (stacked portraits hide different champions in each view), or where one pass is confident.
+  const load = (sub: string) => JSON.parse(readFileSync(path.join(dir, `detections-${sub}.json`), 'utf8')) as Cached;
+  const red: Cached = process.env.TRUTH === 'both' ? mergeTruth(load('red'), load('all')) : load(process.env.TRUTH ?? 'red');
   const api = gunzipSync(readFileSync(path.join(dir, 'api.jsonl.gz')), { finishFlush: zc.Z_SYNC_FLUSH }).toString().trim().split('\n').map(l => JSON.parse(l) as { o: number; d: AllGameData });
   const redTimes = Object.keys(red).map(Number).sort((a, b) => a - b);
   const blueTimes = Object.keys(blue).map(Number).sort((a, b) => a - b);
@@ -45,6 +66,7 @@ async function main() {
   const Ks = [0.4, 0.6, 0.8, 1.0];
   const cal = buckets.map(() => Ks.map(() => ({ inside: 0, radius: 0 })));
   const speedOf = new Map<string, number>();
+  const perChamp = new Map<string, { n: number; e: number; big: string[] }>();
   let apiIdx = 0;
   const campT = new CampTracker();
   let campImg: ReturnType<typeof decodePng> | null = null;
@@ -100,6 +122,7 @@ async function main() {
       s.n++; s.errPred += ep; s.errBase += eb; s.radius += tr.estimate.radius;
       if (ep <= tr.estimate.radius) s.inside++;
       if (ep < eb) s.better++;
+      if (process.env.RC_PERCHAMP && b === 0) { const pc = perChamp.get(tr.champion) ?? { n: 0, e: 0, big: [] as string[] }; pc.n++; pc.e += eb; if (eb > 0.15 && pc.big.length < 4) pc.big.push((ms / 1000).toFixed(0) + "s last(" + tr.last.x.toFixed(2) + "," + tr.last.y.toFixed(2) + ") truth(" + truth.x.toFixed(2) + "," + truth.y.toFixed(2) + ")"); perChamp.set(tr.champion, pc); }
       Ks.forEach((k, ki) => { const r = Math.min(0.45, Math.max(tr.estimate!.radius, k * ((speedOf.get(tr.champion) ?? 345) / 14870) * age)); cal[b]![ki]!.radius += r; if (ep <= r) cal[b]![ki]!.inside++; });
     }
   }
@@ -111,6 +134,7 @@ async function main() {
     if (!s.n) return;
     console.log(`${String(lo).padStart(3)}-${String(hi).padEnd(4)}s ${String(s.n).padStart(7)}   ${(s.errPred / s.n * 100).toFixed(1).padStart(6)}%      ${(s.errBase / s.n * 100).toFixed(1).padStart(6)}%       ${(100 * s.better / s.n).toFixed(0).padStart(4)}%          ${(100 * s.inside / s.n).toFixed(0).padStart(4)}%          ${(s.radius / s.n * 100).toFixed(1)}%`);
   });
+  if (process.env.RC_PERCHAMP) for (const [c, v] of perChamp) console.log('0-5s', c, v.n, (v.e / v.n * 100).toFixed(1) + '%', v.big.join(' | '));
   console.log('calibrated radius r = max(pf radius, K * speed * age): inside% / avg radius');
   buckets.forEach(([lo, hi], i) => { const s = stats[i]!; if (!s.n) return; console.log(`${lo}-${hi}s  ` + Ks.map((k, ki) => `K=${k}: ${(100 * cal[i]![ki]!.inside / s.n).toFixed(0)}% r=${(100 * cal[i]![ki]!.radius / s.n).toFixed(0)}%`).join('  ')); });
   console.log('learner', JSON.stringify(learner.summary()));

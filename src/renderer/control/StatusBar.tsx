@@ -94,7 +94,9 @@ function SystemPill({ items }: { items: Item[] }) {
     return () => window.removeEventListener('mousedown', close);
   }, [open]);
   const errors = items.filter(i => i.state === 'error').length;
-  const warns = items.filter(i => i.state === 'waiting').length;
+  // 'waiting' on game / capture / replay just means no game is running: not something to fix.
+  const PASSIVE = ['Gra (Live API)', 'Obraz gry', 'Powtórka', 'Zbieranie danych'];
+  const warns = items.filter(i => i.state === 'waiting' && !PASSIVE.includes(i.label)).length;
   const tone = errors ? 'error' : warns ? 'waiting' : 'connected';
   const text = errors ? `${errors} ${errors === 1 ? 'problem' : 'problemy'}` : warns ? `${warns} do uwagi` : 'Wszystko działa';
   return (
@@ -122,7 +124,6 @@ export const StatusBar = memo(function StatusBar({ status, error }: { status: Ap
   const coach = coachOf(status.coach);
   return (
     <div className="tb-status">
-      {status.game && <span className="live-pill"><i />NA ŻYWO <span className="num">{fmtClock(status.game.gameTime)}</span></span>}
       {status.coach.state !== 'off' && (
         <div className={`coach-badge s-${coach.state}`} title={status.coach.lastError ?? status.coach.model ?? undefined}>
           <span className="coach-dot" />

@@ -118,6 +118,19 @@ const gameWindow = new WindowTracker();
 let frameUntil = 0; // show the minimap outline until this time
 let liveLostAt: number | null = null;
 let harvester: Harvester;
+let meProfile: import('../shared/types').PlayerProfile | null = null;
+
+/** Name, level, icon and ranks of the logged-in player (League client). */
+async function refreshMe() {
+  if (lcu.state !== 'connected') return;
+  try {
+    const s = await lcu.get<{ gameName?: string; tagLine?: string; summonerLevel?: number; profileIconId?: number }>('/lol-summoner/v1/current-summoner');
+    const rk = await lcu.get<{ queues?: Array<{ queueType: string; tier: string; division: string; leaguePoints: number; wins: number; losses: number }> }>('/lol-ranked/v1/current-ranked-stats').catch(() => null);
+    const ranks = (rk?.queues ?? []).filter(q => (q.queueType === 'RANKED_SOLO_5x5' || q.queueType === 'RANKED_FLEX_SR') && q.tier && q.tier !== 'NONE')
+      .map(q => ({ queue: q.queueType === 'RANKED_SOLO_5x5' ? 'solo' as const : 'flex' as const, tier: q.tier, division: q.division, lp: q.leaguePoints, wins: q.wins, losses: q.losses }));
+    if (s?.gameName) meProfile = { gameName: s.gameName, tagLine: s.tagLine ?? '', level: s.summonerLevel ?? 0, iconId: s.profileIconId ?? 0, ranks };
+  } catch { /* client busy; try later */ }
+}
 let replayApiState: SourceState = 'waiting';
 let harvestQueue: number[] = [];
 let harvestLaunching: number | null = null;
@@ -130,6 +143,7 @@ function status(): AppStatus {
   return {
     version: app.getVersion(),
     ddragonVersion: staticData?.version ?? null,
+    me: meProfile,
     liveApi: live.state,
     lcu: lcu.state,
     lcuPhase: lcu.phase,
@@ -288,7 +302,7 @@ function createControl() {
     width: 1180, height: 780, minWidth: 900, minHeight: 600, show: false,
     title: 'Rift Coach', backgroundColor: '#0c0f14', autoHideMenuBar: true,
     // Own dark title bar (Blitz-style); Windows keeps native min/max/close drawn over it.
-    titleBarStyle: 'hidden', titleBarOverlay: { color: '#0c0f14', symbolColor: '#9aa3b2', height: 44 },
+    titleBarStyle: 'hidden', titleBarOverlay: { color: '#0c0f14', symbolColor: '#9aa3b2', height: 36 },
     icon: path.join(__dirname, '..', 'assets', 'icon.png'),
     webPreferences: { preload: PRELOAD, sandbox: false },
   });
@@ -804,7 +818,9 @@ app.whenReady().then(() => {
   live.on('state', s => {
     if (s !== 'connected') liveLostAt ??= Date.now();
   });
-  lcu.on('phase', (p: string) => { recorder.lcuPhase(p); if (p !== 'ChampSelect') runesKey = ''; if (p === 'PreEndOfGame' || p === 'EndOfGame') setTimeout(() => void finishGame(), 3000); });
+  lcu.on('state', (st: string) => { if (st === 'connected') setTimeout(() => void refreshMe(), 1500); });
+  setInterval(() => void refreshMe(), 120000);
+  lcu.on('phase', (p: string) => { recorder.lcuPhase(p); if (p === 'EndOfGame') setTimeout(() => void refreshMe(), 8000); if (p !== 'ChampSelect') runesKey = ''; if (p === 'PreEndOfGame' || p === 'EndOfGame') setTimeout(() => void finishGame(), 3000); });
   lcu.on('champSelect', (sess: ChampSelectSession) => onChampSelect(sess));
 
   capture.on('frame', onLiveFrame);

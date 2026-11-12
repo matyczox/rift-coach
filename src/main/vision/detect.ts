@@ -43,6 +43,10 @@ export interface DetectParams {
    * uses regions on most frames and a full sweep about once a second.
    */
   sweep?: 'full' | 'none' | Array<{ x: number; y: number; r: number }>;
+  /** Fallback sweep (portrait ring hidden under another portrait) is a blind search, so it needs a
+   *  stricter match than ring-found candidates: otherwise minion waves / towers become champions. */
+  fallbackMinScore?: number;
+  fallbackSupport?: number;
   /** Local refinement radius in pixels. */
   refine: number;
 }
@@ -239,7 +243,7 @@ export function detect(img: Rgba, templates: Template[], p: DetectParams = DEFAU
       const support = ringSupport(img, fine.x, fine.y, R, want);
       if (process.env.RC_DEBUG) console.log('fallback', t.champion, fine, 'support', support.toFixed(2));
       const need = p.ownTeam && t.team !== p.ownTeam ? p.minScoreEnemy : p.minScore;
-      if (fine.score < need || support < 0.4) continue;
+      if (fine.score < Math.max(need, p.fallbackMinScore ?? 0) || support < (p.fallbackSupport ?? 0.4)) continue;
       if (detections.some(d => Math.hypot(d.x * W - fine.x, d.y * W - fine.y) < R * 0.9)) continue;
       usedT.add(t.champion);
       detections.push({ champion: t.champion, team: t.team, x: fine.x / W, y: fine.y / W, score: fine.score, margin: 0, votes: 0 });

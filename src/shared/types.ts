@@ -101,10 +101,15 @@ export interface ReplayFile {
   harvested: boolean;
 }
 
+export interface RankEntry { queue: 'solo' | 'flex'; tier: string; division: string; lp: number; wins: number; losses: number }
+export interface PlayerProfile { gameName: string; tagLine: string; level: number; iconId: number; ranks: RankEntry[] }
+
 export interface AppStatus {
   version: string;
   /** Data Dragon version for champion portraits (null until static data loads). */
   ddragonVersion: string | null;
+  /** Logged-in player from the League client (for the profile header). */
+  me: PlayerProfile | null;
   liveApi: SourceState;
   lcu: SourceState;
   lcuPhase: string | null;

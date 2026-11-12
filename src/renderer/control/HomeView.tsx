@@ -123,19 +123,66 @@ function ChampsCard({ items, version }: { items: MatchReview[]; version: string 
   );
 }
 
+const TIER_PL: Record<string, string> = { IRON: 'Żelazo', BRONZE: 'Brąz', SILVER: 'Srebro', GOLD: 'Złoto', PLATINUM: 'Platyna', EMERALD: 'Szmaragd', DIAMOND: 'Diament', MASTER: 'Mistrz', GRANDMASTER: 'Arcymistrz', CHALLENGER: 'Pretendent' };
+const ROMAN: Record<string, string> = { I: '1', II: '2', III: '3', IV: '4' };
+
+function RanksCard({ me }: { me: AppStatus['me'] }) {
+  const rows: Array<['solo' | 'flex', string]> = [['solo', 'Ranked Solo'], ['flex', 'Ranked Flex']];
+  return (
+    <div className="side-card ranks">
+      {rows.map(([q, label]) => {
+        const r = me?.ranks.find(x => x.queue === q);
+        const tier = r?.tier.toLowerCase() ?? 'none';
+        const apex = r && ['MASTER', 'GRANDMASTER', 'CHALLENGER'].includes(r.tier);
+        return (
+          <div key={q} className="rank-row">
+            <span className={`rank-gem t-${tier}`} />
+            <span className="rank-q">{label}</span>
+            <span className={`rank-v t-${tier}`}>{r ? `${TIER_PL[r.tier] ?? r.tier}${apex ? '' : ' ' + (ROMAN[r.division] ?? r.division)} · ${r.lp} LP` : 'brak rangi'}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ProfileHeader({ me, version, splash }: { me: AppStatus['me']; version: string | null; splash: string | null }) {
+  const icon = me && version ? `https://ddragon.leagueoflegends.com/cdn/${version}/img/profileicon/${me.iconId}.png` : null;
+  return (
+    <header className="profile">
+      {splash && <div className="profile-splash" style={{ backgroundImage: `url(https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${champId(splash)}_0.jpg)` }} />}
+      <div className="profile-inner">
+        <div className="profile-avatar">
+          {icon ? <img src={icon} alt="" /> : <img src="icon.png" alt="" />}
+          {me ? <span className="profile-level num">{me.level}</span> : null}
+        </div>
+        <div>
+          <div className="profile-name">{me ? me.gameName : 'Rift Coach'}{me?.tagLine ? <span className="profile-tag"> #{me.tagLine}</span> : null}</div>
+          <div className="profile-sub">{me ? 'Twój coach do League of Legends' : 'Zaloguj się w kliencie League of Legends'}</div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
 export function HomeView({ status }: { status: AppStatus }) {
   const [items, setItems] = useState<MatchReview[]>([]);
   const onItems = useCallback((x: MatchReview[]) => setItems(x), []);
+  const splash = status.game?.activeChampion ?? items[0]?.champion ?? null;
   return (
-    <div className="home">
-      <aside className="home-side">
-        <ReadyCard status={status} />
-        <ModelsCard status={status} />
-        <ChampsCard items={items} version={status.ddragonVersion} />
-      </aside>
-      <div className="home-main">
-        {status.game ? <LiveCard game={status.game} advice={status.lastAdvice} version={status.ddragonVersion} /> : <IdleCard status={status} />}
-        <LastMatchView ddragonVersion={status.ddragonVersion} onItems={onItems} />
+    <div className="home-wrap">
+      <ProfileHeader me={status.me} version={status.ddragonVersion} splash={splash} />
+      <div className="home">
+        <aside className="home-side">
+          <RanksCard me={status.me} />
+          <ReadyCard status={status} />
+          <ModelsCard status={status} />
+          <ChampsCard items={items} version={status.ddragonVersion} />
+        </aside>
+        <div className="home-main">
+          {status.game ? <LiveCard game={status.game} advice={status.lastAdvice} version={status.ddragonVersion} /> : <IdleCard status={status} />}
+          <LastMatchView ddragonVersion={status.ddragonVersion} onItems={onItems} />
+        </div>
       </div>
     </div>
   );
