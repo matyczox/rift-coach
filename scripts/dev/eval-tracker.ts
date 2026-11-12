@@ -71,7 +71,8 @@ async function main() {
   const nearest = (arr: number[], t: number) => { let lo = 0, hi = arr.length - 1; while (lo < hi) { const m = (lo + hi) >> 1; if (arr[m]! < t) lo = m + 1; else hi = m; } const a = arr[lo]!, b = arr[lo - 1]; return b !== undefined && Math.abs(b - t) < Math.abs(a - t) ? b : a; };
 
   const terrain = new GridTerrain(128, loadWalkable(128));
-  const learner = new Learner(null);
+  // LEARNER_FILE: train a persistent model across sessions (e.g. the shipped base model).
+  const learner = new Learner(process.env.LEARNER_FILE ?? null);
   const tracker = new EnemyTracker(terrain, learner, 300);
   const intelT = new IntelTracker(() => sd.items, () => sd.championStats);
   let ref: ReturnType<typeof loadReference> | null = null;
@@ -153,5 +154,6 @@ async function main() {
   console.log('calibrated radius r = max(pf radius, K * speed * age): inside% / avg radius');
   buckets.forEach(([lo, hi], i) => { const s = stats[i]!; if (!s.n) return; console.log(`${lo}-${hi}s  ` + Ks.map((k, ki) => `K=${k}: ${(100 * cal[i]![ki]!.inside / s.n).toFixed(0)}% r=${(100 * cal[i]![ki]!.radius / s.n).toFixed(0)}%`).join('  ')); });
   console.log('learner', JSON.stringify(learner.summary()));
+  learner.save();
 }
 main().catch(e => { console.error(e); process.exit(1); });

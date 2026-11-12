@@ -690,7 +690,8 @@ async function harvestOpen(speed: number, gameId: number | null, extra: { passes
   for (let i = 0; i < 20 && capture.status.state !== 'connected'; i++) await sleep(500);
   await autoCalibrate();
   // Replay opened by hand: the League client still knows which game it is.
-  if (gameId === null) gameId = await lcu.get<{ gameData?: { gameId?: number } }>('/lol-gameflow/v1/session').then(g => g?.gameData?.gameId || null, () => null);
+  // Only while the client says a replay is being watched: in the lobby the session still holds the LAST PLAYED game.
+  if (gameId === null) gameId = await lcu.get<{ phase?: string; gameData?: { gameId?: number } }>('/lol-gameflow/v1/session').then(g => (g?.phase === 'WatchInProgress' ? g?.gameData?.gameId || null : null), () => null);
   try {
     await harvester.run({ gameId, speed, meta: { calibration: settings.value.calibration, appVersion: app.getVersion() }, ...extra });
   } finally {
