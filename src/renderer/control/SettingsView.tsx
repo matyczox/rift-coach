@@ -277,14 +277,14 @@ export const SettingsView = memo(function SettingsView({ settings }: { settings:
       <div className="settings-grid">
         <div className="panel">
           <h2>Ogólne</h2>
-          {toggle(draft.autoRecord, (v) => setDraft((d) => ({ ...d, autoRecord: v })), 'Nagrywaj automatycznie', 'Startuje nagranie, gdy zaczyna się obsługiwana gra.')}
-          {toggle(draft.autoRunes, (v) => setDraft((d) => ({ ...d, autoRunes: v })), 'Automatyczne runy w wyborze postaci', 'Aplikacja ustawia stronę run „Rift Coach” po zablokowaniu postaci i poprawia ją, gdy pojawi się przeciwnik z linii. Twoich innych stron nie zmienia.')}
+          {toggle(draft.autoRecord, (v) => setDraft((d) => ({ ...d, autoRecord: v })), 'Nagrywaj automatycznie', 'Zapisuje mecze do nauki trackera.')}
+          {toggle(draft.autoRunes, (v) => setDraft((d) => ({ ...d, autoRunes: v })), 'Automatyczne runy w wyborze postaci', 'Strona „Rift Coach” pod Twoją postać i przeciwnika. Innych stron nie rusza.')}
           {toggle(draft.overlayVisible, (v) => setDraft((d) => ({ ...d, overlayVisible: v })), 'Pokazuj nakładkę', 'Warstwa na grze (minimapa, komunikaty).')}
-          {toggle(draft.launchAtLogin, (v) => setDraft((d) => ({ ...d, launchAtLogin: v })), 'Uruchamiaj z Windows (w tle)', 'Coach startuje po zalogowaniu, okno pozostaje ukryte; nakładka pojawi się w meczu. Okno otworzysz ikoną na pulpicie.')}
+          {toggle(draft.launchAtLogin, (v) => setDraft((d) => ({ ...d, launchAtLogin: v })), 'Uruchamiaj z Windows (w tle)', 'Działa w tle od włączenia komputera; okno otworzysz ikoną na pulpicie.')}
         </div>
         <div className="panel">
           <h2>Coach</h2>
-          {toggle(draft.coach.enabled, (v) => setCoach({ enabled: v }), 'Coach AI', 'Krótkie porady na pasku u góry, analiza po śmierci i podsumowanie po meczu.')}
+          {toggle(draft.coach.enabled, (v) => setCoach({ enabled: v }), 'Coach AI', 'Porady w grze, analiza po śmierci i po meczu.')}
           <div className="field">
             <label htmlFor="coach-live">Model w grze</label>
             <ModelPicker id="coach-live" value={draft.coach.liveModel} options={LIVE_MODELS} onChange={(v) => setCoach({ liveModel: v })} />

@@ -29,22 +29,22 @@ export function LearningView({ status }: { status: AppStatus }) {
   const sources: Source[] = [
     {
       title: 'Tracker mgły', icon: ICONS.fog,
-      value: n(s?.fog.samples), sub: s?.fog.samples ? `powrotów z mgły · ${s.fog.patterns} wzorców` : 'jeszcze bez danych',
+      value: n(s?.fog.samples), sub: 'wyjść wroga z mgły',
       text: 'Za każdym razem, gdy wróg wychodzi z mgły, aplikacja sprawdza, gdzie przewidywała go zobaczyć, i poprawia mnożniki celów (obóz, linia, smok, invade, powrót) osobno dla każdej roli i fazy gry.',
     },
     {
-      title: 'Samotrening', icon: ICONS.self,
-      value: n(s?.observedGames), sub: 'zapisanych meczów',
+      title: 'Trening na meczach', icon: ICONS.self,
+      value: n(s?.observedGames), sub: 'meczów do treningu',
       text: 'Po meczu na Summoner’s Rift pobiera z Riot API oś czasu z prawdziwymi pozycjami wszystkich graczy co minutę i trenuje na nich tracker: odtwarza mecz i uczy się z każdej pomyłki.',
     },
     {
       title: 'Profile przeciwników', icon: ICONS.people,
-      value: n(s?.profiles), sub: 'odpowiedzi Riot API w pamięci',
+      value: n(s?.profiles), sub: 'zapisanych profili',
       text: 'Na starcie meczu sprawdza ostatnie gry wrogów: role, pulę postaci, styl junglera (gdzie zaczyna, jak często ganka). Coach i tracker biorą to pod uwagę.',
     },
     {
-      title: 'Patch i matchupy', icon: ICONS.book,
-      value: n(s ? s.patchBriefs + s.matchups : undefined), sub: s ? `${s.patchBriefs} patch · ${s.matchups} matchupów · ${s.reviews} analiz` : '',
+      title: 'Wiedza o grze', icon: ICONS.book,
+      value: n(s ? s.patchBriefs + s.matchups + s.reviews : undefined), sub: 'patchy, matchupów i analiz',
       text: 'Raz na patch czyta zmiany i metę, raz na mecz matchup na linii. Po każdym meczu zapisuje analizę: co poprawić, kluczowe momenty.',
     },
   ];
@@ -53,32 +53,28 @@ export function LearningView({ status }: { status: AppStatus }) {
     <div className="learning">
       <div className="section-head">
         <div>
-          <h2 className="section-title">Jak Rift Coach się uczy</h2>
-          <div className="muted small">Uczy się tylko na prawdziwych meczach na Summoner’s Rift — nie na treningu, ARAM-ie ani Arenie.</div>
+          <h2 className="section-title">Czego się nauczył</h2>
+          <div className="muted small">Tylko z meczów na Summoner’s Rift. Najedź na kafelek, żeby zobaczyć szczegóły.</div>
         </div>
       </div>
       {err && <div className="error-text small">{err}</div>}
       <div className="learn-grid">
         {sources.map(x => (
-          <div key={x.title} className="learn-card">
+          <div key={x.title} className="learn-card" title={x.text}>
             <div className="learn-top">
               <span className="learn-ico"><svg viewBox="0 0 24 24" width="20" height="20"><path d={x.icon} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
               <span className="learn-title">{x.title}</span>
             </div>
             <div className="learn-value num">{x.value}</div>
             <div className="learn-sub">{x.sub}</div>
-            <p className="learn-text">{x.text}</p>
           </div>
         ))}
       </div>
 
       <div className="learn-section">
-        <h2 className="section-title">Dane z powtórek</h2>
-        <div className="muted small">Najszybszy sposób nauki: aplikacja odtwarza Twoje powtórki i widzi, gdzie naprawdę byli wrogowie.</div>
         <HarvestView harvest={status.harvest} replayApi={status.replayApi} />
       </div>
       <div className="learn-section">
-        <h2 className="section-title">Nagrania</h2>
         <RecordingsView recording={status.recording} replay={status.replay} />
       </div>
     </div>

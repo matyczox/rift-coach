@@ -701,3 +701,40 @@ body { font-feature-settings: "tnum" 0, "cv11" 1; letter-spacing: -0.005em; }
 .learn-section .section > .section-head h1 { display: none; }
 @media (max-width: 1100px) { .learn-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .page h1 { font-size: 18px; font-weight: 800; letter-spacing: -0.01em; }
+
+/* ---- Minimapa tab ---- */
+.mm { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 16px; align-items: start; }
+.mm-main { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.mm-status { display: flex; align-items: center; gap: 14px; padding: 18px; border-radius: var(--r-lg); background: #13161d; border: 1px solid #1c2028; }
+.mm-status.ok { background: linear-gradient(110deg, rgba(48, 217, 211, .10), #13161d 55%); }
+.mm-status.warn { background: linear-gradient(110deg, rgba(232, 182, 90, .10), #13161d 55%); }
+.mm-badge { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; font-weight: 800; font-size: 18px; flex: none; }
+.mm-status.ok .mm-badge { background: var(--accent-soft); color: var(--teal); }
+.mm-status.warn .mm-badge { background: rgba(232, 182, 90, .14); color: var(--gold); }
+.mm-text { flex: 1; min-width: 0; }
+.mm-title { font-size: 16px; font-weight: 800; }
+.mm-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.mm-manual { align-self: flex-start; }
+.mm-manual-box .section-head h1 { font-size: 14px; }
+.mm-side { display: flex; flex-direction: column; gap: 8px; padding: 14px; border-radius: var(--r-lg); background: #13161d; border: 1px solid #1c2028; }
+.mm-side .side-title { margin-bottom: 0; }
+
+/* Nauka: compact tiles, nested views keep their own small headers */
+.learn-card { cursor: help; }
+.learn-section .section > .section-head h1 { display: block; font-size: 14px; }
+
+/* Settings: one tidy column of sections instead of a ragged masonry */
+.settings-grid { grid-template-columns: 1fr; max-width: 820px; }
+.section:has(> .settings-grid) { max-width: 820px; }
+
+/* Settings rows like Blitz: name + short hint on the left, control on the right */
+.settings-grid .card, .settings-grid > * { padding-top: 6px; padding-bottom: 6px; }
+.settings-grid h2 { margin: 10px 0 2px; }
+.settings-grid .field { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 24px; row-gap: 2px; align-items: center; padding: 12px 0; margin: 0; }
+.settings-grid .field + .field { border-top: 1px solid var(--border); }
+.settings-grid .field > label:not(.switch-row) { grid-column: 1; grid-row: 1; font-weight: 600; margin: 0; }
+.settings-grid .field > :not(label):not(.field-hint):not(.error-text) { grid-column: 2; grid-row: 1 / span 2; justify-self: end; }
+.settings-grid .field > .field-hint { grid-column: 1; font-size: 12px; color: var(--text-faint); margin: 0; }
+.settings-grid .switch-row { grid-column: 1 / -1; grid-row: 1; display: flex; flex-direction: row-reverse; justify-content: space-between; align-items: center; gap: 16px; font-weight: 600; margin: 0; }
+.settings-grid .help-line { font-size: 12px; color: var(--text-faint); padding-top: 10px; border-top: 1px solid var(--border); }
+.settings-grid .field > label:not(.switch-row):last-of-type { align-self: center; }

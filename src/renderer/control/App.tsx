@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { AppStatus } from '../../shared/types';
 import { errText, fmtClock, rc } from './util';
 import { StatusBar } from './StatusBar';
-import { CalibrationView } from './CalibrationView';
+import { MinimapView } from './MinimapView';
 import { SettingsView } from './SettingsView';
 import { isHarvestBusy } from './HarvestView';
 import { LearningView } from './LearningView';
@@ -86,13 +86,7 @@ export function App() {
           ) : section === 'home' ? (
             <HomeView status={status} />
           ) : section === 'calibration' ? (
-            <CalibrationView
-              calibration={status.settings.calibration}
-              captureState={status.capture.state}
-              lastAdvice={status.lastAdvice}
-              windowWidth={status.capture.windowWidth}
-              windowHeight={status.capture.windowHeight}
-            />
+            <MinimapView status={status} />
           ) : section === 'learning' ? (
             <LearningView status={status} />
           ) : (

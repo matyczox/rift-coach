@@ -103,7 +103,7 @@ export const HarvestView = memo(function HarvestView({ harvest, replayApi }: Pro
   return (
     <section className="section">
       <div className="section-head">
-        <h1>Zbieranie danych z powtórek</h1>
+        <h1>Powtórki</h1>
         <div className="toolbar">
           <label className="speed">
             <span className="muted">Prędkość</span>
@@ -126,14 +126,7 @@ export const HarvestView = memo(function HarvestView({ harvest, replayApi }: Pro
         </div>
       </div>
 
-      <div className="hint-line">
-        Aplikacja odtwarza powtórkę dwa razy: z wizją niebieskich i czerwonych. Między przebiegami poprosi Cię
-        o zmianę „Mgła wojny” w powtórce. Nie zamykaj okna gry.
-      </div>
-      <div className="field-hint">
-        Ok. 10 min na przebieg dla 40-minutowego meczu przy 8×.
-        Zaznaczone powtórki aplikacja otwiera sama przez klienta (nie w trakcie gry). Wynik trafia do Nagrań.
-      </div>
+      <div className="field-hint">Zaznacz powtórki i kliknij „Zbierz zaznaczone”. Aplikacja sama je otworzy; między przebiegami poprosi o zmianę „Mgła wojny”.</div>
       {err && <div className="error-text">{err}</div>}
 
       <HarvestCard harvest={harvest} onStop={stop} onContinue={cont} pending={act.busy} />

@@ -95,7 +95,7 @@ function SystemPill({ items, thinking }: { items: Item[]; thinking?: boolean }) 
   }, [open]);
   const errors = items.filter(i => i.state === 'error').length;
   // 'waiting' on game / capture / replay just means no game is running: not something to fix.
-  const PASSIVE = ['Gra (Live API)', 'Obraz gry', 'Powtórka', 'Zbieranie danych'];
+  const PASSIVE = ['Gra (Live API)', 'Klient LoL', 'Obraz gry', 'Powtórka', 'Zbieranie danych'];
   const warns = items.filter(i => i.state === 'waiting' && !PASSIVE.includes(i.label)).length;
   const tone = errors ? 'error' : warns ? 'waiting' : 'connected';
   // All fine and the coach idle: the Gotowość card already says so; keep the title bar clean.

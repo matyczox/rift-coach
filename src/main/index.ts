@@ -864,7 +864,9 @@ app.whenReady().then(() => {
   capture.on('status', s => {
     if (s.state === 'connected') {
       capture.configure({ crop: cropRect() });
-      if (!settings.value.calibration) setTimeout(() => void autoCalibrate(), 1500);
+      // Find the minimap by itself at every game start (HUD scale / resolution may have changed),
+      // unless the user placed it by hand.
+      if (settings.value.calibration?.source !== 'manual') setTimeout(() => void autoCalibrate(), 1500);
     }
   });
   gameWindow.on('rect', () => placeOverlay());
