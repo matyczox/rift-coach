@@ -36,6 +36,9 @@ pub struct UiState {
     pub runes: RunesStatus,
     /// When the Live API went away (game over / loading); None while connected.
     pub live_lost_at: Option<std::time::Instant>,
+    /// The player's own habits + review lessons (`<userData>/player-profile.json`).
+    pub player_profile: Option<rc_core::riot::PlayerSelfProfile>,
+    pub self_profile_busy: bool,
 
     pub quitting: bool,
 }
@@ -48,6 +51,8 @@ impl Default for UiState {
             profiles: ProfilesStatus { state: "idle".into(), count: 0, error: None },
             runes: RunesStatus::idle(),
             live_lost_at: None,
+            player_profile: None,
+            self_profile_busy: false,
             quitting: false,
         }
     }
@@ -122,6 +127,7 @@ impl AppState {
             version: self.version.clone(),
             ddragon_version: ui.ddragon_version.clone(),
             me,
+            player_profile: ui.player_profile.clone(),
             live_api: live_state,
             lcu: lcu_state,
             lcu_phase: phase,

@@ -99,6 +99,8 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
         let s = st.settings.lock().unwrap();
         (s.value().coach.clone(), !s.value().riot.api_key.is_empty())
     };
+    // Player profile text for the per-game system prompt (read before taking the game lock).
+    let self_profile = rc_core::riot::self_profile::self_profile_for_coach(st.ui.lock().unwrap().player_profile.as_ref());
     let mut g = st.game.lock().unwrap();
     // English champion names everywhere (the client may be localised).
     let d = match &g.static_data {
@@ -151,6 +153,7 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
             matchup,
             camps,
             covered_ward_spots: covered,
+            self_profile,
         };
         g.coach.tick(&ctx, Instant::now())
     };
