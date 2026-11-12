@@ -78,6 +78,8 @@ pub struct PlayerIntel {
     pub flash_in: Option<f64>,
     /// Mana fraction for mana champions (me: Live API; allies: portraits above the minimap). None = no mana / unknown.
     pub mana_pct: Option<f64>,
+    /// Shield as a fraction of max HP, seen in the last 3 s (shields are short-lived).
+    pub shield_pct: Option<f64>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
@@ -218,12 +220,18 @@ pub struct IntelTracker {
     game_id: String,
     hp: HashMap<String, (f64, f64)>,
     mana: HashMap<String, (Option<f64>, f64)>,
+    shield: HashMap<String, (f64, f64)>,
 }
 
 impl IntelTracker {
     /// HP fraction of a champion read from the screen, at game time t.
     pub fn set_hp(&mut self, champion: &str, pct: f64, t: f64) {
         self.hp.insert(champion.into(), (pct, t));
+    }
+
+    /// Shield (fraction of max HP) from a health bar / ally portrait.
+    pub fn set_shield(&mut self, champion: &str, pct: f64, t: f64) {
+        self.shield.insert(champion.into(), (pct, t));
     }
 
     /// Mana fraction of an ally (portraits above the minimap); None = not a mana champion.
@@ -330,6 +338,7 @@ impl IntelTracker {
                 hp_seen_at: if is_me { Some(t) } else { self.hp.get(&p.champion_name).map(|h| h.1) },
                 move_speed,
                 flash_in,
+                shield_pct: self.shield.get(&p.champion_name).filter(|s| t - s.1 <= 3.0 && s.0 > 0.01).map(|s| s.0),
                 mana_pct: if is_me {
                     let mana = ap.champion_stats.get("resourceType").and_then(|v| v.as_str()) == Some("MANA");
                     match (mana, ap.stat("resourceValue"), ap.stat("resourceMax")) {

@@ -705,3 +705,30 @@ pub fn match_bars_to_champions<B: BarLike>(bars: &[B], candidates: &[ChampionCan
     }
     result
 }
+
+#[cfg(test)]
+mod mana_tests {
+    use super::*;
+
+    /// Geometry measured on a real 1440p frame (enemy Lissandra, ~10% HP): HP fill top y=461,
+    /// 12 px tall, mana strip 4 px tall at y=477..480, same left edge, blue to ~91% of the width.
+    #[test]
+    fn mana_strip_under_hp_bar() {
+        let (w, h) = (300usize, 200usize);
+        let mut f = Rgba { width: w, height: h, data: vec![30; w * h * 4] };
+        let bar = HealthBar { x: 100, y: 61, width: 125, pct: 0.1, shield_pct: 0.0, shield_compressed: false, level: None, confidence: 1.0, mana: None };
+        for y in 77..81 {
+            for x in 100..214 {
+                let i = (y * w + x) * 4;
+                f.data[i] = 50;
+                f.data[i + 1] = 110;
+                f.data[i + 2] = 210;
+            }
+        }
+        let m = mana_below(&f, &bar, 12.0, 1.0).unwrap();
+        assert!((m - 0.91).abs() < 0.03, "{m}");
+        // No strip (energy / no resource): None, not 0.
+        let empty = Rgba { width: w, height: h, data: vec![30; w * h * 4] };
+        assert_eq!(mana_below(&empty, &bar, 12.0, 1.0), None);
+    }
+}

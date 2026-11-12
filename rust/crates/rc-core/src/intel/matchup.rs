@@ -139,6 +139,15 @@ fn sigmoid(x: f64) -> f64 {
 /// Last seen HP (health bar on screen), remembered after the bar leaves the screen: it recovers
 /// ~0.6%/s (regen) and is forgotten after 90 s or a death. (Was a 4 s cutoff: someone seen at 30%
 /// counted as full HP 5 s later.)
+/// HP plus a fresh shield (shields only count while just seen: they last seconds).
+fn hp_eff(intel: &GameIntel, p: &PlayerIntel) -> Option<f64> {
+    match (hp_fresh(intel, p), p.shield_pct) {
+        (Some(h), Some(s)) => Some((h + s).min(1.6)),
+        (None, Some(s)) => Some((1.0 + s).min(1.6)),
+        (h, None) => h,
+    }
+}
+
 fn hp_fresh(intel: &GameIntel, p: &PlayerIntel) -> Option<f64> {
     if p.is_dead {
         return None;
@@ -169,7 +178,7 @@ pub fn power_score(intel: &GameIntel, opp: &PlayerIntel, brief: Option<&MatchupB
         Some(s) if s.max_hp > 0.0 => s.hp / s.max_hp,
         _ => 1.0,
     };
-    let opp_hp = hp_fresh(intel, opp).unwrap_or(1.0);
+    let opp_hp = hp_eff(intel, opp).unwrap_or(1.0);
     let flash = if opp.flash_in.is_some_and(|f| f > 0.0) { 0.25 } else { 0.0 };
     let threat_re = regex::Regex::new(r"(?i)Ignite|Podpalenie|Exhaust|Wyczerpanie").unwrap();
     let threat = if opp.summoner_spells.iter().any(|s| threat_re.is_match(s)) { -0.15 } else { 0.0 };
@@ -240,7 +249,7 @@ fn unit_strength(p: &PlayerIntel, avg_lvl: f64, avg_gold: f64, hp: Option<f64>) 
     let s = 1.0 + 0.1 * (p.level as f64 - avg_lvl) + 0.3 * (p.item_gold - avg_gold) / 1000.0;
     // Out of mana = few spells: down to 70% at 0 mana (mana champions only).
     let mana = p.mana_pct.map_or(1.0, |m| 0.7 + 0.3 * m.clamp(0.0, 1.0));
-    s.max(0.3) * hp.unwrap_or(1.0).clamp(0.2, 1.0) * mana
+    s.max(0.3) * hp.unwrap_or(1.0).clamp(0.2, 1.6) * mana
 }
 
 /// Fight score delta from the champions around me: allies add, extra enemies subtract
@@ -257,22 +266,22 @@ pub fn nearby_delta(intel: &GameIntel, opp: &PlayerIntel, near: &Nearby) -> f64 
     let mut d = 0.0;
     for a in &near.allies {
         if let Some(p) = find(a).filter(|p| p.is_ally && !p.is_me) {
-            d += unit_strength(p, avg_lvl, avg_gold, hp_fresh(intel, p));
+            d += unit_strength(p, avg_lvl, avg_gold, hp_eff(intel, p));
         }
     }
     for (e, sure) in &near.enemies {
         if let Some(p) = find(e).filter(|p| !p.is_ally && p.champion != opp.champion) {
-            d -= unit_strength(p, avg_lvl, avg_gold, hp_fresh(intel, p)) * if *sure { 1.0 } else { 0.6 };
+            d -= unit_strength(p, avg_lvl, avg_gold, hp_eff(intel, p)) * if *sure { 1.0 } else { 0.6 };
         }
     }
     for a in &near.allies_coming {
         if let Some(p) = find(a).filter(|p| p.is_ally && !p.is_me) {
-            d += 0.5 * unit_strength(p, avg_lvl, avg_gold, hp_fresh(intel, p));
+            d += 0.5 * unit_strength(p, avg_lvl, avg_gold, hp_eff(intel, p));
         }
     }
     for e in &near.enemies_coming {
         if let Some(p) = find(e).filter(|p| !p.is_ally && p.champion != opp.champion) {
-            d -= 0.5 * unit_strength(p, avg_lvl, avg_gold, hp_fresh(intel, p));
+            d -= 0.5 * unit_strength(p, avg_lvl, avg_gold, hp_eff(intel, p));
         }
     }
     1.3 * d
@@ -420,6 +429,7 @@ pub(crate) mod tests {
             move_speed: 340.0,
             flash_in: None,
             mana_pct: None,
+            shield_pct: None,
         }
     }
 

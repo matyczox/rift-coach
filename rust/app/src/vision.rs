@@ -642,6 +642,7 @@ fn apply_team_frames(g: &mut Game, frames: &[rc_vision::teamframes::AllyFrame]) 
             if !p.is_dead {
                 tracker.set_hp(&p.champion, f.hp, intel.game_time);
                 tracker.set_mana(&p.champion, f.mana, intel.game_time);
+                tracker.set_shield(&p.champion, f.shield, intel.game_time);
             }
         }
     }
@@ -654,6 +655,7 @@ fn apply_ally_hp(g: &mut Game, bars: &[HealthBar]) {
     for (bar, c) in bars.iter().zip(match_bars_to_champions(bars, &cands, &MatchOptions::default())) {
         if let Some(c) = c {
             tracker.set_hp(&c, bar.pct, intel.game_time);
+            tracker.set_shield(&c, bar.shield_pct, intel.game_time);
         }
     }
 }
@@ -665,6 +667,7 @@ fn apply_hp(g: &mut Game, bars: &[HealthBar]) {
     for (bar, c) in bars.iter().zip(match_bars_to_champions(bars, &cands, &MatchOptions::default())) {
         if let Some(c) = c {
             tracker.set_hp(&c, bar.pct, intel.game_time);
+            tracker.set_shield(&c, bar.shield_pct, intel.game_time);
             if bar.mana.is_some() {
                 tracker.set_mana(&c, bar.mana, intel.game_time);
             }

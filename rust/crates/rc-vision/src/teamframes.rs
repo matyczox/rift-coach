@@ -17,6 +17,8 @@ pub struct AllyFrame {
     pub hp: f64,
     /// Mana fraction 0..1; None = not a mana champion (grey / other resource bar).
     pub mana: Option<f64>,
+    /// Shield (white segment after the green), fraction of the bar.
+    pub shield: f64,
 }
 
 fn px(f: &Rgba, x: i32, y: i32) -> (u8, u8, u8) {
@@ -80,6 +82,7 @@ pub fn read_team_frames(f: &Rgba, mm: (i32, i32, i32, i32)) -> Vec<AllyFrame> {
         let xs = sx0.round() as i32..sx1.round() as i32;
         let n = xs.len().max(1) as f64;
         let green = xs.clone().filter(|&x| { let (r, g, b) = px(f, x, hp_row); is_green(r, g, b) }).count() as f64;
+        let white = xs.clone().filter(|&x| { let (r, g, b) = px(f, x, hp_row); r > 175 && g > 175 && b > 175 }).count() as f64;
         let (mut blue, mut dark) = (0.0, 0.0);
         for x in xs {
             let (r, g, b) = px(f, x, res_row);
@@ -91,7 +94,7 @@ pub fn read_team_frames(f: &Rgba, mm: (i32, i32, i32, i32)) -> Vec<AllyFrame> {
         }
         // Mana bar = blue fill + dark empty part; grey (no mana) has neither.
         let mana = if blue > 0.0 { Some((blue / n).min(1.0)) } else if dark >= 0.9 * n && green > 0.0 { Some(0.0) } else { None };
-        out.push(AllyFrame { slot: 3 - k, hp: (green / n).min(1.0), mana });
+        out.push(AllyFrame { slot: 3 - k, hp: (green / n).min(1.0), mana, shield: (white / n).min(1.0) });
     }
     out.sort_by_key(|a| a.slot);
     out
