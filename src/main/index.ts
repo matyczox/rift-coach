@@ -387,7 +387,7 @@ function onGameData(d: AllGameData) {
     buildPatchBrief({ dir: briefDir(), patch: patchOf(staticData.version), focusChampions: [...new Set(['Rumble', 'Akali', 'Ambessa', ...champions])] })
       .then(b => { patchBrief = b; }, e => { console.warn('patch brief failed', e); setTimeout(() => { patchBriefRequested = false; }, 10 * 60000); });
   }
-  coach.tick({ intel, ghosts, alerts, profiles, patchBrief: patchBrief ? briefForGame(patchBrief, champions) : undefined, matchup: matchupForCoach(intel, matchup), coveredWardSpots: coveredSpots(intel), camps: campSummary(intel), selfProfile: selfProfileForCoach(selfProfile) });
+  coach.tick({ intel, ghosts, alerts, profiles, patchBrief: patchBrief ? briefForGame(patchBrief, champions) : undefined, matchup: matchupForCoach(intel, matchup), coveredWardSpots: coveredSpots(intel), camps: campSummary(intel), selfProfile: selfProfileForCoach(selfProfile), plannedBuild: build?.items.map(it => it.name) });
 }
 
 /** Fetch enemy profiles once per game (needs a Riot API key). */

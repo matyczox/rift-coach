@@ -6,6 +6,8 @@ import { WARD_SPOTS } from '../../shared/wards';
 
 /** What System 1 and the rest of the app know right now. */
 export interface CoachContext {
+  /** Item plan shown in the HUD build panel; the coach's item call must match it. */
+  plannedBuild?: string[];
   /** Player profile text (habits, weak spots, lessons) for the per-game system prompt. */
   selfProfile?: string;
   intel: GameIntel;
@@ -40,7 +42,7 @@ Zasady:
 - "call": maksymalnie 8 słów, po polsku, konkretna decyzja na najbliższe 30 s (np. "Smok: TAK — 3 wrogów bot martwych", "Nie pushuj — jungler wroga top-side 70%", "Farm bot, back przy 1300 g"). Bez lania wody, bez emotek.
 - "tone": go = zrób to teraz, wait = czekaj/przygotuj się, danger = zagrożenie, farm = spokojnie farm.
 - "mapHint": gdzie iść/co unikać, albo null. target to np. "dragon", "baron", "herald", "top", "mid", "bot", "my-jungle", "enemy-jungle", "base".
-- "item": następny przedmiot do kupienia przy najbliższym powrocie, gdy ma sens (np. kontra na burst AP), inaczej null.
+- "item": następny przedmiot do kupienia przy najbliższym powrocie. Jeśli w danych jest "plannedBuild" (plan z panelu buildu, który gracz widzi na ekranie), wybierz z niego pierwszy przedmiot, którego gracz jeszcze nie ma — nie proponuj innego. Odejdź od planu tylko, gdy sytuacja wyraźnie tego wymaga (np. wróg nagle nafeedowany AP), i wtedy w "call" krótko napisz dlaczego. Gdy nie ma sensu nic mówić o przedmiotach: null.
 - "ward": gdzie postawić ward TERAZ (spot z listy wardSpots, nazwy względem strony gracza: my-* = jego dżungla, enemy-* = wroga) i krótki powód, albo null. Wybieraj miejsca o wyższej wartości (więcej wizji); faelight-* to Faelighty (2026): ward postawiony NA nich daje dużo większy zasięg wizji — preferuj je, gdy dostępne (mid-* dopiero po przemianie mapy po 2. smoku); plant-* to rośliny wizji — uderzenie odsłania duży obszar za darmo. Proponuj ward przed objective (60–90 s przed smokiem/baronem), przy pushowaniu linii bez wizji, gdy jungler wroga zniknął.
 - "deathReview": TYLKO gdy me.stan = "NIE ŻYJE" (jeśli "żyje", deathReview = null — także gdy zginął przed chwilą i już się odrodził): 3–5 krótkich punktów: dlaczego zginął (masz myDeath: kto zabił, kto asystował, czy to gank — używaj tego, nie zgaduj), co zrobić po respawnie (back/farm/gdzie iść), czy grać pasywnie czy agresywnie przez najbliższe minuty i dlaczego. Inaczej null.
 - "ttlSec": jak długo porada jest aktualna (10–40).
@@ -124,6 +126,7 @@ export function buildSnapshot(ctx: CoachContext, previous: CoachAdvice[]) {
     recent: i.recent.slice(0, 6).map(r => `${fmt(r.at)} ${r.text}`),
     previousCalls: previous.slice(0, 3).map(a => `${fmt(a.gameTime)} ${a.call}`),
     ...(ctx.matchup ? { laneMatchup: ctx.matchup } : {}),
+    ...(ctx.plannedBuild?.length ? { plannedBuild: ctx.plannedBuild } : {}),
     ...(ctx.camps?.length ? { jungleCamps: ctx.camps } : {}),
     ...(ctx.coveredWardSpots?.length ? { alreadyWarded: ctx.coveredWardSpots } : {}),
   };
