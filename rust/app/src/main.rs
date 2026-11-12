@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod bridge;
+mod game;
 mod state;
 
 use rc_core::settings::{user_data_dir, SettingsStore};
@@ -80,6 +81,7 @@ fn main() {
                 lcu_client,
                 replay_api,
                 ui: Mutex::new(UiState::default()),
+                game: Mutex::new(game::Game::default()),
             });
             app.manage(st.clone());
 
@@ -100,11 +102,22 @@ fn main() {
                 }
             }
 
-            // Live API events -> game logic (intel/coach come later).
+            game::spawn_static_data(&rt, &st);
+            game::spawn_backend_detection(&rt, &st);
+            // Live API events -> intel -> coach.
+            let (st3, rt3) = (st.clone(), rt.clone());
             rt.spawn(async move {
                 while let Some(ev) = live_rx.recv().await {
                     match ev {
-                        live::LiveEvent::State(_) | live::LiveEvent::Data(..) => {}
+                        live::LiveEvent::State(s) if s != rc_core::types::SourceState::Connected => game::on_live_lost(&st3),
+                        live::LiveEvent::State(_) => {}
+                        live::LiveEvent::Data(d, _) => {
+                            // Enemy profiles need a Riot API key (Riot API client not ported yet).
+                            if st3.settings.lock().unwrap().value().riot.api_key.is_empty() {
+                                st3.ui.lock().unwrap().profiles = rc_core::types::ProfilesStatus { state: "no-key".into(), count: 0, error: None };
+                            }
+                            game::on_game_data(&rt3, &st3, &d);
+                        }
                     }
                 }
             });

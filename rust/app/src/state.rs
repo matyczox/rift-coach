@@ -17,16 +17,16 @@ pub struct AppState {
     pub lcu_client: LcuClient,
     pub replay_api: Arc<Mutex<SourceState>>,
     pub ui: Mutex<UiState>,
+    pub game: Mutex<crate::game::Game>,
 }
 
 /// Parts of AppStatus owned by the coach / intel / runes side.
 pub struct UiState {
     pub ddragon_version: Option<String>,
-    pub coach: CoachStatus,
     pub last_advice: Option<Value>,
     pub profiles: ProfilesStatus,
     pub runes: RunesStatus,
-    /// Game info from the replay being played back (none yet in the Rust port).
+
     pub quitting: bool,
 }
 
@@ -34,8 +34,6 @@ impl Default for UiState {
     fn default() -> Self {
         UiState {
             ddragon_version: None,
-            // Coach starts 'off' and checks the Claude login on its first tick in a game (coach.ts).
-            coach: CoachStatus { state: "off".into(), model: "claude-sonnet-5-5".into(), calls: 0, last_error: None, last_latency_ms: None },
             last_advice: None,
             profiles: ProfilesStatus { state: "idle".into(), count: 0, error: None },
             runes: RunesStatus::idle(),
@@ -66,6 +64,10 @@ impl AppState {
             let l = self.lcu.lock().unwrap();
             (l.state, l.phase.clone(), l.me.clone())
         };
+        let coach = {
+            let c = &self.game.lock().unwrap().coach.status;
+            CoachStatus { state: c.state.clone(), model: c.model.clone(), calls: c.calls, last_error: c.last_error.clone(), last_latency_ms: c.last_latency_ms }
+        };
         let ui = self.ui.lock().unwrap();
         AppStatus {
             version: self.version.clone(),
@@ -80,7 +82,7 @@ impl AppState {
             replay: None,
             replay_api: *self.replay_api.lock().unwrap(),
             harvest: HarvestStatus::default(),
-            coach: ui.coach.clone(),
+            coach,
             last_advice: ui.last_advice.clone(),
             profiles: ui.profiles.clone(),
             runes: if auto_runes { ui.runes.clone() } else { RunesStatus { state: "off".into(), label: None, error: None } },
