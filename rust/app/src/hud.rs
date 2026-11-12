@@ -424,7 +424,22 @@ fn hover_tick(app: &tauri::AppHandle, st: &Arc<AppState>) {
     if want != h.capture {
         h.capture = want;
         drop(h);
-        let _ = win.set_ignore_cursor_events(!want);
+        set_click_through(&win, !want);
+    }
+}
+
+/// Toggle only WS_EX_TRANSPARENT (mouse passes through). Tauri's set_ignore_cursor_events also drops
+/// WS_EX_LAYERED, which made the transparent HUD content vanish while it held the mouse.
+#[cfg(windows)]
+fn set_click_through(win: &tauri::WebviewWindow, through: bool) {
+    use windows_sys::Win32::UI::WindowsAndMessaging::{GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_LAYERED, WS_EX_TRANSPARENT};
+    let Ok(h) = win.hwnd() else { return };
+    // SAFETY: our own top-level window.
+    unsafe {
+        let h = h.0 as _;
+        let ex = GetWindowLongPtrW(h, GWL_EXSTYLE) as u32 | WS_EX_LAYERED;
+        let next = if through { ex | WS_EX_TRANSPARENT } else { ex & !WS_EX_TRANSPARENT };
+        SetWindowLongPtrW(h, GWL_EXSTYLE, next as isize);
     }
 }
 
