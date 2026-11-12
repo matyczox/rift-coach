@@ -9,5 +9,6 @@ pub mod camps;
 pub mod detect;
 pub mod fog;
 pub mod healthbars;
+pub mod icons;
 pub mod image;
 pub mod terrain;
