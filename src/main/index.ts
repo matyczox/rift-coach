@@ -106,7 +106,7 @@ const matchLog = new MatchLog();
 const obsRecorder = new ObsRecorder();
 let obsGameKey = '';
 let reviewDoneFor = '';
-const reviewsDir = () => path.join(app.getPath('userData'), 'reviews');
+const reviewsDir = () => process.argv.find(a => a.startsWith('--reviews-dir='))?.slice(14) ?? path.join(app.getPath('userData'), 'reviews');
 let settings: SettingsStore;
 let recorder: Recorder;
 let replay: Replayer | null = null;

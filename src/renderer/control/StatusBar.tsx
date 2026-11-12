@@ -116,30 +116,21 @@ function SystemPill({ items }: { items: Item[] }) {
   );
 }
 
-export const StatusBar = memo(function StatusBar({ status, error, title }: { status: AppStatus | null; error: string | null; title: string }) {
-  if (!status) {
-    return (
-      <header className="topbar">
-        <h1 className="page-title">{title}</h1>
-        <div className="topbar-right">{error ? <span className="error-text small">{error}</span> : <span className="muted small">Łączenie…</span>}</div>
-      </header>
-    );
-  }
+/** Right side of the title bar: live clock, coach model, system health. */
+export const StatusBar = memo(function StatusBar({ status, error }: { status: AppStatus | null; error: string | null }) {
+  if (!status) return <div className="tb-status">{error ? <span className="error-text small">{error}</span> : <span className="muted small">Łączenie…</span>}</div>;
   const coach = coachOf(status.coach);
   return (
-    <header className="topbar">
-      <h1 className="page-title">{title}</h1>
-      {status.game && title !== 'Główna' && <span className="live-pill"><i />NA ŻYWO <span className="num">{fmtClock(status.game.gameTime)}</span></span>}
-      <div className="topbar-right">
-        {status.coach.state !== 'off' && (
-          <div className={`coach-badge s-${coach.state}`} title={status.coach.lastError ?? status.coach.model ?? undefined}>
-            <span className="coach-dot" />
-            <span className="coach-label">Coach</span>
-            <span className="coach-value">{status.coach.state === 'thinking' ? 'myśli…' : coach.state === 'error' ? coach.value : modelLabel(status.coach.model)}</span>
-          </div>
-        )}
-        <SystemPill items={systemItems(status)} />
-      </div>
-    </header>
+    <div className="tb-status">
+      {status.game && <span className="live-pill"><i />NA ŻYWO <span className="num">{fmtClock(status.game.gameTime)}</span></span>}
+      {status.coach.state !== 'off' && (
+        <div className={`coach-badge s-${coach.state}`} title={status.coach.lastError ?? status.coach.model ?? undefined}>
+          <span className="coach-dot" />
+          <span className="coach-label">Coach</span>
+          <span className="coach-value">{status.coach.state === 'thinking' ? 'myśli…' : coach.state === 'error' ? coach.value : modelLabel(status.coach.model)}</span>
+        </div>
+      )}
+      <SystemPill items={systemItems(status)} />
+    </div>
   );
 });

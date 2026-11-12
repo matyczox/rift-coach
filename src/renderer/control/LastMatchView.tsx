@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { MatchReview } from '../../shared/types';
 import { champIcon, champId, fmtClock, fmtDate, rc, useAction } from './util';
 
@@ -50,12 +51,41 @@ function ResultBadge({ win }: { win: boolean | null }) {
   return <span className={'rv-badge ' + (win ? 'rv-win' : 'rv-loss')}>{win ? 'W' : 'L'}</span>;
 }
 
-function ChampIcon({ name, version, size = 44 }: { name: string; version: string | null; size?: number }) {
+function ChampIcon({ name, version, size = 44, tone }: { name: string; version: string | null; size?: number; tone?: 'win' | 'loss' | null }) {
   const src = name ? champIcon(version, champId(name)) : null;
-  return <span className="mh-icon" style={{ width: size, height: size }}>{src ? <img src={src} alt={name} onError={e => { e.currentTarget.style.display = 'none'; }} /> : null}</span>;
+  return (
+    <span className={'mh-icon' + (tone ? ` ${tone}` : '')} style={{ width: size, height: size }}>
+      {src ? <img src={src} alt={name} onError={e => { e.currentTarget.style.display = 'none'; }} /> : null}
+    </span>
+  );
 }
 
-export const LastMatchView = memo(function LastMatchView({ ddragonVersion }: { ddragonVersion: string | null }) {
+/** "5/3/7" -> { k, d, a, ratio } */
+export function parseKda(kda: string) {
+  const m = /(\d+)\s*\/\s*(\d+)\s*\/\s*(\d+)/.exec(kda);
+  if (!m) return null;
+  const k = +m[1]!, d = +m[2]!, a = +m[3]!;
+  return { k, d, a, ratio: (k + a) / Math.max(1, d) };
+}
+
+/** Small achievement pills, like Blitz's "First Blood" / "2-Piece". */
+function badgesOf(r: MatchReview): string[] {
+  const out: string[] = [];
+  const k = parseKda(r.kda);
+  if (k && k.d === 0) out.push('Bez śmierci');
+  else if (k && k.ratio >= 4) out.push('Czysta gra');
+  if (Number.isFinite(r.csPerMin) && r.csPerMin >= 8) out.push('Świetna farma');
+  else if (Number.isFinite(r.csPerMin) && r.csPerMin >= 7) out.push('Dobra farma');
+  const last = r.goldCurve[r.goldCurve.length - 1];
+  if (last && last.diff >= 5000) out.push('Dominacja złotem');
+  if (r.moments.some(m => m.kind === 'objective')) out.push('Obiektywy');
+  return out.slice(0, 3);
+}
+
+const tone = (w: boolean | null) => (w === true ? 'win' : w === false ? 'loss' : null);
+const resultText = (w: boolean | null) => (w === true ? 'Wygrana' : w === false ? 'Przegrana' : 'Mecz');
+
+export const LastMatchView = memo(function LastMatchView({ ddragonVersion, onItems }: { ddragonVersion: string | null; onItems?: (items: MatchReview[]) => void }) {
   const [items, setItems] = useState<MatchReview[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const list = useAction();
@@ -69,8 +99,9 @@ export const LastMatchView = memo(function LastMatchView({ ddragonVersion }: { d
   }, [list.run]);
 
   useEffect(() => { void refresh(); }, [refresh]);
+  useEffect(() => { if (items) onItems?.(items); }, [items, onItems]);
 
-  // New review pushed after a match: put it on top and show it.
+  // New review pushed after a match: put it on top and open it.
   useEffect(() => {
     let unsub: (() => void) | undefined;
     try {
@@ -78,118 +109,147 @@ export const LastMatchView = memo(function LastMatchView({ ddragonVersion }: { d
         const r = normalize(raw);
         if (!r) return;
         setItems((prev) => [r, ...(prev ?? []).filter((x) => x.id !== r.id)]);
-        setSelectedId(null);
+        setSelectedId(r.id);
       });
     } catch { /* bridge missing: list error already shown */ }
     return () => { try { unsub?.(); } catch { /* ignore */ } };
   }, []);
 
-  const current = items?.find((x) => x.id === selectedId) ?? items?.[0] ?? null;
-  const showingNewest = !!items && current === items[0];
+  const current = items?.find((x) => x.id === selectedId) ?? null;
+
+  if (current) {
+    return <ReviewCard review={current} version={ddragonVersion} onBack={() => setSelectedId(null)} />;
+  }
 
   return (
     <section className="section">
       <div className="section-head">
         <h2 className="section-title">Ostatnie mecze</h2>
-        <div className="toolbar">
-          {!showingNewest && items && items.length > 0 && (
-            <button type="button" className="btn" onClick={() => setSelectedId(null)}>Pokaż najnowszy</button>
-          )}
-          <button type="button" className="btn" onClick={() => void refresh()} disabled={list.busy}>Odśwież</button>
-        </div>
+        <button type="button" className="btn ghost small" onClick={() => void refresh()} disabled={list.busy}>Odśwież</button>
       </div>
       {list.error && <div className="error-text">{list.error}</div>}
-
       {items === null ? (
         <div className="empty">{list.busy ? 'Wczytywanie…' : 'Nie udało się wczytać analiz.'}</div>
-      ) : !current ? (
-        <div className="placeholder">Po pierwszym meczu na Summoner’s Rift pojawi się tu analiza Twojej gry: co poprawić, kluczowe momenty i wykres złota.</div>
+      ) : items.length === 0 ? (
+        <div className="placeholder">Po pierwszym meczu na Summoner’s Rift pojawi się tu jego karta: wynik, KDA, farma, a po kliknięciu analiza coacha z osią czasu i wykresem złota.</div>
       ) : (
-        <>
-          {items.length > 1 && (
-            <div className="mh-list">
-              {items.map((it) => (
-                <button
-                  type="button"
-                  key={it.id}
-                  className={'mh-row' + (it.win === true ? ' win' : it.win === false ? ' loss' : '') + (it.id === current.id ? ' open' : '')}
-                  onClick={() => setSelectedId(it.id === items[0]?.id ? null : it.id)}
-                >
-                  <span className="mh-result">{it.win === null ? '—' : it.win ? 'Wygrana' : 'Przegrana'}<small>{it.durationSec ? fmtClock(it.durationSec) : ''}</small></span>
-                  <ChampIcon name={it.champion} version={ddragonVersion} />
-                  <span className="mh-champ">{it.champion || '—'}<small>{roleLabel(it.role)}</small></span>
-                  <span className="mh-kda num">{it.kda || '—'}<small>KDA</small></span>
-                  <span className="mh-cs num">{Number.isFinite(it.csPerMin) ? it.csPerMin.toFixed(1) : '—'}<small>CS/min</small></span>
-                  <span className="mh-tip">{it.improve[0] ?? it.summary}</span>
-                  <span className="mh-date num">{it.createdAt ? fmtDate(it.createdAt) : ''}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          <ReviewCard review={current} newest={showingNewest} version={ddragonVersion} />
-        </>
+        <div className="mh-list">
+          {items.map((it) => {
+            const k = parseKda(it.kda);
+            const t = tone(it.win);
+            const badges = badgesOf(it);
+            return (
+              <button type="button" key={it.id} className={'mcard' + (t ? ` ${t}` : '')} onClick={() => setSelectedId(it.id)}>
+                <ChampIcon name={it.champion} version={ddragonVersion} size={52} tone={t} />
+                <div className="mcard-main">
+                  <div className="mcard-head">
+                    <span className="mcard-result">{resultText(it.win)}</span>
+                    <span className="mcard-meta">{[roleLabel(it.role), it.durationSec ? fmtClock(it.durationSec) : '', it.createdAt ? fmtDate(it.createdAt) : ''].filter(Boolean).join(' • ')}</span>
+                  </div>
+                  <div className="mcard-stats">
+                    <div className="stat"><b className="num">{k ? k.ratio.toFixed(1) : '—'} KDA</b><small className="num">{it.kda || '—'}</small></div>
+                    <div className="stat"><b className="num">{Number.isFinite(it.csPerMin) ? it.csPerMin.toFixed(1) : '—'} CS/min</b><small>{it.champion}</small></div>
+                    <div className="mcard-tip">{it.improve[0] ?? it.summary}</div>
+                  </div>
+                  {badges.length > 0 && <div className="pills">{badges.map(b => <span key={b} className="pill">{b}</span>)}</div>}
+                </div>
+              </button>
+            );
+          })}
+        </div>
       )}
     </section>
   );
 });
 
-function ReviewCard({ review: r, newest, version }: { review: MatchReview; newest: boolean; version: string | null }) {
+/** Blitz-style score ring: 0–100. */
+function Gauge({ value, label, sub }: { value: number; label: string; sub: string }) {
+  const v = Math.max(0, Math.min(100, Math.round(value)));
+  const R = 34, C = 2 * Math.PI * R, arc = C * 0.75;
+  const col = v >= 70 ? 'var(--win)' : v >= 45 ? 'var(--warn)' : 'var(--loss)';
   return (
-    <article className={'rv-card' + (r.win === true ? ' win' : r.win === false ? ' loss' : '')}>
-      <header className="rv-head">
-        <ChampIcon name={r.champion} version={version} size={48} />
-        <ResultBadge win={r.win} />
-        <span className="rv-champ">{r.champion || 'Nieznana postać'}</span>
-        {r.role && <span className="muted">{roleLabel(r.role)}</span>}
-        <span className="rv-stats num">
-          {r.durationSec > 0 && <span><span className="muted">Czas</span> {fmtClock(r.durationSec)}</span>}
-          {r.kda && <span><span className="muted">KDA</span> {r.kda}</span>}
-          {Number.isFinite(r.csPerMin) && <span><span className="muted">CS/min</span> {r.csPerMin.toFixed(1)}</span>}
-        </span>
-        <span className="rv-meta muted small">
-          {!newest && r.createdAt ? fmtDate(r.createdAt) : newest && r.createdAt ? `najnowszy · ${fmtDate(r.createdAt)}` : ''}
-        </span>
+    <div className="gauge">
+      <svg viewBox="0 0 90 90" width="96" height="96">
+        <circle cx="45" cy="45" r={R} fill="none" stroke="var(--border-strong)" strokeWidth="6" strokeDasharray={`${arc} ${C}`} transform="rotate(135 45 45)" strokeLinecap="round" />
+        <circle cx="45" cy="45" r={R} fill="none" stroke={col} strokeWidth="6" strokeDasharray={`${(arc * v) / 100} ${C}`} transform="rotate(135 45 45)" strokeLinecap="round" />
+        <text x="45" y="52" textAnchor="middle" className="gauge-num">{v}</text>
+      </svg>
+      <div className="gauge-label">{label}</div>
+      <div className="gauge-sub" style={{ color: col }}>{sub}</div>
+    </div>
+  );
+}
+const verdict = (v: number) => (v >= 80 ? 'Świetnie' : v >= 60 ? 'Dobrze' : v >= 40 ? 'Przeciętnie' : 'Do poprawy');
+
+type ReviewTab = 'overview' | 'timeline' | 'gold';
+
+function ReviewCard({ review: r, version, onBack }: { review: MatchReview; version: string | null; onBack: () => void }) {
+  const [tab, setTab] = useState<ReviewTab>('overview');
+  const k = parseKda(r.kda);
+  const combat = k ? Math.min(100, k.ratio * 22 - k.d * 2 + 20) : 0;
+  const farm = Number.isFinite(r.csPerMin) ? Math.min(100, (r.csPerMin / 9) * 100) : 0;
+  const last = r.goldCurve[r.goldCurve.length - 1];
+  const gold = last ? Math.max(0, Math.min(100, 50 + last.diff / 200)) : 50;
+  const t = tone(r.win);
+  const TABS: Array<[ReviewTab, string, ReactNode]> = [['overview', 'Przegląd', null], ['timeline', 'Oś czasu', r.moments.length || null], ['gold', 'Złoto', null]];
+  return (
+    <article className={'review' + (t ? ` ${t}` : '')}>
+      <header className="review-head">
+        <button type="button" className="btn ghost small" onClick={onBack}>← Wróć</button>
+        <ChampIcon name={r.champion} version={version} size={56} tone={t} />
+        <div>
+          <div className="review-result">{resultText(r.win)}</div>
+          <div className="mcard-meta">{[r.champion, roleLabel(r.role), r.durationSec ? `${fmtClock(r.durationSec)} min` : '', r.createdAt ? fmtDate(r.createdAt) : ''].filter(Boolean).join(' • ')}</div>
+        </div>
+        <div className="review-kda num"><b>{r.kda || '—'}</b><small>{Number.isFinite(r.csPerMin) ? `${r.csPerMin.toFixed(1)} CS/min` : ''}</small></div>
       </header>
 
-      {r.summary && <p className="rv-summary">{r.summary}</p>}
-
-      <div className="rv-cols">
-        <div className="rv-improve">
-          <div className="rv-col-title">Do poprawy</div>
-          {r.improve.length ? (
-            <ol>{r.improve.map((t, i) => <li key={i}>{t}</li>)}</ol>
-          ) : <div className="muted small">Brak uwag.</div>}
-        </div>
-        <div className="rv-good">
-          <div className="rv-col-title">Dobrze</div>
-          {r.good.length ? (
-            <ul>{r.good.map((t, i) => <li key={i}>{t}</li>)}</ul>
-          ) : <div className="muted small">Brak danych.</div>}
+      <div className="gauges">
+        <Gauge value={combat} label="Walka" sub={verdict(combat)} />
+        <Gauge value={farm} label="Farma" sub={verdict(farm)} />
+        <Gauge value={gold} label="Złoto drużyny" sub={last ? fmtGold(last.diff) : '—'} />
+        <div className="review-summary">
+          <div className="card-label">Coach</div>
+          <p>{r.summary || 'Brak podsumowania.'}</p>
+          {r.model && <div className="muted small">Analiza: {r.model}</div>}
         </div>
       </div>
 
-      <div className="rv-lower">
-        <div className="rv-block rv-chart-block">
-          <div className="rv-col-title">Różnica złota</div>
-          <GoldChart points={r.goldCurve} durationSec={r.durationSec} />
+      <div className="subtabs">
+        {TABS.map(([id, label, n]) => (
+          <button key={id} type="button" className={'subtab' + (tab === id ? ' active' : '')} onClick={() => setTab(id)}>{label}{n ? <span className="tab-badge">{n}</span> : null}</button>
+        ))}
+      </div>
+
+      {tab === 'overview' && (
+        <div className="rv-cols">
+          <div className="panel rv-improve">
+            <div className="card-label warn">Do poprawy</div>
+            {r.improve.length ? <ol>{r.improve.map((x, i) => <li key={i}>{x}</li>)}</ol> : <div className="muted small">Brak uwag.</div>}
+          </div>
+          <div className="panel rv-good">
+            <div className="card-label ok">Dobrze</div>
+            {r.good.length ? <ul>{r.good.map((x, i) => <li key={i}>{x}</li>)}</ul> : <div className="muted small">Brak danych.</div>}
+          </div>
         </div>
-        <div className="rv-block rv-moments-block">
-          <div className="rv-col-title">Kluczowe momenty</div>
+      )}
+      {tab === 'timeline' && (
+        <div className="panel">
           {r.moments.length ? (
-            <ul className="rv-moments">
+            <ul className="timeline">
               {r.moments.map((m, i) => (
-                <li key={i} className={'rv-m k-' + m.kind}>
-                  <span className="rv-m-t num">{fmtClock(m.t)}</span>
-                  <span className="rv-m-icon" aria-label={KIND_LABEL[m.kind]} title={KIND_LABEL[m.kind]}>{KIND_ICON[m.kind]}</span>
-                  <span className="rv-m-text">{m.text}</span>
+                <li key={i} className={'tl k-' + m.kind}>
+                  <span className="tl-t num">{fmtClock(m.t)} min</span>
+                  <span className="tl-text"><span className="tl-icon">{KIND_ICON[m.kind]}</span>{m.text}</span>
                 </li>
               ))}
             </ul>
           ) : <div className="muted small">Brak zapisanych momentów.</div>}
         </div>
-      </div>
-
-      {r.model && <div className="rv-foot muted small">Analiza: <span className="mono">{r.model}</span></div>}
+      )}
+      {tab === 'gold' && (
+        <div className="panel"><GoldChart points={r.goldCurve} durationSec={r.durationSec} /></div>
+      )}
     </article>
   );
 }

@@ -18,23 +18,20 @@ const ICON: Record<Section, string> = {
   settings: 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm7.4 3a7.4 7.4 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14.5 3h-5l-.4 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6a7.4 7.4 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2l.4 2.6h5l.4-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z',
 };
 
-const GROUPS: Array<{ title: string; items: Array<{ id: Section; label: string }> }> = [
-  { title: 'Gra', items: [{ id: 'home', label: 'Główna' }] },
-  { title: 'Narzędzia', items: [
-    { id: 'calibration', label: 'Minimapa' },
-    { id: 'recordings', label: 'Nagrania' },
-    { id: 'harvest', label: 'Powtórki' },
-  ] },
+const TABS: Array<{ id: Section; label: string }> = [
+  { id: 'home', label: 'Główna' },
+  { id: 'calibration', label: 'Minimapa' },
+  { id: 'recordings', label: 'Nagrania' },
+  { id: 'harvest', label: 'Powtórki' },
+  { id: 'settings', label: 'Ustawienia' },
 ];
 
-const TITLE: Record<Section, string> = { home: 'Główna', calibration: 'Minimapa', recordings: 'Nagrania', harvest: 'Powtórki', settings: 'Ustawienia' };
-
-function NavItem({ id, label, active, badge, onClick }: { id: Section; label: string; active: boolean; badge?: string; onClick: () => void }) {
+function Tab({ id, label, active, badge, onClick }: { id: Section; label: string; active: boolean; badge?: string; onClick: () => void }) {
   return (
-    <button type="button" className={'nav-item' + (active ? ' active' : '')} onClick={onClick} aria-current={active ? 'page' : undefined}>
-      <svg viewBox="0 0 24 24" width="18" height="18"><path d={ICON[id]} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-      <span className="nav-label">{label}</span>
-      {badge && <span className="nav-badge">{badge}</span>}
+    <button type="button" className={'tab' + (active ? ' active' : '')} onClick={onClick} aria-current={active ? 'page' : undefined}>
+      <svg viewBox="0 0 24 24" width="15" height="15"><path d={ICON[id]} fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      {label}
+      {badge && <span className="tab-badge">{badge}</span>}
     </button>
   );
 }
@@ -75,29 +72,15 @@ export function App() {
 
   return (
     <div className="app">
-      <nav className="sidebar">
-        <div className="brand">
-          <img src="icon.png" alt="" />
-          <div>
-            <div className="brand-name">Rift Coach</div>
-            <div className="brand-sub">League of Legends</div>
-          </div>
-        </div>
-        {GROUPS.map(g => (
-          <div key={g.title} className="nav-group">
-            <div className="nav-group-title">{g.title}</div>
-            {g.items.map(it => (
-              <NavItem key={it.id} id={it.id} label={it.label} active={section === it.id} badge={badge(it.id)} onClick={() => setSection(it.id)} />
-            ))}
-          </div>
-        ))}
-        <div className="nav-spacer" />
-        <NavItem id="settings" label="Ustawienia" active={section === 'settings'} onClick={() => setSection('settings')} />
-        <div className="nav-foot">{status ? `v${status.version}` : ''}</div>
+      <header className="titlebar">
+        <div className="brand"><img src="icon.png" alt="" /><span className="brand-name">RIFT COACH</span><span className="brand-ver">{status ? `v${status.version}` : ''}</span></div>
+        <StatusBar status={status} error={loadError} />
+      </header>
+      <nav className="tabs">
+        {TABS.map(t => <Tab key={t.id} id={t.id} label={t.label} active={section === t.id} badge={badge(t.id)} onClick={() => setSection(t.id)} />)}
       </nav>
-      <div className="main">
-        <StatusBar status={status} error={loadError} title={TITLE[section]} />
-        <main className="content">
+      <main className="content">
+        <div className="page">
           {!status ? (
             <div className="empty">{loadError ? 'Nie udało się pobrać stanu aplikacji.' : 'Łączenie…'}</div>
           ) : section === 'home' ? (
@@ -117,8 +100,8 @@ export function App() {
           ) : (
             <SettingsView settings={status.settings} />
           )}
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

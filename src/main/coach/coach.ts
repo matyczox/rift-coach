@@ -137,7 +137,7 @@ export class Coach extends EventEmitter {
   private pendingReason: string | null = null;
   private authCheckedAt = 0;
 
-  setConfig(c: Partial<CoachConfig>) { this.config = { ...this.config, ...c }; }
+  setConfig(c: Partial<CoachConfig>) { this.config = { ...this.config, ...c }; if (!this.status.calls) this.status.model = this.config.liveModel; }
 
   async checkAuth() {
     this.authCheckedAt = Date.now();

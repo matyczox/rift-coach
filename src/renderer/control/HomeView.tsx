@@ -1,9 +1,9 @@
-import { memo } from 'react';
-import type { AppStatus, GameInfo } from '../../shared/types';
+import { memo, useCallback, useState } from 'react';
+import type { AppStatus, GameInfo, MatchReview } from '../../shared/types';
 import type { CoachAdvice } from '../../shared/intel';
-import { fmtClock, lcuPhaseLabel } from './util';
+import { champIcon, champId, fmtClock, lcuPhaseLabel } from './util';
 import { Portrait } from './StatusBar';
-import { LastMatchView } from './LastMatchView';
+import { LastMatchView, parseKda } from './LastMatchView';
 
 const TONE: Record<CoachAdvice['tone'], string> = { go: 'Rób', wait: 'Czekaj', danger: 'Uwaga', farm: 'Farm' };
 
@@ -51,7 +51,6 @@ const LiveCard = memo(function LiveCard({ game, advice, version }: { game: GameI
 
 function IdleCard({ status }: { status: AppStatus }) {
   const phase = status.lcu === 'connected' ? lcuPhaseLabel(status.lcuPhase) : null;
-  const coachReady = status.coach.state === 'idle' || status.coach.state === 'thinking';
   return (
     <section className="idle-card">
       <div className="idle-icon"><img src="icon.png" alt="" /></div>
@@ -59,21 +58,85 @@ function IdleCard({ status }: { status: AppStatus }) {
         <div className="idle-title">Czekam na mecz</div>
         <div className="idle-sub">{phase ? `Klient: ${phase}. ` : 'Uruchom League of Legends. '}Coach włączy się sam po starcie gry, a runy ustawi w wyborze postaci.</div>
       </div>
-      <div className="idle-checks">
-        <span className={status.lcu === 'connected' ? 'ok' : ''}>Klient</span>
-        <span className={coachReady ? 'ok' : ''}>Coach AI</span>
-        <span className={status.settings.calibration ? 'ok' : ''}>Minimapa</span>
-        <span className={status.profiles.state !== 'no-key' ? 'ok' : ''}>Klucz Riot</span>
-      </div>
     </section>
   );
 }
 
+const modelName = (m: string) => m.replace(/^gpt-[\d.]+-/, '').replace(/^claude-/, '').replace(/-(\d+)-(\d+)$/, ' $1.$2').replace(/^./, c => c.toUpperCase());
+
+function ReadyCard({ status }: { status: AppStatus }) {
+  const rows: Array<[string, boolean, string]> = [
+    ['Klient LoL', status.lcu === 'connected', status.lcu === 'connected' ? 'połączony' : 'nie działa'],
+    ['Coach AI', status.coach.state === 'idle' || status.coach.state === 'thinking', status.coach.state === 'not-logged-in' ? 'niezalogowany' : status.coach.state === 'off' ? 'wyłączony' : status.coach.state === 'error' ? 'błąd' : 'gotowy'],
+    ['Minimapa', Boolean(status.settings.calibration), status.settings.calibration ? 'skalibrowana' : 'brak'],
+    ['Klucz Riot', status.profiles.state !== 'no-key', status.profiles.state === 'no-key' ? 'brak' : 'jest'],
+    ['Auto runy', status.settings.autoRunes, status.settings.autoRunes ? 'włączone' : 'wyłączone'],
+  ];
+  return (
+    <div className="side-card">
+      <div className="side-title">Gotowość</div>
+      {rows.map(([l, ok, v]) => (
+        <div key={l} className="side-row"><span className={'side-dot' + (ok ? ' ok' : '')} /><span className="side-label">{l}</span><span className={'side-value' + (ok ? '' : ' dim')}>{v}</span></div>
+      ))}
+    </div>
+  );
+}
+
+function ModelsCard({ status }: { status: AppStatus }) {
+  const c = status.settings.coach;
+  const rows: Array<[string, string]> = [['W grze', c.liveModel], ['Po śmierci i meczu', c.reviewModel], ['Patch i matchup', c.researchModel], ['Runy i draft', c.draftModel]];
+  return (
+    <div className="side-card">
+      <div className="side-title">Modele coacha</div>
+      {rows.map(([l, m]) => (
+        <div key={l} className="side-row"><span className="side-label">{l}</span><span className={'model-chip ' + (m.startsWith('gpt') ? 'gpt' : 'claude')}>{modelName(m)}</span></div>
+      ))}
+    </div>
+  );
+}
+
+function ChampsCard({ items, version }: { items: MatchReview[]; version: string | null }) {
+  const by = new Map<string, { n: number; w: number; kda: number; cs: number }>();
+  for (const r of items) {
+    if (!r.champion) continue;
+    const e = by.get(r.champion) ?? { n: 0, w: 0, kda: 0, cs: 0 };
+    e.n++; if (r.win) e.w++;
+    e.kda += parseKda(r.kda)?.ratio ?? 0; e.cs += Number.isFinite(r.csPerMin) ? r.csPerMin : 0;
+    by.set(r.champion, e);
+  }
+  const list = [...by.entries()].sort((a, b) => b[1].n - a[1].n).slice(0, 5);
+  return (
+    <div className="side-card">
+      <div className="side-title">Twoje postacie</div>
+      {list.length === 0 ? <div className="muted small">Pojawią się po pierwszych analizowanych meczach.</div> : list.map(([name, e]) => {
+        const wr = Math.round((e.w / e.n) * 100);
+        const src = champIcon(version, champId(name));
+        return (
+          <div key={name} className="champ-row">
+            <span className="champ-ico">{src && <img src={src} alt="" />}</span>
+            <span className="champ-name">{name}<small className="num">{(e.kda / e.n).toFixed(1)} KDA · {(e.cs / e.n).toFixed(1)} CS/min</small></span>
+            <span className={'champ-wr num ' + (wr >= 50 ? 'good' : 'bad')}>{wr}% WR<small>{e.w}W - {e.n - e.w}L</small></span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 export function HomeView({ status }: { status: AppStatus }) {
+  const [items, setItems] = useState<MatchReview[]>([]);
+  const onItems = useCallback((x: MatchReview[]) => setItems(x), []);
   return (
     <div className="home">
-      {status.game ? <LiveCard game={status.game} advice={status.lastAdvice} version={status.ddragonVersion} /> : <IdleCard status={status} />}
-      <LastMatchView ddragonVersion={status.ddragonVersion} />
+      <aside className="home-side">
+        <ReadyCard status={status} />
+        <ModelsCard status={status} />
+        <ChampsCard items={items} version={status.ddragonVersion} />
+      </aside>
+      <div className="home-main">
+        {status.game ? <LiveCard game={status.game} advice={status.lastAdvice} version={status.ddragonVersion} /> : <IdleCard status={status} />}
+        <LastMatchView ddragonVersion={status.ddragonVersion} onItems={onItems} />
+      </div>
     </div>
   );
 }
