@@ -909,7 +909,7 @@ app.whenReady().then(() => {
     const scroll = Number(process.argv.find(a => a.startsWith('--shot-scroll='))?.slice(14) ?? 0);
     if (shot && control) void control.webContents.executeJavaScript(`document.querySelector('.content').scrollTop = ${scroll}`).then(() => new Promise(r => setTimeout(r, 200))).then(() => control!.webContents.capturePage()).then(img => writeFileSync(shot, img.toPNG()));
     console.log('SMOKE', JSON.stringify(status()));
-    app.quit();
+    setTimeout(() => app.quit(), 2500);
   }, 12000);
 });
 
