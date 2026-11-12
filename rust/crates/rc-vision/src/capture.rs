@@ -21,7 +21,7 @@ use std::time::{Duration, Instant};
 
 use windows::core::{factory, Interface, HSTRING, PCWSTR};
 use windows::Foundation::TypedEventHandler;
-use windows::Graphics::Capture::{Direct3D11CaptureFramePool, GraphicsCaptureItem, GraphicsCaptureSession};
+use windows::Graphics::Capture::{Direct3D11CaptureFramePool, GraphicsCaptureAccess, GraphicsCaptureAccessKind, GraphicsCaptureItem, GraphicsCaptureSession};
 use windows::Graphics::DirectX::Direct3D11::IDirect3DDevice;
 use windows::Graphics::DirectX::DirectXPixelFormat;
 use windows::Graphics::SizeInt32;
@@ -143,6 +143,13 @@ impl WindowCapture {
         }))?;
         let session = pool.CreateCaptureSession(&item)?;
         // Windows 11: no yellow capture border, no cursor (both optional; older builds lack them).
+        // Borderless capture has to be requested once per process before it is honoured.
+        static BORDERLESS: std::sync::Once = std::sync::Once::new();
+        BORDERLESS.call_once(|| {
+            if let Ok(op) = GraphicsCaptureAccess::RequestAccessAsync(GraphicsCaptureAccessKind::Borderless) {
+                let _ = op.get();
+            }
+        });
         let _ = session.SetIsBorderRequired(false);
         let _ = session.SetIsCursorCaptureEnabled(false);
         session.StartCapture()?;
