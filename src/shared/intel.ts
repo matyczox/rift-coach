@@ -211,6 +211,9 @@ export interface PowerBarState {
   metaWinRate: number | null;
   /** Lead over the lane opponent (me minus them): item gold, CS, level. */
   lane?: { gold: number; cs: number; level: number };
+  /** Champions around me counted in pMe (fight here, now). sure=false: fresh fog estimate close by. */
+  allies?: Array<{ champion: string; iconUrl: string; level: number; sure: boolean }>;
+  enemies?: Array<{ champion: string; iconUrl: string; level: number; sure: boolean }>;
 }
 
 /** Next items to buy (AI build advisor), shown next to the minimap. */

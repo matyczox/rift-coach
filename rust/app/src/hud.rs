@@ -201,7 +201,7 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
                 let tracks = k::fog_tracks(g);
                 let (allies, enemies) = (k::seen(&g.field.allies), k::seen(&g.field.visible_enemies));
                 (
-                    rc_core::intel::matchup::power_bar(i, g.matchup.as_ref(), &icon).and_then(|p| serde_json::to_value(p).ok()),
+                    rc_core::intel::matchup::power_bar_near(i, g.matchup.as_ref(), &icon, &k::nearby(g)).and_then(|p| serde_json::to_value(p).ok()),
                     rc_core::intel::situational::danger_at(i, k::pos(g.field.my_pos), &tracks, &enemies, k::current_p_me(g), &fed).and_then(|d| serde_json::to_value(d).ok()),
                     rc_core::intel::situational::objective_call(i, &tracks, &allies, &enemies).and_then(|o| serde_json::to_value(o).ok()),
                     fed,

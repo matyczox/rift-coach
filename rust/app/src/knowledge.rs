@@ -259,3 +259,29 @@ pub fn current_p_me(g: &Game) -> Option<f64> {
     let opp = lane_opponent(intel)?;
     Some(power_score(intel, opp, g.matchup.as_ref()).0)
 }
+
+/// Who is around me on the minimap, for the power bar's fight estimate (fast, local): allies and
+/// visible enemies within ~1/8 of the map, plus enemies whose fresh fog estimate is that close.
+pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
+    const R: f64 = 0.12;
+    let mut n = rc_core::intel::matchup::Nearby::default();
+    let Some((mx, my)) = g.field.my_pos else { return n };
+    let me = g.intel.as_ref().and_then(|i| i.me.as_ref()).map(|m| m.champion.clone()).unwrap_or_default();
+    for a in &g.field.allies {
+        if a.champion != me && (a.x - mx).hypot(a.y - my) < R {
+            n.allies.push(a.champion.clone());
+        }
+    }
+    for e in &g.field.visible_enemies {
+        if (e.x - mx).hypot(e.y - my) < R {
+            n.enemies.push((e.champion.clone(), true));
+        }
+    }
+    for t in fog_tracks(g) {
+        let Some(est) = t.estimate.filter(|_| t.in_fog) else { continue };
+        if est.radius < 0.2 && (est.x - mx).hypot(est.y - my) < R + est.radius * 0.5 && !n.enemies.iter().any(|(c, _)| *c == t.champion) {
+            n.enemies.push((t.champion, false));
+        }
+    }
+    n
+}

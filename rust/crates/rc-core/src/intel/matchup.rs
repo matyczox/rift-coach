@@ -146,7 +146,7 @@ fn hp_fresh(intel: &GameIntel, opp: &PlayerIntel) -> Option<f64> {
 /// Live all-in chance: matchup curve at the current levels (main term) + level
 /// difference + item gold / completed-item difference + my HP (and enemy HP from
 /// his health bar, if seen in the last 4 s) + enemy Flash down + kill-threat spells
-/// + meta win rate. Returns (pMe, score).
+/// Returns (pMe, score). (Meta win rate is not used: not actionable in game.)
 pub fn power_score(intel: &GameIntel, opp: &PlayerIntel, brief: Option<&MatchupBrief>) -> (f64, f64) {
     let me = intel.me.as_ref().expect("me");
     let lvl_me = me.level.clamp(1, 18);
@@ -164,8 +164,7 @@ pub fn power_score(intel: &GameIntel, opp: &PlayerIntel, brief: Option<&MatchupB
     let flash = if opp.flash_in.is_some_and(|f| f > 0.0) { 0.25 } else { 0.0 };
     let threat_re = regex::Regex::new(r"(?i)Ignite|Podpalenie|Exhaust|Wyczerpanie").unwrap();
     let threat = if opp.summoner_spells.iter().any(|s| threat_re.is_match(s)) { -0.15 } else { 0.0 };
-    let meta = brief.and_then(|b| b.win_rate).map(|w| (w - 0.5) * 4.0).unwrap_or(0.0);
-    let score = 1.6 * curve + 0.45 * level_diff + 0.35 * gold_diff + 0.35 * items_diff + 1.5 * (hp - 1.0) - 1.5 * (opp_hp - 1.0) + flash + threat + 0.5 * meta;
+    let score = 1.6 * curve + 0.45 * level_diff + 0.35 * gold_diff + 0.35 * items_diff + 1.5 * (hp - 1.0) - 1.5 * (opp_hp - 1.0) + flash + threat;
     (sigmoid(score), score)
 }
 
@@ -197,6 +196,60 @@ pub struct PowerBarState {
     pub meta_win_rate: Option<f64>,
     /// Lead over the lane opponent (me minus them): item gold, CS, level.
     pub lane: LaneLead,
+    /// Allies next to me (minimap), counted in pMe.
+    pub allies: Vec<NearSide>,
+    /// Other enemies next to me: seen now (sure) or a fresh fog estimate close by (not sure).
+    pub enemies: Vec<NearSide>,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NearSide {
+    pub champion: String,
+    pub icon_url: String,
+    pub level: i64,
+    pub sure: bool,
+}
+
+/// Who is around me right now (from the minimap), for the fight estimate. Champion names;
+/// the lane opponent and I are left out by the caller or ignored here.
+#[derive(Clone, Debug, Default)]
+pub struct Nearby {
+    pub allies: Vec<String>,
+    /// (champion, seen now)
+    pub enemies: Vec<(String, bool)>,
+}
+
+/// Weight of one extra champion in a fight: ~1, more for higher level / more item gold than the
+/// game average, scaled by known HP. Fast and local (no model).
+fn unit_strength(p: &PlayerIntel, avg_lvl: f64, avg_gold: f64, hp: Option<f64>) -> f64 {
+    let s = 1.0 + 0.1 * (p.level as f64 - avg_lvl) + 0.3 * (p.item_gold - avg_gold) / 1000.0;
+    s.max(0.3) * hp.unwrap_or(1.0).clamp(0.2, 1.0)
+}
+
+/// Fight score delta from the champions around me: allies add, extra enemies subtract
+/// (unsure fog ones at 60%). Each extra body is worth about one 1v1 "lane" unit.
+pub fn nearby_delta(intel: &GameIntel, opp: &PlayerIntel, near: &Nearby) -> f64 {
+    let alive: Vec<&PlayerIntel> = intel.players.iter().filter(|p| !p.is_dead).collect();
+    if alive.is_empty() {
+        return 0.0;
+    }
+    let n = alive.len() as f64;
+    let avg_lvl = alive.iter().map(|p| p.level as f64).sum::<f64>() / n;
+    let avg_gold = alive.iter().map(|p| p.item_gold).sum::<f64>() / n;
+    let find = |c: &str| alive.iter().copied().find(|p| p.champion == c);
+    let mut d = 0.0;
+    for a in &near.allies {
+        if let Some(p) = find(a).filter(|p| p.is_ally && !p.is_me) {
+            d += unit_strength(p, avg_lvl, avg_gold, None);
+        }
+    }
+    for (e, sure) in &near.enemies {
+        if let Some(p) = find(e).filter(|p| !p.is_ally && p.champion != opp.champion) {
+            d -= unit_strength(p, avg_lvl, avg_gold, hp_fresh(intel, p)) * if *sure { 1.0 } else { 0.6 };
+        }
+    }
+    1.3 * d
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize)]
@@ -215,12 +268,21 @@ fn signed(n: i64) -> String {
 }
 
 pub fn power_bar(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dyn Fn(&str) -> String) -> Option<PowerBarState> {
+    power_bar_near(intel, brief, icon, &Nearby::default())
+}
+
+/// Power bar for a fight right here: the 1v1 lane estimate plus everyone around me.
+pub fn power_bar_near(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dyn Fn(&str) -> String, near: &Nearby) -> Option<PowerBarState> {
     let me = intel.me.as_ref()?;
     let opp = lane_opponent(intel)?;
     if me.is_dead {
         return None;
     }
-    let (p_me, _) = power_score(intel, opp, brief);
+    let (_, base) = power_score(intel, opp, brief);
+    let p_me = sigmoid(base + nearby_delta(intel, opp, near));
+    let side = |c: &str, sure: bool| intel.players.iter().find(|p| p.champion == c && !p.is_dead).map(|p| NearSide { champion: p.champion.clone(), icon_url: icon(&p.champion), level: p.level, sure });
+    let allies: Vec<NearSide> = near.allies.iter().filter(|c| intel.players.iter().any(|p| &p.champion == *c && p.is_ally && !p.is_me)).filter_map(|c| side(c, true)).collect();
+    let enemies: Vec<NearSide> = near.enemies.iter().filter(|(c, _)| *c != opp.champion && intel.players.iter().any(|p| &p.champion == c && !p.is_ally)).filter_map(|(c, s)| side(c, *s)).collect();
     let gold = (js_round((me.item_gold - opp.item_gold) / 50.0) * 50.0) as i64;
     let cs = me.cs - opp.cs;
     let detail = format!("lvl {} vs {} · {} g · CS {}", me.level, opp.level, signed(gold), signed(cs));
@@ -250,6 +312,8 @@ pub fn power_bar(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dyn Fn(
         advice,
         meta_win_rate: brief.and_then(|b| b.win_rate),
         lane: LaneLead { gold: gold as i64, cs: cs as i64, level: me.level as i64 - opp.level as i64 },
+        allies,
+        enemies,
     })
 }
 
@@ -277,6 +341,29 @@ pub(crate) mod tests {
     use crate::intel::game_intel::{MyStats, TeamIntel};
     use crate::llm::caller::FakeCaller;
     use std::collections::BTreeMap;
+
+    #[test]
+    fn nearby_jungler_lowers_the_odds() {
+        let mut me = player("Jinx", true, true, "BOTTOM", 9);
+        me.item_gold = 4000.0;
+        let mut sup = player("Lulu", true, false, "UTILITY", 8);
+        sup.item_gold = 2000.0;
+        let mut opp = player("Caitlyn", false, false, "BOTTOM", 9);
+        opp.item_gold = 4000.0;
+        let mut jg = player("Briar", false, false, "JUNGLE", 12);
+        jg.item_gold = 7000.0;
+        let i = intel(vec![me, sup, opp, jg]);
+        let icon = |c: &str| c.to_string();
+        let solo = power_bar(&i, None, &icon).unwrap().p_me;
+        let with_sup = power_bar_near(&i, None, &icon, &Nearby { allies: vec!["Lulu".into()], enemies: vec![] }).unwrap().p_me;
+        let fog_jg = power_bar_near(&i, None, &icon, &Nearby { allies: vec!["Lulu".into()], enemies: vec![("Briar".into(), false)] }).unwrap();
+        let seen_jg = power_bar_near(&i, None, &icon, &Nearby { allies: vec!["Lulu".into()], enemies: vec![("Briar".into(), true)] }).unwrap().p_me;
+        assert!(with_sup > solo);
+        assert!(fog_jg.p_me < with_sup && seen_jg < fog_jg.p_me);
+        assert_eq!(fog_jg.allies.len(), 1);
+        assert!(!fog_jg.enemies[0].sure);
+    }
+
 
     pub fn player(champion: &str, ally: bool, me: bool, role: &str, level: i64) -> PlayerIntel {
         PlayerIntel {

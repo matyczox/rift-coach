@@ -193,3 +193,10 @@ canvas.full { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .build .bd-name { font-size: 0.875rem; }
 .build .bd-name { display: block; -webkit-line-clamp: unset; overflow: visible; }
 .build .bd-row { align-items: start; }
+/* Champions around me (fight estimate): small icons beside each side's portrait */
+.pw-near { display: flex; gap: 0.125rem; flex: none; }
+.pw-near:empty { display: none; }
+.pw-mini { position: relative; width: 1.125rem; height: 1.125rem; border-radius: 50%; overflow: hidden; box-shadow: 0 0 0 1px rgba(255,255,255,0.25); }
+.pw-mini img { width: 100%; height: 100%; display: block; transform: scale(1.15); }
+.pw-mini.fog { opacity: 0.5; box-shadow: 0 0 0 1px rgba(255,255,255,0.35); }
+.pw-mini.fog::after { content: '?'; position: absolute; inset: 0; display: grid; place-items: center; font-size: 0.6875rem; font-weight: 800; color: #fff; background: rgba(0,0,0,0.35); }

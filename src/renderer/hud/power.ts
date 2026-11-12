@@ -8,6 +8,8 @@ const root = $('root');
 const pw = $('pw');
 const meIcon = $('meIcon') as HTMLImageElement;
 const enIcon = $('enIcon') as HTMLImageElement;
+const meNear = $('meNear');
+const enNear = $('enNear');
 const fill = $('fill');
 const pct = $('pct');
 const detail = $('detail');
@@ -23,6 +25,22 @@ const DANGER_COLOR: Record<DangerState['label'], string> = {
   niebezpiecznie: '#ff8a3d',
   uciekaj: '#ff5a4f',
 };
+
+/** Small icons of the champions around me; fog ones faded with a '?'. */
+function setNear(box: HTMLElement, list: Array<{ champion: string; iconUrl: string; sure: boolean }> | undefined): void {
+  const items = (list ?? []).slice(0, 4);
+  const key = items.map((n) => `${n.champion}:${n.sure}`).join(',');
+  if (box.dataset.k === key) return;
+  box.dataset.k = key;
+  box.replaceChildren(...items.map((n) => {
+    const s = document.createElement('span');
+    s.className = 'pw-mini' + (n.sure ? '' : ' fog');
+    const img = document.createElement('img');
+    img.src = n.iconUrl; img.alt = ''; img.title = n.champion;
+    s.append(img);
+    return s;
+  }));
+}
 
 function setSrc(img: HTMLImageElement, url: string): void {
   if (img.getAttribute('src') !== url) img.src = url;
@@ -57,6 +75,8 @@ subscribe(({ state }) => {
   if (!p) return;
   setSrc(meIcon, p.me.iconUrl);
   setSrc(enIcon, p.enemy.iconUrl);
+  setNear(meNear, p.allies);
+  setNear(enNear, p.enemies);
   meIcon.title = p.me.champion;
   enIcon.title = p.enemy.champion;
   const v = Math.max(0, Math.min(1, p.pMe));
