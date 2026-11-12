@@ -102,6 +102,15 @@ impl AppState {
             let l = self.lcu.lock().unwrap();
             (l.state, l.phase.clone(), l.me.clone())
         };
+        // Highest-mastery champion key -> English name (header splash).
+        let me = me.map(|mut p| {
+            if p.top_champion.is_none() {
+                if let (Some(k), Some(sd)) = (p.top_champion_key, self.game.lock().unwrap().static_data.clone()) {
+                    p.top_champion = sd.champion_by_key.get(&k).cloned();
+                }
+            }
+            p
+        });
         let coach = {
             let c = &self.game.lock().unwrap().coach.status;
             CoachStatus { state: c.state.clone(), model: c.model.clone(), calls: c.calls, last_error: c.last_error.clone(), last_latency_ms: c.last_latency_ms }

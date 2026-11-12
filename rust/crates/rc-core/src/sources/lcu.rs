@@ -129,6 +129,8 @@ pub fn parse_profile(summoner: &Value, ranked: Option<&Value>) -> Option<PlayerP
         level: summoner.get("summonerLevel").and_then(Value::as_i64).unwrap_or(0),
         icon_id: summoner.get("profileIconId").and_then(Value::as_i64).unwrap_or(0),
         ranks: ranked.map(parse_ranks).unwrap_or_default(),
+        top_champion: None,
+        top_champion_key: None,
     })
 }
 
@@ -139,7 +141,12 @@ pub async fn refresh_me(client: &LcuClient, shared: &Arc<Mutex<LcuShared>>) {
     }
     let Ok(s) = client.get::<Value>("/lol-summoner/v1/current-summoner").await else { return };
     let rk = client.get::<Value>("/lol-ranked/v1/current-ranked-stats").await.ok();
-    if let Some(p) = parse_profile(&s, rk.as_ref()) {
+    let mastery = client.get::<Value>("/lol-champion-mastery/v1/local-player/champion-mastery").await.ok();
+    if let Some(mut p) = parse_profile(&s, rk.as_ref()) {
+        p.top_champion_key = mastery.as_ref().and_then(Value::as_array).and_then(|a| {
+            a.iter().max_by_key(|m| m.get("championPoints").and_then(Value::as_i64).unwrap_or(0))
+                .and_then(|m| m.get("championId").and_then(Value::as_i64))
+        });
         shared.lock().unwrap().me = Some(p);
     }
 }

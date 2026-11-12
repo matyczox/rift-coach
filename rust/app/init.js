@@ -93,7 +93,9 @@
     fit();
     new ResizeObserver(fit).observe(bar);
   });
-  watch.observe(document.documentElement, { childList: true, subtree: true });
+  // Initialization scripts run at document creation, before <html> exists: start watching once it does.
+  const startWatch = () => watch.observe(document.documentElement, { childList: true, subtree: true });
+  if (document.documentElement) startWatch(); else document.addEventListener('DOMContentLoaded', startWatch, { once: true });
   function addControls() {
     if (!document.body || document.getElementById('rc-wincontrols')) return;
     const box = document.createElement('div');

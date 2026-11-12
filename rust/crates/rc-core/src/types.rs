@@ -131,6 +131,12 @@ pub struct PlayerProfile {
     pub level: i64,
     pub icon_id: i64,
     pub ranks: Vec<RankEntry>,
+    /// Highest-mastery champion (English name) for the header splash; filled by the app from Data Dragon.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub top_champion: Option<String>,
+    /// Champion key of the highest mastery (LCU), resolved to `top_champion` by the app.
+    #[serde(skip)]
+    pub top_champion_key: Option<i64>,
 }
 
 /// `AppStatus` from types.ts.

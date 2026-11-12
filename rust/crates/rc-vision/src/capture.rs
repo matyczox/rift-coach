@@ -33,7 +33,10 @@ use windows::Win32::Graphics::Direct3D11::{
 };
 use windows::Win32::Graphics::Dwm::{DwmGetWindowAttribute, DWMWA_EXTENDED_FRAME_BOUNDS};
 use windows::Win32::Graphics::Dxgi::IDXGIDevice;
-use windows::Win32::Graphics::Gdi::ClientToScreen;
+use windows::Win32::Graphics::Gdi::{
+    ClientToScreen, CreateCompatibleDC, CreateDIBSection, DeleteDC, DeleteObject, GetDC, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
+};
+use windows::Win32::Storage::Xps::{PrintWindow, PRINT_WINDOW_FLAGS};
 use windows::Win32::System::WinRT::Direct3D11::{CreateDirect3D11DeviceFromDXGIDevice, IDirect3DDxgiInterfaceAccess};
 use windows::Win32::System::WinRT::Graphics::Capture::IGraphicsCaptureItemInterop;
 use windows::Win32::System::WinRT::{RoInitialize, RO_INIT_MULTITHREADED};
@@ -254,6 +257,96 @@ impl WindowCapture {
     }
 }
 
+/// Classic window capture (PrintWindow with full DWM content): no yellow "being captured" border,
+/// copies only the game window itself (never our HUD on top). Default; `RC_WGC=1` selects WGC.
+pub struct GdiCapture {
+    hwnd: HWND,
+}
+
+impl GdiCapture {
+    pub fn new(title: &str) -> Result<GdiCapture, CaptureError> {
+        let hwnd = find_window(title).ok_or_else(|| CaptureError(format!("window '{title}' not found")))?;
+        Ok(GdiCapture { hwnd })
+    }
+
+    pub fn alive(&self) -> bool {
+        unsafe { IsWindow(self.hwnd).as_bool() }
+    }
+
+    pub fn grab(&mut self) -> Result<CapturedFrame, CaptureError> {
+        unsafe {
+            if IsIconic(self.hwnd).as_bool() {
+                return Err(CaptureError("game window minimised".into()));
+            }
+            let mut rc = RECT::default();
+            GetClientRect(self.hwnd, &mut rc)?;
+            let (w, h) = ((rc.right - rc.left).max(0), (rc.bottom - rc.top).max(0));
+            if w < 64 || h < 64 {
+                return Err(CaptureError("game window too small".into()));
+            }
+            let win_dc = GetDC(self.hwnd);
+            let mem = CreateCompatibleDC(win_dc);
+            let mut bmi = BITMAPINFO::default();
+            bmi.bmiHeader = BITMAPINFOHEADER {
+                biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                biWidth: w,
+                biHeight: -h, // top-down rows
+                biPlanes: 1,
+                biBitCount: 32,
+                biCompression: BI_RGB.0,
+                ..Default::default()
+            };
+            let mut bits: *mut std::ffi::c_void = std::ptr::null_mut();
+            let dib = CreateDIBSection(win_dc, &bmi, DIB_RGB_COLORS, &mut bits, None, 0);
+            let result = match dib {
+                Ok(dib) if !bits.is_null() => {
+                    let old = SelectObject(mem, dib);
+                    // PW_CLIENTONLY | PW_RENDERFULLCONTENT (DirectX / DWM content of the window)
+                    let ok = PrintWindow(self.hwnd, mem, PRINT_WINDOW_FLAGS(1 | 2)).as_bool();
+                    let out = if ok {
+                        let src = std::slice::from_raw_parts(bits as *const u8, (w * h * 4) as usize);
+                        let mut data = vec![0u8; src.len()];
+                        for (d, s) in data.chunks_exact_mut(4).zip(src.chunks_exact(4)) {
+                            d[0] = s[2];
+                            d[1] = s[1];
+                            d[2] = s[0];
+                            d[3] = 255;
+                        }
+                        Ok(CapturedFrame { at_ms: now_ms(), image: Arc::new(Rgba { width: w as usize, height: h as usize, data }) })
+                    } else {
+                        Err(CaptureError("PrintWindow failed".into()))
+                    };
+                    SelectObject(mem, old);
+                    let _ = DeleteObject(dib);
+                    out
+                }
+                _ => Err(CaptureError("CreateDIBSection failed".into())),
+            };
+            let _ = DeleteDC(mem);
+            ReleaseDC(self.hwnd, win_dc);
+            result
+        }
+    }
+}
+
+/// The capture backend in use.
+enum Backend {
+    Wgc(WindowCapture),
+    Gdi(GdiCapture),
+}
+
+impl Backend {
+    fn new(title: &str) -> Result<Backend, CaptureError> {
+        if std::env::var("RC_WGC").as_deref() == Ok("1") { WindowCapture::new(title).map(Backend::Wgc) } else { GdiCapture::new(title).map(Backend::Gdi) }
+    }
+    fn alive(&self) -> bool {
+        match self { Backend::Wgc(c) => c.alive(), Backend::Gdi(c) => c.alive() }
+    }
+    fn grab(&mut self, timeout: Duration) -> Result<CapturedFrame, CaptureError> {
+        match self { Backend::Wgc(c) => c.grab(timeout), Backend::Gdi(c) => c.grab() }
+    }
+}
+
 impl Drop for WindowCapture {
     fn drop(&mut self) {
         let _ = self.session.Close();
@@ -306,7 +399,7 @@ impl CaptureThread {
         let handle = std::thread::Builder::new()
             .name("rc-capture".into())
             .spawn(move || {
-                let mut cap: Option<WindowCapture> = None;
+                let mut cap: Option<Backend> = None;
                 let mut times: Vec<Instant> = Vec::new();
                 while !st.load(Ordering::Relaxed) {
                     let tick = Instant::now();
@@ -314,7 +407,7 @@ impl CaptureThread {
                         cap = None;
                     }
                     if cap.is_none() {
-                        match WindowCapture::new(&title) {
+                        match Backend::new(&title) {
                             Ok(c) => cap = Some(c),
                             Err(e) => {
                                 let mut s = sh.lock().unwrap();
