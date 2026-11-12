@@ -128,7 +128,10 @@ async function refreshMe() {
     const rk = await lcu.get<{ queues?: Array<{ queueType: string; tier: string; division: string; leaguePoints: number; wins: number; losses: number }> }>('/lol-ranked/v1/current-ranked-stats').catch(() => null);
     const ranks = (rk?.queues ?? []).filter(q => (q.queueType === 'RANKED_SOLO_5x5' || q.queueType === 'RANKED_FLEX_SR') && q.tier && q.tier !== 'NONE')
       .map(q => ({ queue: q.queueType === 'RANKED_SOLO_5x5' ? 'solo' as const : 'flex' as const, tier: q.tier, division: q.division, lp: q.leaguePoints, wins: q.wins, losses: q.losses }));
-    if (s?.gameName) meProfile = { gameName: s.gameName, tagLine: s.tagLine ?? '', level: s.summonerLevel ?? 0, iconId: s.profileIconId ?? 0, ranks };
+    const mastery = await lcu.get<Array<{ championId: number; championPoints: number }>>('/lol-champion-mastery/v1/local-player/champion-mastery').catch(() => null);
+    const top = Array.isArray(mastery) ? [...mastery].sort((a, b) => b.championPoints - a.championPoints)[0] : undefined;
+    const topChampion = top && staticData ? staticData.championByKey.get(top.championId) ?? null : null;
+    if (s?.gameName) meProfile = { gameName: s.gameName, tagLine: s.tagLine ?? '', level: s.summonerLevel ?? 0, iconId: s.profileIconId ?? 0, ranks, topChampion };
   } catch { /* client busy; try later */ }
 }
 let replayApiState: SourceState = 'waiting';

@@ -188,7 +188,7 @@ function ProfileHeader({ me, version, splash }: { me: AppStatus['me']; version: 
         </div>
         <div>
           <div className="profile-name">{me ? me.gameName : 'Rift Coach'}{me?.tagLine ? <span className="profile-tag"> #{me.tagLine}</span> : null}</div>
-          <div className="profile-sub">{me ? 'Twój coach do League of Legends' : 'Zaloguj się w kliencie League of Legends'}</div>
+          {!me && <div className="profile-sub">Zaloguj się w kliencie League of Legends</div>}
         </div>
       </div>
     </header>
@@ -198,7 +198,7 @@ function ProfileHeader({ me, version, splash }: { me: AppStatus['me']; version: 
 export function HomeView({ status }: { status: AppStatus }) {
   const [items, setItems] = useState<MatchReview[]>([]);
   const onItems = useCallback((x: MatchReview[]) => setItems(x), []);
-  const splash = status.game?.activeChampion ?? items[0]?.champion ?? null;
+  const splash = status.game?.activeChampion ?? items[0]?.champion ?? status.me?.topChampion ?? null;
   return (
     <div className="home-wrap">
       <ProfileHeader me={status.me} version={status.ddragonVersion} splash={splash} />

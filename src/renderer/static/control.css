@@ -650,3 +650,9 @@ body { font-feature-settings: "tnum" 0, "cv11" 1; letter-spacing: -0.005em; }
 .profile-inner { padding: 6px 6px 10px; }
 .coach-latency { font-size: 11.5px; color: var(--text-faint); margin-top: 1px; }
 .coach-state { white-space: nowrap; }
+/* Profile header with the champion splash behind it (Blitz-style), no empty gap */
+.profile { min-height: 132px; align-items: center; margin: -12px -24px 0; padding: 0 24px; border-radius: 0; }
+.profile-splash { opacity: .42; background-position: center 18%; mask-image: linear-gradient(90deg, #000 0%, rgba(0,0,0,.75) 45%, rgba(0,0,0,.25) 80%, transparent 100%); -webkit-mask-image: linear-gradient(90deg, #000 0%, rgba(0,0,0,.75) 45%, rgba(0,0,0,.25) 80%, transparent 100%); }
+.profile::after { background: linear-gradient(180deg, rgba(14,16,21,.15) 0%, transparent 45%, var(--bg) 100%); }
+.profile-inner { padding: 18px 0 14px; }
+.profile-name { font-size: 24px; text-shadow: 0 2px 12px rgba(0,0,0,.6); }
