@@ -216,7 +216,7 @@ export class Hud {
       case 'loading':
         return !!st.loadingCard;
       case 'power':
-        return !!(st.power || st.danger) && !st.deathCard;
+        return !!(st.power || st.danger || st.alert || st.objective) && !st.deathCard;
       case 'build':
         return !!st.build && st.build.items.length > 0;
     }

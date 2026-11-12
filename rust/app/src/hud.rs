@@ -168,7 +168,7 @@ fn wants(st: &Value, has_minimap: bool, now: f64) -> Value {
         "topbar": topbar,
         "death": st["deathCard"].is_object(),
         "loading": st["loadingCard"].is_object(),
-        "power": (st["power"].is_object() || st["danger"].is_object()) && !st["deathCard"].is_object(),
+        "power": (st["power"].is_object() || st["danger"].is_object() || st["alert"].is_object() || st["objective"].is_object()) && !st["deathCard"].is_object(),
         "build": st["build"]["items"].as_array().is_some_and(|a| !a.is_empty()),
     })
 }

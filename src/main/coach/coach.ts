@@ -44,6 +44,7 @@ Zasady:
 - Smoki, baron i herold są ważne — komentuj je (przed pojawieniem się i przy walce o nie).
 - Bądź KONSEKWENTNY: nie zmieniaj decyzji z previousCalls (np. "Smok teraz" → "Odpuść smoka"), dopóki sytuacja wyraźnie się nie zmieni (ktoś zginął, wróg się pokazał, przegrana walka).
 - Nie komentuj wszystkiego: jedna rzecz naraz, tylko to, co zmienia decyzję gracza.
+- Wardy to częsta i ważna porada: gdy gracz nie ma wizji tam, skąd grozi gank, przed smokiem/baronem albo po pchnięciu fali, powiedz gdzie postawić ward (np. "Ward rzeka bot", "Ward krzaki tri") i ustaw pole "ward".
 - Gdy nie masz NOWEJ, konkretnej decyzji: "call": null (gracz nic nie zobaczy — to lepsze niż szum).
 - "tone": go = zrób to teraz, wait = czekaj/przygotuj się, danger = zagrożenie, farm = spokojnie farm.
 - "mapHint": gdzie iść/co unikać, albo null. target to np. "dragon", "baron", "herald", "top", "mid", "bot", "my-jungle", "enemy-jungle", "base".

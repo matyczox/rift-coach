@@ -49,7 +49,8 @@ subscribe(({ state }) => {
     }
   }
 
-  const al = state.visible && state.alert && isLive(state.alert.expiresAt, state.gameTime) ? state.alert : null;
+  // Only the coach's call lives up here; alerts and the objective verdict are shown in the danger panel.
+  const al = null as AlertState | null;
   if (!al) {
     alert.classList.add('hidden');
     lastAlertKey = '';
@@ -66,7 +67,7 @@ subscribe(({ state }) => {
   }
 
   // Objective call echo: only when the objective is alive or spawns within 30 s.
-  const o = state.visible && state.objective && objectiveUrgent(state.objective) ? state.objective : null;
+  const o = null as typeof state.objective;
   if (!o) {
     obj.classList.add('hidden');
     lastObjKey = '';

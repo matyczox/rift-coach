@@ -2,6 +2,7 @@
 // Either part may be absent; the whole panel hides while the death card shows.
 import type { DangerState } from '../../shared/intel';
 import { $, setOn, subscribe } from './common';
+import { isLive, objectiveUrgent, VERDICT } from './types';
 
 const root = $('root');
 const pw = $('pw');
@@ -30,7 +31,10 @@ function setSrc(img: HTMLImageElement, url: string): void {
 subscribe(({ state }) => {
   const live = state.visible && !state.deathCard;
   const p = live ? state.power : null;
-  const d = live ? state.danger : null;
+  const al = live && state.alert && isLive(state.alert.expiresAt, state.gameTime) ? state.alert : null;
+  const o = live && state.objective && objectiveUrgent(state.objective) ? state.objective : null;
+  const extra = [al?.text, o ? `${o.objective}: ${VERDICT[o.verdict].word}` : null].filter((x): x is string => !!x);
+  const d = live ? (state.danger ?? (extra.length ? { level: 0.25, label: 'uważaj', reasons: [] } as DangerState : null)) : null;
   setOn(root, !!(p || d));
 
   danger.classList.toggle('hidden', !d);
@@ -40,8 +44,9 @@ subscribe(({ state }) => {
     dgLabel.textContent = d.label.charAt(0).toUpperCase() + d.label.slice(1);
     const filled = lvl <= 0 ? 0 : Math.max(1, Math.ceil(lvl * 4 - 1e-6));
     dgSegs.forEach((s, i) => s.classList.toggle('on', i < filled));
-    dgWhy.textContent = d.reasons.slice(0, 2).join(' · ');
-    dgWhy.classList.toggle('hidden', d.reasons.length === 0);
+    const lines = [...extra, ...d.reasons].slice(0, 2);
+    dgWhy.textContent = lines.join(' · ');
+    dgWhy.classList.toggle('hidden', lines.length === 0);
   }
 
   pw.classList.toggle('hidden', !p);
