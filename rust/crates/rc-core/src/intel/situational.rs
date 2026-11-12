@@ -148,18 +148,21 @@ pub fn danger_at(intel: &GameIntel, me: Option<Pos>, tracks: &[FogTrack], visibl
     }
     let mut reasons: Vec<(f64, String)> = Vec::new();
     let mut score = 0.0;
+    // p_me = the local fight estimate (counts allies near me): with the edge on our side, enemies
+    // around are less of a threat (>= 0.6: half, 0.5-0.6: three quarters).
+    let shield = match p_me { Some(p) if p >= 0.6 => 0.5, Some(p) if p >= 0.5 => 0.75, _ => 1.0 };
     for e in visible_enemies {
         let d = (e.x - me.x).hypot(e.y - me.y);
         if d > 0.14 {
             continue;
         }
         let is_fed = fed.contains(&e.champion);
-        let w = (1.0 - d / 0.14) * if is_fed { 1.6 } else { 1.0 } * 0.45;
+        let w = (1.0 - d / 0.14) * if is_fed { 1.6 } else { 1.0 } * 0.45 * shield;
         score += w;
         reasons.push((w, format!("{} blisko{}", e.champion, if is_fed { " (fed)" } else { "" })));
     }
     for t in tracks {
-        let w = ghost_threat(t, me, 0.12) * if fed.contains(&t.champion) { 1.5 } else { 1.0 } * 0.35;
+        let w = ghost_threat(t, me, 0.12) * if fed.contains(&t.champion) { 1.5 } else { 1.0 } * 0.35 * shield;
         if w > 0.03 {
             score += w;
             reasons.push((w, format!("{} gank", t.champion)));

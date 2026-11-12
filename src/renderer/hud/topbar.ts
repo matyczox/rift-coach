@@ -64,7 +64,7 @@ subscribe(({ state }) => {
   } else {
     const key = `${al.kind}|${al.text}`;
     alertTxt.textContent = al.text;
-    alertConf.textContent = '';
+    alertConf.textContent = `${Math.round(Math.max(0, Math.min(1, al.confidence)) * 100)}%`;
     alert.classList.remove('hidden', 'red', 'amber', 'green');
     alert.classList.add(alertColor(al));
     if (key !== lastAlertKey) {

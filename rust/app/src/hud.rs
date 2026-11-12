@@ -197,6 +197,10 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
         let vis_fn = |x: f64, y: f64| g.field.visible_at(x, y).unwrap_or(0.0);
         let vision_at: Option<&dyn Fn(f64, f64) -> f64> = if g.field.mask.is_some() { Some(&vis_fn) } else { None };
         use crate::knowledge as k;
+        // Fight here and now (who is near, HP, mana...). With the edge on our side a gank warning is noise:
+        // the ganker is the one in trouble.
+        let fight_p = g.intel.as_ref().and_then(|i| rc_core::intel::matchup::power_bar_near(i, g.matchup.as_ref(), &|c: &str| c.to_string(), &k::nearby(g))).map(|p| p.p_me);
+        let alerts: Vec<crate::vision::Alert> = g.field.alerts.iter().filter(|a| !(a.kind == "gank" && fight_p.is_some_and(|p| p >= 0.6))).cloned().collect();
         let profiles: Vec<Value> = g.profiles.iter().filter_map(|p| serde_json::to_value(p).ok()).collect();
         let (power, danger, objective, fed) = match g.intel.as_ref() {
             Some(i) => {
@@ -205,7 +209,7 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
                 let (allies, enemies) = (k::seen(&g.field.allies), k::seen(&g.field.visible_enemies));
                 (
                     rc_core::intel::matchup::power_bar_near(i, g.matchup.as_ref(), &icon, &k::nearby(g)).and_then(|p| serde_json::to_value(p).ok()),
-                    rc_core::intel::situational::danger_at(i, k::pos(g.field.my_pos), &tracks, &enemies, k::current_p_me(g), &fed).and_then(|d| serde_json::to_value(d).ok()),
+                    rc_core::intel::situational::danger_at(i, k::pos(g.field.my_pos), &tracks, &enemies, fight_p.or_else(|| k::current_p_me(g)), &fed).and_then(|d| serde_json::to_value(d).ok()),
                     rc_core::intel::situational::objective_call(i, &tracks, &allies, &enemies).and_then(|o| serde_json::to_value(o).ok()),
                     fed,
                 )
@@ -216,7 +220,7 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
             visible,
             intel: g.intel.as_ref(),
             advice: advice.as_ref(),
-            alerts: &g.field.alerts,
+            alerts: &alerts,
             ghosts: &g.field.ghosts,
             profiles: &profiles,
             champion_icon: &icon,

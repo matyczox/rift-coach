@@ -715,7 +715,7 @@ mod tests {
         let dragon = intel.objectives.iter().find(|o| o.kind == "dragon").unwrap();
         assert_eq!(dragon.spawns_at, Some(600.0 + obj::DRAGON_RESPAWN));
         assert_eq!(intel.enemy.dragons, ["Fire"]);
-        assert_eq!(intel.recent[0].text, "Smok Piekielny: wróg");
+        assert_eq!(intel.recent[0].text, "Infernal Dragon: wróg");
     }
 
     #[test]
