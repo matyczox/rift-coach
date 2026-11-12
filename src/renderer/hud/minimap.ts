@@ -182,6 +182,10 @@ function pill(text: string, x: number, y: number, color = '#eef3f6', anchor: 'ce
 
 /** Pill made of differently styled text runs, clamped inside the minimap. */
 function pillSegs(segs: Seg[], x: number, y: number, anchor: 'center' | 'left' = 'center'): void {
+  // Keep the minimap readable: only short timers (e.g. '0:42') get a label there; verdicts, reasons and
+  // hint words ('ward', 'roślina') are already in the top bar / coach and just covered the map.
+  segs = segs.flatMap((sg): Seg[] => { const m = /\d+:\d{2}/.exec(sg.text); return m ? [{ ...sg, text: m[0], small: true }] : []; }).slice(0, 1);
+  if (!segs.length) return;
   const fs = Math.max(10, Math.round(W * 0.033));
   const fsSmall = Math.max(9, Math.round(fs * 0.88));
   const fontOf = (sg: Seg) => `${sg.weight ?? 600} ${sg.small ? fsSmall : fs}px ${FONT}`;

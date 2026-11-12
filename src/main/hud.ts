@@ -179,8 +179,8 @@ export class Hud {
     set('death', { x: g.x + g.width - dw - g.width * 0.02, y: g.y + g.height * 0.42 - dh / 2, width: dw, height: dh });
 
     // Lane power bar: right side, centered ~32% of game height (above the death card).
-    const pw = 320 * s, ph = 220 * s; // power bar + danger row
-    set('power', { x: g.x + g.width - pw - g.width * 0.02 - 10 * s, y: g.y + g.height * 0.32 - ph / 2, width: pw, height: ph });
+    const pw = 280 * s, ph = 190 * s; // power bar + danger row, left of the enemy portraits column
+    set('power', { x: g.x + g.width - pw - g.width * 0.075, y: g.y + g.height * 0.5 - ph / 2, width: pw, height: ph });
 
     // Loading card: centered.
     const lw = 720 * s, lh = 480 * s;
@@ -194,8 +194,9 @@ export class Hud {
       const side = g.height * 0.237;
       return { x: g.x + g.width - side, y: g.y + g.height - side, width: side, height: side };
     })();
-    const bw = 250 * s, bh = 230 * s;
-    set('build', { x: mm.x - bw - 4 * s, y: mm.y + mm.height - bh, width: bw, height: bh });
+    // Build: slim strip directly ABOVE the minimap (left of it sits the item / ability bar).
+    const bh = 120 * s;
+    set('build', { x: mm.x, y: mm.y - bh - 4 * s, width: mm.width, height: bh });
   }
 
   private wants(kind: HudWindowKind, st: HudState): boolean {

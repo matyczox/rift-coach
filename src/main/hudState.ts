@@ -111,7 +111,7 @@ export function composeHud(i: HudInputs): HudState {
   }
 
   const dead = Boolean(intel?.me?.isDead);
-  const loadingCard: LoadingCardState | null = intel && gameTime < 75 && i.profiles.length
+  const loadingCard: LoadingCardState | null = intel && gameTime < 25 && i.profiles.length
     ? { enemies: i.profiles.map(p => ({ champion: p.champion, role: p.role, iconUrl: i.championIcon(p.champion), summary: p.summary, rank: p.rank })) }
     : null;
 

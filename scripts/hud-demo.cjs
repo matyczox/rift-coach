@@ -102,7 +102,7 @@ async function composite(captures, name, crops) {
   const html = `<!doctype html><html><head><meta charset="utf-8"><style>
 html,body{margin:0;width:${GAME.width}px;height:${GAME.height}px;overflow:hidden;background:#11161b}
 canvas{position:absolute;left:0;top:0}</style></head><body>
-<canvas id="bg" width="${GAME.width}" height="${GAME.height}"></canvas>${imgs}
+<canvas id="bg" width="${GAME.width}" height="${GAME.height}"></canvas>${process.env.HUD_BG ? `<img src="bg.png" style="position:absolute;left:0;top:0;width:${GAME.width}px;height:${GAME.height}px">` : ""}${imgs}
 <script>
 const c=document.getElementById('bg').getContext('2d');let s=7;const R=()=>(s=(s*16807)%2147483647)/2147483647;
 c.fillStyle='#1d2a24';c.fillRect(0,0,${GAME.width},${GAME.height});
@@ -122,6 +122,7 @@ c.moveTo(m.x+20,m.y+m.height-20);c.lineTo(m.x+m.width-20,m.y+m.height-20);c.line
 c.strokeStyle='#2c4f63';c.lineWidth=14;c.beginPath();c.moveTo(m.x+40,m.y+40);c.lineTo(m.x+m.width-40,m.y+m.height-40);c.stroke();
 c.strokeStyle='#e8e8e8';c.lineWidth=1.5;c.strokeRect(m.x+150,m.y+130,70,46);
 </script></body></html>`;
+  if (process.env.HUD_BG) fs.copyFileSync(process.env.HUD_BG, path.join(OUT, 'bg.png'));
   const file = path.join(OUT, 'composite.html');
   fs.writeFileSync(file, html);
   const win = new BrowserWindow({

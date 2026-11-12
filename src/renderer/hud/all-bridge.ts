@@ -73,8 +73,9 @@ function layout(m: HudMessage, s: number): void {
   place(panels.get('topbar')!, { x: (W - tw) / 2, y: H * 0.06, width: tw, height: th });
   const dw = 380 * s, dh = 380 * s;
   place(panels.get('death')!, { x: W - dw - W * 0.02, y: H * 0.42 - dh / 2, width: dw, height: dh });
-  const pw = 320 * s, ph = 220 * s;
-  place(panels.get('power')!, { x: W - pw - W * 0.02 - 10 * s, y: H * 0.32 - ph / 2, width: pw, height: ph });
+  // Power/danger: compact, mid-height, left of the enemy portraits column on the right edge.
+  const pw = 280 * s, ph = 190 * s;
+  place(panels.get('power')!, { x: W - pw - W * 0.075, y: H * 0.5 - ph / 2, width: pw, height: ph });
   const lw = 720 * s, lh = 480 * s;
   place(panels.get('loading')!, { x: (W - lw) / 2, y: (H - lh) / 2, width: lw, height: lh });
   const mr = m.minimap ? { x: m.minimap.x * W, y: m.minimap.y * H, width: m.minimap.width * W, height: m.minimap.height * H } : null;
@@ -82,8 +83,9 @@ function layout(m: HudMessage, s: number): void {
   // Build panel: directly left of the minimap, bottom-aligned (default minimap without calibration).
   const side = H * 0.237;
   const b = mr ?? { x: W - side, y: H - side, width: side, height: side };
-  const bw = 250 * s, bh = 230 * s;
-  place(panels.get('build')!, { x: b.x - bw - 4 * s, y: b.y + b.height - bh, width: bw, height: bh });
+  // Build: slim strip directly ABOVE the minimap (left of it sits the item / ability bar).
+  const bh = 120 * s;
+  place(panels.get('build')!, { x: b.x, y: b.y - bh - 4 * s, width: b.width, height: bh });
 }
 
 const hideTimers = new Map<HudWindowKind, number>();

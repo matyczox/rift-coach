@@ -26,9 +26,7 @@ function render(b: BuildPanelState): void {
     img.onerror = () => { img.style.visibility = 'hidden'; };
     const main = el('div', 'bd-main');
     main.append(el('div', 'bd-name', it.name));
-    if (it.why) main.append(el('div', 'bd-why', it.why));
     row.append(img, main, el('div', 'bd-cost', it.cost != null ? String(it.cost) : ''));
-    row.title = it.why;
     return row;
   }));
 }

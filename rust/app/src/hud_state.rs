@@ -243,7 +243,7 @@ pub fn compose_hud(i: &HudInputs) -> Value {
     let me = intel.and_then(|x| x.me.as_ref());
     let dead = me.is_some_and(|m| m.is_dead);
     let loading_card = match intel {
-        Some(_) if game_time < 75.0 && !i.profiles.is_empty() => Some(json!({
+        Some(_) if game_time < 25.0 && !i.profiles.is_empty() => Some(json!({
             "enemies": i.profiles.iter().map(|p| {
                 let champ = p.get("champion").and_then(Value::as_str).unwrap_or("");
                 json!({ "champion": champ, "role": p.get("role"), "iconUrl": (i.champion_icon)(champ), "summary": p.get("summary"), "rank": p.get("rank") })
