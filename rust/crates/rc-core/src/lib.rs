@@ -6,6 +6,7 @@ pub mod coach;
 pub mod files;
 pub mod intel;
 pub mod llm;
+pub mod riot;
 pub mod runes;
 pub mod settings;
 pub mod sources;
