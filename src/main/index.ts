@@ -309,7 +309,7 @@ function createControl() {
     icon: path.join(__dirname, '..', 'assets', 'icon.png'),
     webPreferences: { preload: PRELOAD, sandbox: false },
   });
-  void control.loadFile(path.join(RENDERER, 'control.html'));
+  void control.loadFile(path.join(RENDERER, 'control.html'), { hash: process.argv.find(a => a.startsWith('--tab='))?.slice(6) ?? '' });
   // Do not steal focus from the game when the app starts mid-match.
   control.once('ready-to-show', () => { if (!SMOKE && !BACKGROUND) control?.showInactive(); });
   // Closing the window keeps the coach running in the background when it starts with Windows.
@@ -768,6 +768,24 @@ function registerIpc() {
   ipcMain.handle('replayClose', () => closeReplay());
   ipcMain.handle('listReplayFiles', () => listReplayFiles());
   ipcMain.handle('listReviews', () => listReviews(reviewsDir()));
+  ipcMain.handle('getLearning', () => {
+    const ud = app.getPath('userData');
+    const count = (dir: string, re = /./) => { try { return readdirSync(dir).filter(f => re.test(f)).length; } catch { return 0; } };
+    const sc = learner?.model.score;
+    return {
+      fog: {
+        samples: sc?.n ?? 0, hits: sc?.hits ?? 0,
+        betterThanBaseline: sc && sc.n ? (sc.logModel > sc.logBaseline ? 1 : 0) : null,
+        patterns: Object.keys(learner?.model.multipliers ?? {}).length,
+      },
+      observedGames: count(obsDir(ud), /.json.gz$/),
+      profiles: count(path.join(ud, 'riot-cache')),
+      matchups: count(path.join(ud, 'matchups'), /.json$/),
+      patchBriefs: count(path.join(ud, 'patch'), /.json$/),
+      reviews: count(reviewsDir(), /.json$/),
+      recordings: recorder.list().length,
+    };
+  });
   ipcMain.handle('harvestStart', (_e, opts: { gameIds?: number[]; speed?: number }) => harvestStart(opts ?? {}));
   ipcMain.handle('harvestContinue', () => harvester.continue());
   ipcMain.handle('harvestStop', () => { harvestCancelled = true; harvestQueue = []; harvester.stop(); });

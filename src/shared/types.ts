@@ -161,6 +161,17 @@ export interface OverlayState {
   recording: boolean;
 }
 
+/** What the app has learned so far (Nauka tab). */
+export interface LearningStats {
+  fog: { samples: number; hits: number; betterThanBaseline: number | null; patterns: number };
+  observedGames: number;     // games recorded for self-training (minimap observations)
+  profiles: number;          // cached Riot API responses (opponent profiles)
+  matchups: number;          // cached lane-matchup research
+  patchBriefs: number;       // patch briefs
+  reviews: number;           // post-game reviews
+  recordings: number;        // harvested replays / recordings
+}
+
 export interface MatchReview {
   id: string;                 // e.g. "2026-11-12T03-10-00"
   createdAt: number;
@@ -220,6 +231,7 @@ export interface RcApi {
 
   /** Post-game reviews, newest first. */
   listReviews(): Promise<MatchReview[]>;
+  getLearning(): Promise<LearningStats>;
   onReview(cb: (r: MatchReview) => void): () => void;
 }
 

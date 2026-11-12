@@ -99,7 +99,11 @@ export class Recorder {
     for (const id of readdirSync(this.root)) {
       const f = path.join(this.root, id, 'meta.json');
       if (!existsSync(f)) continue;
-      try { out.push(JSON.parse(readFileSync(f, 'utf8'))); } catch { /* skip broken */ }
+      try {
+        const m = JSON.parse(readFileSync(f, 'utf8')) as RecordingSummary;
+        if (!m.bytes) m.bytes = dirSize(path.join(this.root, id));
+        out.push(m);
+      } catch { /* skip broken */ }
     }
     return out.sort((a, b) => b.startedAt - a.startedAt);
   }

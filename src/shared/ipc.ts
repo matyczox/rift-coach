@@ -4,7 +4,7 @@ export const INVOKE = [
   'startRecording', 'stopRecording', 'listRecordings', 'deleteRecording', 'openRecordingsFolder',
   'replayOpen', 'replayPlay', 'replayPause', 'replaySeek', 'replaySpeed', 'replayClose',
   'listReplayFiles', 'harvestStart', 'harvestStop', 'harvestContinue',
-  'listReviews',
+  'listReviews', 'getLearning',
 ] as const;
 export type InvokeChannel = typeof INVOKE[number];
 

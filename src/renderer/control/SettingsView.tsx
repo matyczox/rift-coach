@@ -97,7 +97,7 @@ function ModelPicker({ id, value, options, onChange }: { id: string; value: stri
           onChange(v);
         }}
       >
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+        {options.map((o) => <option key={o} value={o}>{prettyModel(o)}</option>)}
         <option value="__custom">inny…</option>
       </select>
       {custom && (
@@ -114,6 +114,12 @@ function ModelPicker({ id, value, options, onChange }: { id: string; value: stri
     </div>
   );
 }
+
+/** Friendly model names in the pickers: gpt-6.1-terra -> "Terra (Codex)", claude-opus-5-5 -> "Opus 5.5 (Claude)". */
+const prettyModel = (m: string) => {
+  const name = m.replace(/^gpt-[\d.]+-/, '').replace(/^claude-/, '').replace(/-(\d+)-(\d+)$/, ' $1.$2').replace(/^./, c => c.toUpperCase());
+  return m.startsWith('gpt') ? name + ' · Codex' : m.startsWith('claude') ? name + ' · Claude' : m;
+};
 
 export const SettingsView = memo(function SettingsView({ settings }: { settings: Settings }) {
   const incoming = useMemo(() => toDraft(settings), [settings]);
@@ -278,7 +284,7 @@ export const SettingsView = memo(function SettingsView({ settings }: { settings:
         </div>
         <div className="panel">
           <h2>Coach</h2>
-          {toggle(draft.coach.enabled, (v) => setCoach({ enabled: v }), 'Porady Claude', 'Krótkie porady na pasku u góry i podsumowanie po śmierci.')}
+          {toggle(draft.coach.enabled, (v) => setCoach({ enabled: v }), 'Coach AI', 'Krótkie porady na pasku u góry, analiza po śmierci i podsumowanie po meczu.')}
           <div className="field">
             <label htmlFor="coach-live">Model w grze</label>
             <ModelPicker id="coach-live" value={draft.coach.liveModel} options={LIVE_MODELS} onChange={(v) => setCoach({ liveModel: v })} />
@@ -323,7 +329,7 @@ export const SettingsView = memo(function SettingsView({ settings }: { settings:
             <div className="field-hint">({pLo}–{pHi})</div>
           </div>
           <div className="help-line">
-            Coach używa Claude Code zalogowanego Twoją subskrypcją. Jeśli status pokazuje „niezalogowany”, uruchom w terminalu: <code>claude</code> i zaloguj się.
+            Coach korzysta z Twoich subskrypcji: Codex (ChatGPT) i/lub Claude Code. Aplikacja sama wybiera najlepsze modele do tego, co masz zainstalowane. Gdy coach pokazuje „niezalogowany”, uruchom w terminalu <code>claude</code> i zaloguj się.
           </div>
         </div>
         <div className="panel">

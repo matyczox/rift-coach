@@ -3,7 +3,6 @@ import type { KeyboardEvent as RKeyboardEvent, PointerEvent as RPointerEvent } f
 import type { MinimapCalibration, Rect, SourceState } from '../../shared/types';
 import { clamp, fmtDate, rc, useAction } from './util';
 import { MinimapPreview } from './MinimapPreview';
-import { AdviceCard } from './AdviceCard';
 import type { CoachAdvice } from '../../shared/intel';
 
 interface Scene { dataUrl: string; width: number; height: number }
@@ -181,9 +180,8 @@ export const CalibrationView = memo(function CalibrationView({ calibration, capt
           )}
         </div>
         <aside className="cal-side">
-          <AdviceCard advice={lastAdvice} />
           <div className="cal-card">
-            <div className="cal-card-title">Na żywo (zapisana)</div>
+            <div className="cal-card-title">Podgląd na żywo</div>
             <MinimapPreview size={200} />
           </div>
           {scene && rect && (
