@@ -94,14 +94,18 @@ export class Recorder {
     writeFileSync(path.join(this.dir, 'meta.json'), JSON.stringify({ ...this.meta, ...this.extra }, null, 2));
   }
 
-  list(): RecordingSummary[] {
+  /** sizes=true: fill missing byte counts (walks the folder once, then stores it in meta.json). */
+  list(sizes = false): RecordingSummary[] {
     const out: RecordingSummary[] = [];
     for (const id of readdirSync(this.root)) {
       const f = path.join(this.root, id, 'meta.json');
       if (!existsSync(f)) continue;
       try {
         const m = JSON.parse(readFileSync(f, 'utf8')) as RecordingSummary;
-        if (!m.bytes) m.bytes = dirSize(path.join(this.root, id));
+        if (sizes && !m.bytes && id !== this.status.sessionId) {
+          m.bytes = dirSize(path.join(this.root, id));
+          try { writeFileSync(f, JSON.stringify(m, null, 2)); } catch { /* read-only: recompute next time */ }
+        }
         out.push(m);
       } catch { /* skip broken */ }
     }

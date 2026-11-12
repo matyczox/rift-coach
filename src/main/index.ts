@@ -755,7 +755,7 @@ function registerIpc() {
   ipcMain.handle('setCalibration', (_e, c: MinimapCalibration) => applyCalibration(c));
   ipcMain.handle('startRecording', () => startRecording());
   ipcMain.handle('stopRecording', () => stopRecording());
-  ipcMain.handle('listRecordings', () => recorder.list());
+  ipcMain.handle('listRecordings', () => recorder.list(true));
   ipcMain.handle('deleteRecording', (_e, id: string) => {
     if (replay?.status.sessionId === id) closeReplay();
     recorder.delete(id);
