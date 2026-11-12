@@ -12,7 +12,7 @@ import type { HudState } from '../../shared/intel';
 import type { HudPayload, HudWindowKind } from './types';
 
 /** Import order in all.ts — must match. */
-export const KINDS: HudWindowKind[] = ['minimap', 'topbar', 'death', 'loading', 'power', 'build'];
+export const KINDS: HudWindowKind[] = ['minimap', 'topbar', 'death', 'loading', 'power', 'build', 'notify'];
 
 export interface HudMessage {
   state: HudState;
@@ -85,6 +85,9 @@ function layout(m: HudMessage, s: number): void {
   const b = mr ?? { x: W - side, y: H - side, width: side, height: side };
   // Build: left of the minimap, bottom-aligned, narrow (no descriptions) and with a clear gap so it never
   // covers the minimap's edge.
+  // Notifications: top-right corner, under the score / FPS line.
+  const nw = 300 * s, nh = 260 * s;
+  place(panels.get('notify')!, { x: W - nw - W * 0.006, y: H * 0.06, width: nw, height: nh });
   const bw = 190 * s, bh = 150 * s;
   place(panels.get('build')!, { x: b.x - bw - 14 * s, y: b.y + b.height - bh, width: bw, height: bh });
 }

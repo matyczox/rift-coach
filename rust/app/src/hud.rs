@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 pub const LABEL: &str = "hud";
-const PANELS: [&str; 6] = ["minimap", "topbar", "death", "loading", "power", "build"];
+const PANELS: [&str; 7] = ["minimap", "topbar", "death", "loading", "power", "build", "notify"];
 /// Keep the window mapped this long after its content goes away (renderer fades out).
 const HIDE_DELAY: Duration = Duration::from_millis(180);
 
@@ -170,6 +170,7 @@ fn wants(st: &Value, has_minimap: bool, now: f64) -> Value {
         "loading": st["loadingCard"].is_object(),
         "power": (st["power"].is_object() || st["danger"].is_object() || st["alert"].is_object() || st["objective"].is_object()) && !st["deathCard"].is_object(),
         "build": st["build"]["items"].as_array().is_some_and(|a| !a.is_empty()),
+        "notify": !arr("toasts").is_empty() || !arr("buffs").is_empty(),
     })
 }
 
@@ -189,6 +190,7 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
     let state = {
         let mut g = st.game.lock().unwrap();
         g.field.alerts.retain(|a| a.expires_at > now);
+        g.field.toasts.retain(|t| t.expires_at > now);
         let g = &*g;
         let icon = |c: &str| champion_icon(g, c);
         let vis_fn = |x: f64, y: f64| g.field.visible_at(x, y).unwrap_or(0.0);
@@ -209,7 +211,7 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
             }
             None => (None, None, None, Vec::new()),
         };
-        compose_hud(&HudInputs {
+        let mut s = compose_hud(&HudInputs {
             visible,
             intel: g.intel.as_ref(),
             advice: advice.as_ref(),
@@ -227,7 +229,13 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
             vision_at,
             me: g.field.my_pos,
             now,
-        })
+        });
+        if let Some(o) = s.as_object_mut() {
+            let gt = g.intel.as_ref().map(|i| i.game_time).unwrap_or(0.0);
+            o.insert("toasts".into(), Value::Array(g.field.toasts.iter().map(|t| serde_json::json!({ "id": t.id, "kind": t.kind, "team": t.team, "text": t.text, "iconUrl": t.champion.as_deref().map(&icon), "expiresAt": t.expires_at })).collect()));
+            o.insert("buffs".into(), Value::Array(g.intel.as_ref().map(|i| i.buffs.iter().map(|b| serde_json::json!({ "kind": b.kind, "team": b.team, "secondsLeft": (b.until - gt).max(0.0).round() })).collect()).unwrap_or_default()));
+        }
+        s
     };
     let mut h = st.hud.lock().unwrap();
     let game = h.game;

@@ -76,8 +76,23 @@ pub struct SeenUnit {
     pub vy: f64,
 }
 
+/// Short top-right notification (enemy back, Baron / Elder taken). Flies away when it expires.
+#[derive(Clone, Debug)]
+pub struct Toast {
+    pub id: u64,
+    /// recall
+    pub kind: String,
+    /// ally | enemy
+    pub team: String,
+    pub champion: Option<String>,
+    pub text: String,
+    /// Date.now() ms
+    pub expires_at: f64,
+}
+
 /// Per-game vision state (lives in `Game`, under the same lock as the intel).
 pub struct Field {
+    pub toasts: Vec<Toast>,
     pub tracker: Option<EnemyTracker>,
     pub camps: CampTracker,
     pub camp_status: Vec<CampStatus>,
@@ -104,6 +119,7 @@ impl Field {
         let learner = Learner::new(Some(data_dir.join("model").join("fog-model.json")));
         let tracker = std::panic::catch_unwind(|| EnemyTracker::new(Arc::new(GridTerrain::from_asset(128)), learner, 400)).map_err(|_| log::warn!("terrain: no walkable grid")).ok();
         Field {
+            toasts: Vec::new(),
             tracker,
             camps: CampTracker::default(),
             camp_status: Vec::new(),
@@ -129,6 +145,7 @@ impl Field {
     /// Live API left (game over / loading): forget per-game state, keep what was learned.
     pub fn on_live_lost(&mut self) {
         self.alerts.clear();
+        self.toasts.clear();
         self.ghosts.clear();
         self.my_pos = None;
         self.roster_key.clear();
@@ -677,16 +694,11 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     dets.extend(camp_sightings);
     let tracker = f.tracker.as_mut().unwrap();
     let tracks = tracker.update(&FrameInput { t, detections: &dets, visible, enemies: &enemies, dragon_in: obj_in(dragon), baron_in: obj_in(baron) });
-    // Proven recall of my lane opponent / jungler -> short note. (Auto-Flash stays off like in TS:
-    // dashes look the same on the minimap; Flash timers come from the hotkey.)
+    // Proven recall (bought items while unseen) of any enemy -> short top-right toast.
+    // (Auto-Flash stays off: dashes look the same on the minimap; Flash timers come from the hotkey.)
     for tr in &tracks {
-        let p = intel.players.iter().find(|x| x.champion == tr.champion);
-        if tr.recalled_at == Some(t) {
-            if let Some(p) = p {
-                if p.role == "JUNGLE" || Some(&p.role) == intel.me.as_ref().map(|m| &m.role) {
-                    f.alerts.push(Alert::new("missing", format!("{} w bazie (kupił)", tr.champion), 1.0, now + 4000.0));
-                }
-            }
+        if tr.recalled_at == Some(t) && intel.players.iter().any(|x| x.champion == tr.champion && !x.is_ally) {
+            f.toasts.push(Toast { id: now as u64 ^ (f.toasts.len() as u64) << 1, kind: "recall".into(), team: "enemy".into(), champion: Some(tr.champion.clone()), text: format!("{} w bazie", tr.champion), expires_at: now + 3500.0 });
         }
     }
     f.ghosts = tracker

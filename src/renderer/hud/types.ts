@@ -5,7 +5,7 @@ import type { HudState, ObjectiveCall, ObjectiveTimer } from '../../shared/intel
 /** The single IPC channel the Hud uses (main -> hud windows). */
 export const HUD_CHANNEL = 'hud:state';
 
-export type HudWindowKind = 'minimap' | 'topbar' | 'death' | 'loading' | 'power' | 'build';
+export type HudWindowKind = 'minimap' | 'topbar' | 'death' | 'loading' | 'power' | 'build' | 'notify';
 
 export interface HudPayload {
   state: HudState;

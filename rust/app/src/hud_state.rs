@@ -44,15 +44,7 @@ pub fn local_alerts(intel: &GameIntel, now: f64) -> Vec<Alert> {
             out.push(Alert::new("spike", format!("{}: {}", p.champion, s.label), 1.0, now + 8000.0));
         }
     }
-    // Buff windows and aces: tell when to defend / when to push.
-    for b in &intel.buffs {
-        let name = if b.kind == "baron" { "Baron" } else { "Starszy" };
-        out.push(if b.team == "enemy" {
-            Alert::new("missing", format!("Wróg ma {name} do {} — broń pod wieżą", fmt_t(b.until)), 1.0, now + 3000.0)
-        } else {
-            Alert::new("ally", format!("Macie {name} do {} — push", fmt_t(b.until)), 1.0, now + 3000.0)
-        });
-    }
+    // Baron / Elder windows: shown as a countdown chip (top right), not as an alert.
     if let Some(ace) = &intel.ace {
         out.push(if ace.team == "ally" { Alert::new("ally", "ACE — push / Baron teraz", 1.0, now + 3000.0) } else { Alert::new("missing", "Wróg zrobił ACE — cofnij się", 1.0, now + 3000.0) });
     }

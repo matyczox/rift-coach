@@ -7,6 +7,7 @@ import './death';
 import './loading';
 import './power';
 import './build';
+import './notify';
 
 interface TauriEvent<T> { payload: T }
 interface TauriGlobal { event: { listen<T>(name: string, cb: (e: TauriEvent<T>) => void): Promise<() => void> } }

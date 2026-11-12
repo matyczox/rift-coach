@@ -262,4 +262,8 @@ export interface HudState {
   /** Minimap overlay housekeeping. */
   showFrame: boolean;
   recording: boolean;
+  /** Top-right toasts (enemy back); expiresAt = Date.now() ms. */
+  toasts?: Array<{ id: number; kind: 'recall'; team: 'ally' | 'enemy'; text: string; iconUrl: string | null; expiresAt: number }>;
+  /** Active Baron / Elder buffs with seconds left. */
+  buffs?: Array<{ kind: 'baron' | 'elder'; team: 'ally' | 'enemy'; secondsLeft: number }>;
 }
