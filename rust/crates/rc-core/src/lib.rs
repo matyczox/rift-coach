@@ -3,6 +3,7 @@
 //! shared with the React UI.
 
 pub mod files;
+pub mod intel;
 pub mod llm;
 pub mod settings;
 pub mod sources;
