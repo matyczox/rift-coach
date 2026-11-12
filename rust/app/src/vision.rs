@@ -634,7 +634,8 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             move_speed: p.move_speed,
             likely_recall: false,
             start_top_side: profiles.iter().find(|pr| pr.champion == p.champion).and_then(|pr| pr.jungle.as_ref()).map(|j| j.start_top_side),
-            item_gold: Some(p.item_gold),
+            // Shop-only items: evolving pets / support quest items would fake a recall.
+            item_gold: Some(p.shop_gold),
             has_flash: p.summoner_spells.iter().any(|s| {
                 let l = s.to_lowercase();
                 l.contains("flash") || l.contains("błysk")
@@ -710,7 +711,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             d: r.detections.iter().filter(|d| d.team != my_team_t).map(|d| (d.champion.clone(), r4(d.x), r4(d.y))).collect(),
             mask: r.fog_mask.as_deref(),
             mask_size: r.fog_grid,
-            e: intel.players.iter().filter(|p| !p.is_ally).map(|p| (p.champion.clone(), p.role.clone(), p.is_dead as u8, p.move_speed, p.item_gold)).collect(),
+            e: intel.players.iter().filter(|p| !p.is_ally).map(|p| (p.champion.clone(), p.role.clone(), p.is_dead as u8, p.move_speed, p.shop_gold)).collect(),
             dr: obj_round(obj_in(dragon)),
             br: obj_round(obj_in(baron)),
         });

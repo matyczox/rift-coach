@@ -32,6 +32,7 @@ struct ItemData {
     total: f64,
     flat_ms: f64,
     pct_ms: f64,
+    purchasable: bool,
 }
 
 fn parse_items(items: &Value) -> HashMap<i64, ItemData> {
@@ -42,7 +43,7 @@ fn parse_items(items: &Value) -> HashMap<i64, ItemData> {
             continue;
         }
         let st = &it["stats"];
-        out.insert(idn, ItemData { total: it["gold"]["total"].as_f64().unwrap_or(0.0), flat_ms: st["FlatMovementSpeedMod"].as_f64().unwrap_or(0.0), pct_ms: st["PercentMovementSpeedMod"].as_f64().unwrap_or(0.0) });
+        out.insert(idn, ItemData { total: it["gold"]["total"].as_f64().unwrap_or(0.0), flat_ms: st["FlatMovementSpeedMod"].as_f64().unwrap_or(0.0), pct_ms: st["PercentMovementSpeedMod"].as_f64().unwrap_or(0.0), purchasable: it["gold"]["purchasable"].as_bool().unwrap_or(false) });
     }
     out
 }
@@ -91,7 +92,8 @@ fn intel(d: &Value, t: f64, items: &HashMap<i64, ItemData>, champ_ms: &HashMap<S
         .iter()
         .map(|p| {
             let its = p["items"].as_array().cloned().unwrap_or_default();
-            let item_gold: f64 = its.iter().map(|i| items.get(&i["itemID"].as_i64().unwrap_or(0)).map(|x| x.total).unwrap_or(i["price"].as_f64().unwrap_or(0.0))).sum();
+            // Shop-only items (recall proof, as in the app): evolving pets / support quest items excluded.
+            let item_gold: f64 = its.iter().filter_map(|i| items.get(&i["itemID"].as_i64().unwrap_or(0)).filter(|x| x.purchasable).map(|x| x.total)).sum();
             let (flat, pct) = its.iter().fold((0.0, 0.0), |(f, pc), i| match items.get(&i["itemID"].as_i64().unwrap_or(0)) {
                 Some(x) => (f + x.flat_ms, pc + x.pct_ms),
                 None => (f, pc),

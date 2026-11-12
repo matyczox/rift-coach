@@ -167,7 +167,7 @@ mod tests {
     use crate::llm::caller::FakeCaller;
 
     fn item(id: i64, name: &str, total: f64, completed: bool) -> ItemData {
-        ItemData { id, name: name.into(), total, completed, tags: vec![], name_en: None, flat_ms: 0.0, pct_ms: 0.0 }
+        ItemData { id, name: name.into(), total, completed, tags: vec![], name_en: None, flat_ms: 0.0, pct_ms: 0.0, purchasable: true }
     }
 
     fn db() -> HashMap<i64, ItemData> {

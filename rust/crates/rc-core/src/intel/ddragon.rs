@@ -23,6 +23,8 @@ pub struct ItemData {
     pub name_en: Option<String>,
     pub flat_ms: f64,
     pub pct_ms: f64,
+    /// Bought in the shop (false: items that evolve by themselves, e.g. jungle pets, support quest items).
+    pub purchasable: bool,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -77,6 +79,7 @@ pub fn parse_items(j: &Value) -> HashMap<i64, ItemData> {
                 name_en: None,
                 flat_ms: stat("FlatMovementSpeedMod"),
                 pct_ms: stat("PercentMovementSpeedMod"),
+                purchasable,
             },
         );
     }
@@ -206,6 +209,9 @@ pub mod tests {
         assert!(items[&3174].completed); // tier-2 boots
         assert!(!items.contains_key(&223333));
         assert!(!items.contains_key(&3340));
+        assert!(items[&6333].purchasable);
+        let pet = parse_items(&json!({ "data": { "1101": { "name": "Pet", "gold": { "total": 450, "purchasable": false } } } }));
+        assert!(!pet[&1101].purchasable && !pet[&1101].completed);
     }
 
     #[test]

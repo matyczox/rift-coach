@@ -12,6 +12,8 @@ use std::time::{Duration, Instant};
 /// What System 1 and the rest of the app know right now.
 #[derive(Default)]
 pub struct CoachContext<'a> {
+    /// Item plan shown in the HUD build panel; the coach's item call must match it.
+    pub planned_build: Vec<String>,
     pub intel: Option<&'a GameIntel>,
     /// MinimapGhost JSON objects (x, y, radius, age, confidence, champion).
     pub ghosts: Vec<Value>,
@@ -41,21 +43,27 @@ pub struct CoachConfig {
 impl Default for CoachConfig {
     /// DEFAULT_COACH
     fn default() -> Self {
-        CoachConfig { enabled: true, live_model: "claude-sonnet-5-5".into(), review_model: "claude-sonnet-5-5".into(), period_sec: 25.0, min_gap_sec: 8.0, live_effort: None, review_effort: None }
+        CoachConfig { enabled: true, live_model: "claude-sonnet-5-5".into(), review_model: "claude-sonnet-5-5".into(), period_sec: 25.0, min_gap_sec: 20.0, live_effort: None, review_effort: None }
     }
 }
 
 pub const SYSTEM: &str = r#"Jesteś coachem League of Legends na poziomie challengera. Gracz gra TERAZ i może tylko zerknąć na ekran.
 Dostajesz stan meczu (JSON): jego postać, itemy, złoto, wszyscy gracze, timery celów, przewidywane pozycje wrogów we mgle (z % pewności) i profile przeciwników.
 Zasady:
-- "call": maksymalnie 8 słów, po polsku, konkretna decyzja na najbliższe 30 s (np. "Smok: TAK — 3 wrogów bot martwych", "Nie pushuj — jungler wroga top-side 70%", "Farm bot, back przy 1300 g"). Bez lania wody, bez emotek.
+- "call": 2–4 słowa, po polsku, SAMA sugestia — co zrobić w ciągu najbliższych 5–20 sekund, bez uzasadnień i bez myślników (np. "Smok teraz", "Cofnij się", "Back po fali", "Nie pushuj"). Bez emotek.
+- NIE opisuj tego, co gracz już widzi na ekranie (jego HP, złoto, timery, że ktoś zniknął) i NIE powtarzaj poprzednich porad (previousCalls) ani ich sensu innymi słowami. Ogólniki typu "farm pod wieżą", "uważaj na ganka" tylko gdy coś się zmieniło.
+- Smoki, baron i herold są ważne — komentuj je (przed pojawieniem się i przy walce o nie).
+- Bądź KONSEKWENTNY: nie zmieniaj decyzji z previousCalls (np. "Smok teraz" → "Odpuść smoka"), dopóki sytuacja wyraźnie się nie zmieni (ktoś zginął, wróg się pokazał, przegrana walka).
+- Nie komentuj wszystkiego: jedna rzecz naraz, tylko to, co zmienia decyzję gracza.
+- Wardy to częsta i ważna porada: gdy gracz nie ma wizji tam, skąd grozi gank, przed smokiem/baronem albo po pchnięciu fali, powiedz gdzie postawić ward (np. "Ward rzeka bot", "Ward krzaki tri") i ustaw pole "ward".
+- Gdy nie masz NOWEJ, konkretnej decyzji: "call": null (gracz nic nie zobaczy — to lepsze niż szum).
 - "tone": go = zrób to teraz, wait = czekaj/przygotuj się, danger = zagrożenie, farm = spokojnie farm.
 - "mapHint": gdzie iść/co unikać, albo null. target to np. "dragon", "baron", "herald", "top", "mid", "bot", "my-jungle", "enemy-jungle", "base".
-- "item": następny przedmiot do kupienia przy najbliższym powrocie, gdy ma sens (np. kontra na burst AP), inaczej null.
+- "item": następny przedmiot do kupienia przy najbliższym powrocie. Jeśli w danych jest "plannedBuild" (plan z panelu buildu, który gracz widzi na ekranie), wybierz z niego pierwszy przedmiot, którego gracz jeszcze nie ma — nie proponuj innego. Odejdź od planu tylko, gdy sytuacja wyraźnie tego wymaga (np. wróg nagle nafeedowany AP). Gdy nie ma sensu nic mówić o przedmiotach: null.
 - "ward": gdzie postawić ward TERAZ (spot z listy wardSpots, nazwy względem strony gracza: my-* = jego dżungla, enemy-* = wroga) i krótki powód, albo null. Wybieraj miejsca o wyższej wartości (więcej wizji); faelight-* to Faelighty (2026): ward postawiony NA nich daje dużo większy zasięg wizji — preferuj je, gdy dostępne (mid-* dopiero po przemianie mapy po 2. smoku); plant-* to rośliny wizji — uderzenie odsłania duży obszar za darmo. Proponuj ward przed objective (60–90 s przed smokiem/baronem), przy pushowaniu linii bez wizji, gdy jungler wroga zniknął.
 - "deathReview": TYLKO gdy me.stan = "NIE ŻYJE" (jeśli "żyje", deathReview = null — także gdy zginął przed chwilą i już się odrodził): 3–5 krótkich punktów: dlaczego zginął (masz myDeath: kto zabił, kto asystował, czy to gank — używaj tego, nie zgaduj), co zrobić po respawnie (back/farm/gdzie iść), czy grać pasywnie czy agresywnie przez najbliższe minuty i dlaczego. Inaczej null.
 - "ttlSec": jak długo porada jest aktualna (10–40).
-Opieraj się na liczbach: przewaga złota, kto martwy i jak długo, timery, power spike'i, gdzie prawdopodobnie są wrogowie. Jeśli nic ważnego się nie dzieje — krótka porada farmienia/wizji. Nie powtarzaj poprzedniej porady słowo w słowo."#;
+Opieraj się na liczbach: przewaga złota, kto martwy i jak długo, timery, power spike'i, gdzie prawdopodobnie są wrogowie. Jeśli nic ważnego się nie dzieje — "call": null."#;
 
 pub fn schema() -> Value {
     let spots: Vec<&str> = WARD_SPOTS.iter().map(|s| s.id).collect();
@@ -64,7 +72,7 @@ pub fn schema() -> Value {
         "additionalProperties": false,
         "required": ["call", "tone", "mapHint", "item", "ward", "deathReview", "ttlSec"],
         "properties": {
-            "call": { "type": "string", "maxLength": 70 },
+            "call": { "anyOf": [{ "type": "null" }, { "type": "string", "maxLength": 32 }] },
             "tone": { "type": "string", "enum": ["go", "wait", "danger", "farm"] },
             "mapHint": {
                 "anyOf": [{ "type": "null" }, {
@@ -231,13 +239,16 @@ pub fn build_snapshot(ctx: &CoachContext, previous: &[Value]) -> Value {
     o.insert(
         "objectives".into(),
         Value::Array(
+            // Only objectives that are up or spawn within 90 s: a far-off Baron made the model talk about it
+            // ("przygotuj Barona") ten minutes before it exists.
             i.objectives
                 .iter()
+                .filter(|ob| ob.alive || ob.spawns_at.is_some_and(|s| s - i.game_time <= 90.0))
                 .map(|ob| {
                     if ob.alive {
                         json!({ "what": ob.label, "status": "żyje" })
                     } else {
-                        json!({ "what": ob.label, "in": ob.spawns_at.filter(|s| *s != 0.0).map(|s| num(js_round(s - i.game_time))).unwrap_or(Value::Null) })
+                        json!({ "what": ob.label, "in": num(js_round(ob.spawns_at.unwrap_or(0.0) - i.game_time)) })
                     }
                 })
                 .collect(),
@@ -268,6 +279,9 @@ pub fn build_snapshot(ctx: &CoachContext, previous: &[Value]) -> Value {
     );
     if let Some(m) = ctx.matchup.as_ref().filter(|m| !m.is_null()) {
         o.insert("laneMatchup".into(), m.clone());
+    }
+    if !ctx.planned_build.is_empty() {
+        o.insert("plannedBuild".into(), json!(ctx.planned_build));
     }
     if !ctx.camps.is_empty() {
         o.insert("jungleCamps".into(), json!(ctx.camps));
@@ -321,6 +335,8 @@ pub struct Coach {
     pending_reason: Option<String>,
     auth_checked_at: Option<Instant>,
     last_signature: String,
+    /// Alert texts already reacted to (game time last seen); an alert triggers a call only when new.
+    seen_alerts: Vec<(String, f64)>,
 }
 
 impl Default for Coach {
@@ -336,6 +352,7 @@ impl Default for Coach {
             pending_reason: None,
             auth_checked_at: None,
             last_signature: String::new(),
+            seen_alerts: Vec::new(),
         }
     }
 }
@@ -412,7 +429,7 @@ impl Coach {
         self.last_seen.dead = dead;
 
         let events_now = i.recent.first().map(|r| r.at).unwrap_or(0.0);
-        let re = regex::Regex::new("Smok|Baron|Herald|Atakhan|Wieża|zabił").unwrap();
+        let re = regex::Regex::new("Smok|Baron|Herald|Atakhan|Wieża|Inhibitor").unwrap();
         if reason.is_none() && events_now > self.last_seen.events && i.recent.first().is_some_and(|r| re.is_match(&r.text)) {
             reason = Some("event");
         }
@@ -428,7 +445,17 @@ impl Coach {
         if reason.is_none() && soon && i.game_time - self.last_call_game_time > 15.0 {
             reason = Some("objective-soon");
         }
-        if reason.is_none() && ctx.alerts.iter().any(|a| f(a, "confidence") > 0.6) && i.game_time - self.last_call_game_time > 10.0 {
+        let text_of = |a: &Value| a.get("text").and_then(Value::as_str).unwrap_or("").to_string();
+        let new_alert = ctx.alerts.iter().any(|a| f(a, "confidence") > 0.6 && !self.seen_alerts.iter().any(|(t, _)| *t == text_of(a)));
+        for a in &ctx.alerts {
+            let t = text_of(a);
+            match self.seen_alerts.iter_mut().find(|(x, _)| *x == t) {
+                Some(e) => e.1 = i.game_time,
+                None => self.seen_alerts.push((t, i.game_time)),
+            }
+        }
+        self.seen_alerts.retain(|(_, at)| i.game_time - at <= 60.0);
+        if reason.is_none() && new_alert && i.game_time - self.last_call_game_time > 15.0 {
             reason = Some("alert");
         }
         if reason.is_none() && i.game_time - self.last_call_game_time > self.config.period_sec {
@@ -437,6 +464,11 @@ impl Coach {
             if sig != self.last_signature || i.game_time - self.last_call_game_time > self.config.period_sec * 2.0 {
                 reason = Some("periodic");
             }
+        }
+        // While dead: one death review only. Other triggers (kills, alerts, periodic) would ask the live
+        // model, which sees "NIE ŻYJE" and writes a second death review over the first.
+        if dead && reason != Some("death") {
+            return None;
         }
         reason.map(String::from)
     }
@@ -502,14 +534,23 @@ impl Coach {
         }
     }
 
-    /// Result of an `Ask`. Returns the advice (CoachAdvice JSON) and whether to re-check auth.
+    /// Result of an `Ask`. Returns the advice (CoachAdvice JSON; None when the model had nothing new
+    /// to say or on error) and whether to re-check auth.
     pub fn complete(&mut self, req: &AskRequest, result: anyhow::Result<(Value, u64)>, created_at_ms: f64) -> (Option<Value>, bool) {
         self.in_flight = false;
         match result {
             Ok((value, latency)) => {
                 self.status.calls += 1;
                 self.status.last_latency_ms = Some(latency);
+                let call = value.get("call").and_then(Value::as_str).unwrap_or("").trim().to_string();
+                // Silent (no new decision) or the same idea as a recent call: show nothing new. A death review still counts.
+                let is_death = req.reason == "death";
+                if !is_death && (call.is_empty() || self.history.iter().take(3).any(|h| similar_call(h.get("call").and_then(Value::as_str).unwrap_or(""), &call))) {
+                    self.set_state("idle", None);
+                    return (None, false);
+                }
                 let mut a = value.as_object().cloned().unwrap_or_default();
+                a.insert("call".into(), json!(call));
                 a.insert("contextId".into(), json!(req.context_id));
                 a.insert("createdAt".into(), num(created_at_ms));
                 a.insert("gameTime".into(), json!(req.game_time));
@@ -551,11 +592,56 @@ pub fn validate_item(advice: &mut Value, items: &std::collections::HashMap<i64, 
     advice["item"] = hit.map(|h| json!(h.name)).unwrap_or(Value::Null);
 }
 
+/// JS `x.normalize('NFD').replace(/[̀-ͯ]/g, '')` for an already lower-cased string, limited
+/// to the letters that decompose in Latin-1 / Latin Extended-A (Polish ą ć ę ń ó ś ź ż; ł does not
+/// decompose and stays, like in JS). Combining marks are dropped.
+fn strip_diacritics(s: &str) -> String {
+    s.chars()
+        .filter(|c| !('\u{0300}'..='\u{036f}').contains(c))
+        .map(|c| match c {
+            'à'..='å' | 'ā' | 'ă' | 'ą' => 'a',
+            'ç' | 'ć' | 'ĉ' | 'ċ' | 'č' => 'c',
+            'ď' => 'd',
+            'è'..='ë' | 'ē' | 'ĕ' | 'ė' | 'ę' | 'ě' => 'e',
+            'ĝ' | 'ğ' | 'ġ' | 'ģ' => 'g',
+            'ĥ' => 'h',
+            'ì'..='ï' | 'ĩ' | 'ī' | 'ĭ' | 'į' => 'i',
+            'ĵ' => 'j',
+            'ķ' => 'k',
+            'ĺ' | 'ļ' | 'ľ' => 'l',
+            'ñ' | 'ń' | 'ņ' | 'ň' => 'n',
+            'ò'..='ö' | 'ō' | 'ŏ' | 'ő' => 'o',
+            'ŕ' | 'ŗ' | 'ř' => 'r',
+            'ś' | 'ŝ' | 'ş' | 'š' => 's',
+            'ţ' | 'ť' => 't',
+            'ù'..='ü' | 'ũ' | 'ū' | 'ŭ' | 'ů' | 'ű' | 'ų' => 'u',
+            'ŵ' => 'w',
+            'ý' | 'ÿ' | 'ŷ' => 'y',
+            'ź' | 'ż' | 'ž' => 'z',
+            c => c,
+        })
+        .collect()
+}
+
+/// Two calls say the same thing (shared content words), e.g. "Farm pod wieżą" vs "Farmuj pod wieżą — gank".
+pub fn similar_call(a: &str, b: &str) -> bool {
+    let words = |x: &str| -> std::collections::HashSet<String> {
+        let s: String = strip_diacritics(&x.to_lowercase()).chars().map(|c| if c.is_ascii_lowercase() || c.is_ascii_digit() || c == ' ' { c } else { ' ' }).collect();
+        s.split_whitespace().filter(|w| w.len() > 3).map(|w| w[..w.len().min(5)].to_string()).collect()
+    };
+    let (wa, wb) = (words(a), words(b));
+    if wa.is_empty() || wb.is_empty() {
+        return false;
+    }
+    let common = wa.iter().filter(|w| wb.contains(*w)).count();
+    common as f64 / wa.len().min(wb.len()) as f64 >= 0.6
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::intel::ddragon::tests::test_items;
-    use crate::intel::game_intel::IntelTracker;
+    use crate::intel::game_intel::{IntelTracker, ObjectiveTimer, Recent};
 
     fn intel() -> GameIntel {
         let text = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/allgamedata.json")).unwrap();
@@ -587,6 +673,23 @@ mod tests {
         assert!(p.ends_with("plant-my-jungle-top: roślina wizji (nasza dżungla, top), 3/5"));
         assert_eq!(schema()["properties"]["ward"]["anyOf"][1]["properties"]["spot"]["enum"].as_array().unwrap().len(), 28);
         assert!(!p.contains("Profil gracza"));
+        // 2c21335 / 9041f35: short calls, null when nothing new, item from the build panel.
+        assert!(SYSTEM.contains("\n- \"call\": 2–4 słowa, po polsku, SAMA sugestia — co zrobić w ciągu najbliższych 5–20 sekund, bez uzasadnień i bez myślników"));
+        assert!(SYSTEM.contains("\n- Gdy nie masz NOWEJ, konkretnej decyzji: \"call\": null (gracz nic nie zobaczy — to lepsze niż szum).\n- \"tone\":"));
+        assert!(SYSTEM.contains("Jeśli w danych jest \"plannedBuild\" (plan z panelu buildu, który gracz widzi na ekranie)"));
+        assert!(SYSTEM.ends_with("gdzie prawdopodobnie są wrogowie. Jeśli nic ważnego się nie dzieje — \"call\": null."));
+        assert!(!SYSTEM.contains("8 słów") && !SYSTEM.contains("słowo w słowo"));
+        assert_eq!(schema()["properties"]["call"], json!({ "anyOf": [{ "type": "null" }, { "type": "string", "maxLength": 32 }] }));
+        assert_eq!(CoachConfig::default().min_gap_sec, 20.0);
+        // 76599ed / 0c1ebb3: objectives are commented again, consistently, one thing at a time.
+        assert!(SYSTEM.contains("\n- Smoki, baron i herold są ważne — komentuj je (przed pojawieniem się i przy walce o nie).\n- Bądź KONSEKWENTNY:"));
+        assert!(!SYSTEM.contains("krótko napisz dlaczego"));
+        // Same text as the TS app (when the TS sources are next to the Rust workspace).
+        if let Ok(ts) = std::fs::read_to_string(concat!(env!("CARGO_MANIFEST_DIR"), "/../../../src/main/coach/coach.ts")) {
+            let ts = ts.replace("\r\n", "\n");
+            let body = ts.split("export const SYSTEM = `").nth(1).and_then(|s| s.split("`;").next()).expect("SYSTEM in coach.ts");
+            assert_eq!(body, SYSTEM, "rc-core SYSTEM differs from src/main/coach/coach.ts");
+        }
         // Player profile goes after the enemy profiles, before the ward spot list.
         let p = game_system_prompt(&CoachContext { intel: Some(&i), self_profile: Some("Profil gracza (Ty): test".into()), ..Default::default() });
         let at = p.find("\n\nProfil gracza (Ty): test\n\nMiejsca na wardy").expect("self profile block");
@@ -602,7 +705,8 @@ mod tests {
         assert!(matches!(c.tick(&CoachContext { intel: Some(&i), ..Default::default() }, t0), TickAction::CheckAuth));
         c.auth_result(true, None);
         assert_eq!(c.status.state, "idle");
-        // First tick: new recent event -> ask.
+        // First tick: a new tower kill is a big event -> ask (a kill is not since 2c21335).
+        i.recent.insert(0, Recent { at: i.game_time, text: "Wieża bot zniszczona".into() });
         let req = match c.tick(&CoachContext { intel: Some(&i), ..Default::default() }, t0) {
             TickAction::Ask(r) => r,
             _ => panic!("expected ask"),
@@ -619,7 +723,7 @@ mod tests {
         assert_eq!(adv["latencyMs"], 1234);
         assert_eq!(c.status.calls, 1);
         assert!(Coach::is_fresh(&adv, &i));
-        // Death bypasses the 8 s minimum gap.
+        // Death bypasses the 20 s minimum gap.
         let me = i.players.iter_mut().find(|p| p.is_me).unwrap();
         me.is_dead = true;
         i.me = Some(me.clone());
@@ -648,6 +752,139 @@ mod tests {
         let mut b = json!({ "item": "coś do obrony" });
         validate_item(&mut b, &test_items());
         assert!(b["item"].is_null());
+    }
+
+    fn ready_coach() -> Coach {
+        let mut c = Coach::default();
+        c.auth_result(true, None);
+        c
+    }
+
+    fn ctx(i: &GameIntel) -> CoachContext<'_> {
+        CoachContext { intel: Some(i), ..Default::default() }
+    }
+
+    fn set_dead(i: &mut GameIntel, dead: bool) {
+        let me = i.players.iter_mut().find(|p| p.is_me).unwrap();
+        me.is_dead = dead;
+        i.me = Some(me.clone());
+    }
+
+    /// 58861b3: while dead, only the death review; kills / big events / periodic wait for the respawn.
+    #[test]
+    fn dead_player_gets_one_review_only() {
+        let mut i = intel();
+        let mut c = ready_coach();
+        let t0 = Instant::now();
+        set_dead(&mut i, true);
+        let TickAction::Ask(req) = c.tick(&ctx(&i), t0) else { panic!("death should ask") };
+        assert_eq!(req.reason, "death");
+        let (adv, _) = c.complete(&req, Ok((json!({ "call": null, "tone": "wait", "ttlSec": 30, "deathReview": ["a", "b"] }), 10)), 1.0);
+        // A death review is kept even with an empty call.
+        assert_eq!(adv.unwrap()["call"], "");
+        // Still dead: a Baron kill and a long quiet period trigger nothing.
+        i.recent.insert(0, Recent { at: i.game_time + 1.0, text: "Baron zabity przez wroga".into() });
+        i.game_time += 120.0;
+        assert!(matches!(c.tick(&ctx(&i), t0 + Duration::from_secs(60)), TickAction::None));
+        assert!(matches!(c.tick(&ctx(&i), t0 + Duration::from_secs(90)), TickAction::None));
+        // Respawn: the live model again.
+        set_dead(&mut i, false);
+        let TickAction::Ask(req) = c.tick(&ctx(&i), t0 + Duration::from_secs(120)) else { panic!("respawn should ask") };
+        assert_eq!(req.reason, "respawn");
+    }
+
+    /// 2c21335: empty call or one similar to the last 3 shows nothing; kills no longer trigger.
+    #[test]
+    fn quiet_coach_drops_silent_and_repeated_calls() {
+        let mut i = intel();
+        i.objectives.clear();
+        i.recent.insert(0, Recent { at: i.game_time, text: "Zed zabił Ahri".into() });
+        let mut c = ready_coach();
+        let t0 = Instant::now();
+        // A kill is not a big event any more (periodic still asks on the first tick).
+        let TickAction::Ask(req) = c.tick(&ctx(&i), t0) else { panic!() };
+        assert_eq!(req.reason, "periodic");
+        let (adv, _) = c.complete(&req, Ok((json!({ "call": null, "tone": "farm", "ttlSec": 20, "deathReview": null }), 10)), 1.0);
+        assert!(adv.is_none());
+        assert_eq!(c.status.state, "idle");
+        assert_eq!(c.status.calls, 1);
+        let ok = |c: &mut Coach, call: &str| {
+            let req = AskRequest { call: ModelCall::default(), reason: "periodic".into(), context_id: "x".into(), game_time: 0.0 };
+            c.in_flight = true;
+            c.complete(&req, Ok((json!({ "call": call, "tone": "farm", "ttlSec": 20, "deathReview": null }), 10)), 1.0).0
+        };
+        assert_eq!(ok(&mut c, "  Farmuj pod wieżą  ").unwrap()["call"], "Farmuj pod wieżą");
+        assert!(ok(&mut c, "Farmuj pod wieżą — gank").is_none());
+        assert!(ok(&mut c, "   ").is_none());
+        assert!(ok(&mut c, "Smok teraz — 3 martwych").is_some());
+        assert_eq!(c.history().len(), 2);
+    }
+
+    /// 2c21335: an alert triggers a call only when its text was not seen in the last 60 s.
+    #[test]
+    fn alert_triggers_only_when_new() {
+        let mut i = intel();
+        i.recent.clear();
+        i.objectives.clear();
+        let mut c = ready_coach();
+        let t0 = Instant::now();
+        let alert = json!({ "kind": "gank", "text": "Jungler wroga blisko", "confidence": 0.8 });
+        let with = |i: &GameIntel, a: &[Value]| -> CoachContext<'static> {
+            let i: &'static GameIntel = Box::leak(Box::new(i.clone()));
+            CoachContext { intel: Some(i), alerts: a.to_vec(), ..Default::default() }
+        };
+        // A new alert asks.
+        let TickAction::Ask(req) = c.tick(&with(&i, &[alert.clone()]), t0) else { panic!() };
+        assert_eq!(req.reason, "alert");
+        c.complete(&req, Ok((json!({ "call": "Back po tej fali", "tone": "farm", "ttlSec": 20 }), 1)), 1.0);
+        // The same text 20 s later (still on screen) is not new: nothing.
+        i.game_time += 20.0;
+        assert!(matches!(c.tick(&with(&i, &[alert.clone()]), t0 + Duration::from_secs(25)), TickAction::None));
+        // A different alert text is new.
+        let other = json!({ "kind": "gank", "text": "Mid zniknął", "confidence": 0.8 });
+        i.game_time += 1.0;
+        let TickAction::Ask(req) = c.tick(&with(&i, &[alert.clone(), other]), t0 + Duration::from_secs(26)) else { panic!("new alert") };
+        assert_eq!(req.reason, "alert");
+    }
+
+    /// 3c3ea75 + 9041f35: objectives only when up or within 90 s; plannedBuild in the snapshot.
+    #[test]
+    fn snapshot_objectives_and_planned_build() {
+        let mut i = intel();
+        let t = i.game_time;
+        i.objectives = vec![
+            ObjectiveTimer { kind: "dragon", label: "Smok".into(), spawns_at: Some(t + 80.4), alive: false },
+            ObjectiveTimer { kind: "baron", label: "Baron".into(), spawns_at: Some(t + 600.0), alive: false },
+            ObjectiveTimer { kind: "herald", label: "Herald".into(), spawns_at: None, alive: true },
+            ObjectiveTimer { kind: "atakhan", label: "Atakhan".into(), spawns_at: None, alive: false },
+        ];
+        let mut c = ctx(&i);
+        let s = build_snapshot(&c, &[]);
+        assert_eq!(s["objectives"], json!([{ "what": "Smok", "in": 80 }, { "what": "Herald", "status": "żyje" }]));
+        assert!(s.get("plannedBuild").is_none());
+        c.planned_build = vec!["Taniec Śmierci".into(), "Opancerzone Natarcie".into()];
+        let s = build_snapshot(&c, &[]);
+        assert_eq!(s["plannedBuild"], json!(["Taniec Śmierci", "Opancerzone Natarcie"]));
+    }
+
+    /// Port of coach.ts similarCall.
+    #[test]
+    fn similar_call_matches_ts() {
+        // As in TS: "farm" vs "farmu" differ, so the doc example of coach.ts is not similar (1 of 2 words).
+        assert!(!similar_call("Farm pod wieżą", "Farmuj pod wieżą — gank"));
+        assert!(similar_call("Farmuj pod wieżą", "Farmuj pod wieżą — gank"));
+        assert!(similar_call("Nie pushuj — jungler top", "nie PUSHUJ, jungler top!"));
+        assert!(similar_call("Zaczekaj na smoka", "Zaczekaj z grupą na smoka teraz"));
+        assert!(!similar_call("Smok teraz — 3 martwych", "Back po tej fali"));
+        assert!(!similar_call("Idź mid", "Idź top"), "only words longer than 3 letters count");
+        assert!(!similar_call("", "Farm bot"));
+        assert!(!similar_call("a b c", "a b c"));
+        // Diacritics stripped like NFD (ś -> s), ł is not decomposed (becomes a separator).
+        assert!(similar_call("Ściągnij falę", "sciagnij fale"));
+        assert_eq!(strip_diacritics("ąćęńóśźżł"), "acenoszzł");
+        // 0.6 of the smaller set: 1 of 2 words is not enough, 2 of 3 is.
+        assert!(!similar_call("Farm bot lane", "Farm smoka"));
+        assert!(similar_call("Farm wieża smoka", "Farm wieża teraz"));
     }
 
     #[test]
