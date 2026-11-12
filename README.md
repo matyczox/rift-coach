@@ -11,6 +11,8 @@ Dane: Live Client API, Replay API, klient LoL (LCU), Riot Web API (własny klucz
 
 ## Uruchomienie
 
+Instalacja wersji Rust (instalator NSIS, także przez agentów AI): [INSTALL.md](INSTALL.md).
+
 ```bash
 npm install
 npm run build

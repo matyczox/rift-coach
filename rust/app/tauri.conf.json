@@ -14,7 +14,25 @@
     }
   },
   "bundle": {
-    "active": false,
-    "icon": ["icons/icon.ico", "icons/icon.png"]
+    "active": true,
+    "targets": ["nsis"],
+    "icon": ["icons/icon.ico", "icons/icon.png"],
+    "publisher": "Rift Coach",
+    "shortDescription": "Rift Coach - League of Legends overlay coach",
+    "resources": {
+      "../../scripts/replay-fog.ps1": "scripts/replay-fog.ps1"
+    },
+    "windows": {
+      "webviewInstallMode": { "type": "embedBootstrapper", "silent": true },
+      "nsis": {
+        "template": "../packaging/nsis/installer.nsi",
+        "installMode": "currentUser",
+        "installerIcon": "icons/icon.ico",
+        "languages": ["English", "Polish"],
+        "customLanguageFiles": { "Polish": "../packaging/nsis/Polish.nsh" },
+        "displayLanguageSelector": false,
+        "compression": "lzma"
+      }
+    }
   }
 }
