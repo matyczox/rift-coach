@@ -8,6 +8,8 @@ const toasts = $('toasts');
 const live = new Map<number, HTMLElement>();
 
 const BUFF_NAME: Record<string, string> = { baron: 'Baron', elder: 'Starszy smok' };
+/** In-game minimap icons (CommunityDragon), bundled with the app. */
+const BUFF_ICON: Record<string, string> = { baron: 'icons/baron.png', elder: 'icons/dragon_elder.png' };
 
 subscribe(({ state }, clock) => {
   const on = state.visible;
@@ -19,10 +21,12 @@ subscribe(({ state }, clock) => {
     chips.replaceChildren(...buffs.map((b) => {
       const c = document.createElement('div');
       c.className = `chip ${b.kind} ${b.team}`;
+      const ic = document.createElement('img');
+      ic.src = BUFF_ICON[b.kind] ?? ''; ic.alt = '';
       const n = document.createElement('span');
       n.textContent = BUFF_NAME[b.kind] ?? b.kind;
       const t = document.createElement('b');
-      c.append(n, t);
+      c.append(ic, n, t);
       return c;
     }));
   }
