@@ -25,6 +25,8 @@ pub struct CoachContext<'a> {
     pub matchup: Option<Value>,
     pub camps: Vec<String>,
     pub covered_ward_spots: Vec<String>,
+    /// Enemies pushing a lane on our half with none of us near ("Yasuo top"), last ~20 s.
+    pub lane_pushes: Vec<String>,
     /// Player profile text (habits, weak spots, lessons) for the per-game system prompt.
     pub self_profile: Option<String>,
 }
@@ -57,12 +59,16 @@ Zasady:
 - Nie komentuj wszystkiego: jedna rzecz naraz, tylko to, co zmienia decyzję gracza.
 - Wardy to częsta i ważna porada: gdy gracz nie ma wizji tam, skąd grozi gank, przed smokiem/baronem albo po pchnięciu fali, powiedz gdzie postawić ward (np. "Ward rzeka bot", "Ward krzaki tri") i ustaw pole "ward". Gdy ustawiasz "ward", "call" MUSI nazwać to miejsce słowami — gracz nie szuka znaczków na minimapie.
 - Invade / kontrdżungla: gdy jungler wroga jest widziany albo przewidywany po drugiej stronie mapy (albo nie żyje), jego obozy (jungleCamps) stoją, a gracz lub jego jungler ma przewagę i linie obok mają priorytet — zaproponuj invade konkretnej strony (np. "Invade top strona", "Kradnij jego raptory"). Nie proponuj, gdy wrogowie z linii obok są we mgle blisko albo gracz jest słabszy.
+- Roam: gdy fala gracza jest wepchnięta pod wieżę wroga, a rywal z linii wrócił do bazy albo nie żyje, i na linii obok jest wróg do zabicia (niskie HP, wysunięty, bez Flasha, przewaga liczebna) — powiedz gdzie roamować (np. "Roam bot teraz", "Idź mid z Rengarem"). Nie wysyłaj na roam, gdy fala idzie do gracza albo rywal jest na linii.
+- "unguardedPush" = wróg pcha linię po naszej stronie i nikt z nas tam nie stoi. Gdy gracz jest najbliżej albo nic ważniejszego się nie dzieje, powiedz to (np. "Yasuo pcha top — idź", "Złap falę top"); przy objective rozważ wymianę (np. "Smok za top").
+- "lanes" = stan wież i inhibitorów na liniach. Wykorzystuj go do makro: linia z leżącym inhibitorem wroga (supermininiony) albo bez jego wież to dobre miejsce na push/split ("Push top teraz"), zwłaszcza po Baronie, wygranej walce albo gdy wrogowie są daleko; przed odrodzeniem ich inhiba (ichInhibOdradzaSieZa) zdążcie wejść. Gdy nasz inhib leży, ostrzegaj przed supermininionami i nie wysyłaj wszystkich daleko od tej linii.
 - Gdy nie masz NOWEJ, konkretnej decyzji: "call": null (gracz nic nie zobaczy — to lepsze niż szum).
 - "tone": go = zrób to teraz, wait = czekaj/przygotuj się, danger = zagrożenie, farm = spokojnie farm.
 - "mapHint": gdzie iść/co unikać, albo null. target to np. "dragon", "baron", "herald", "top", "mid", "bot", "my-jungle", "enemy-jungle", "base".
 - "item": następny przedmiot do kupienia przy najbliższym powrocie. Jeśli w danych jest "plannedBuild" (plan z panelu buildu, który gracz widzi na ekranie), wybierz z niego pierwszy przedmiot, którego gracz jeszcze nie ma — nie proponuj innego. Odejdź od planu tylko, gdy sytuacja wyraźnie tego wymaga (np. wróg nagle nafeedowany AP). Gdy nie ma sensu nic mówić o przedmiotach: null.
 - "ward": gdzie postawić ward TERAZ (spot z listy wardSpots, nazwy względem strony gracza: my-* = jego dżungla, enemy-* = wroga) i krótki powód, albo null. Wybieraj miejsca o wyższej wartości (więcej wizji); faelight-* to Faelighty (2026): ward postawiony NA nich daje dużo większy zasięg wizji — preferuj je, gdy dostępne (mid-* dopiero po przemianie mapy po 2. smoku); plant-* to rośliny wizji — uderzenie odsłania duży obszar za darmo. Proponuj ward przed objective (60–90 s przed smokiem/baronem), przy pushowaniu linii bez wizji, gdy jungler wroga zniknął.
 - "deathReview": TYLKO gdy me.stan = "NIE ŻYJE" (jeśli "żyje", deathReview = null — także gdy zginął przed chwilą i już się odrodził): 3–5 krótkich punktów: dlaczego zginął (masz myDeath: kto zabił, kto asystował, czy to gank — używaj tego, nie zgaduj), co zrobić po respawnie (back/farm/gdzie iść), czy grać pasywnie czy agresywnie przez najbliższe minuty i dlaczego. Inaczej null.
+- Pisz bez form rodzajowych (nie "zginąłeś"/"zginęłaś", nie "byłeś"): np. "Gank Yasuo z Talonem", "Śmierć: brak wizji w rzece", "Po respawnie: back i ward".
 - "ttlSec": jak długo porada jest aktualna (10–40).
 Opieraj się na liczbach: przewaga złota, kto martwy i jak długo, timery, power spike'i, gdzie prawdopodobnie są wrogowie. Jeśli nic ważnego się nie dzieje — "call": null."#;
 
@@ -237,6 +243,27 @@ pub fn build_snapshot(ctx: &CoachContext, previous: &[Value]) -> Value {
             "barons": format!("{}-{}", i.ally.barons, i.enemy.barons),
         }),
     );
+    // Lanes with something down: towers lost each side, inhibitors with respawn time.
+    let lanes: Map<String, Value> = i
+        .lanes
+        .iter()
+        .filter(|l| l.ours_lost + l.theirs_lost > 0 || l.our_inhib_back.is_some() || l.their_inhib_back.is_some())
+        .map(|l| {
+            let mut m = Map::new();
+            m.insert("naszeWiezeStracone".into(), json!(l.ours_lost));
+            m.insert("ichWiezeZniszczone".into(), json!(l.theirs_lost));
+            if let Some(b) = l.our_inhib_back {
+                m.insert("naszInhibOdradzaSieZa".into(), json!(fmt((b - i.game_time).max(0.0))));
+            }
+            if let Some(b) = l.their_inhib_back {
+                m.insert("ichInhibOdradzaSieZa".into(), json!(fmt((b - i.game_time).max(0.0))));
+            }
+            (l.lane.to_string(), Value::Object(m))
+        })
+        .collect();
+    if !lanes.is_empty() {
+        o.insert("lanes".into(), Value::Object(lanes));
+    }
     o.insert(
         "objectives".into(),
         Value::Array(
@@ -289,6 +316,9 @@ pub fn build_snapshot(ctx: &CoachContext, previous: &[Value]) -> Value {
     }
     if !ctx.covered_ward_spots.is_empty() {
         o.insert("alreadyWarded".into(), json!(ctx.covered_ward_spots));
+    }
+    if !ctx.lane_pushes.is_empty() {
+        o.insert("unguardedPush".into(), json!(ctx.lane_pushes));
     }
     Value::Object(o)
 }
@@ -548,7 +578,8 @@ impl Coach {
                 let call = if call.is_empty() { ward_call(&value).unwrap_or(call) } else { call };
                 // Silent (no new decision) or the same idea as a recent call: show nothing new. A death review still counts.
                 let is_death = req.reason == "death";
-                if !is_death && (call.is_empty() || self.history.iter().take(3).any(|h| similar_call(h.get("call").and_then(Value::as_str).unwrap_or(""), &call))) {
+                let recent_same_topic = self.history.iter().take(3).any(|h| req.game_time - h.get("gameTime").and_then(Value::as_f64).unwrap_or(-999.0) < 120.0 && same_objective_topic(h.get("call").and_then(Value::as_str).unwrap_or(""), &call));
+                if !is_death && (call.is_empty() || recent_same_topic || self.history.iter().take(3).any(|h| similar_call(h.get("call").and_then(Value::as_str).unwrap_or(""), &call))) {
                     self.set_state("idle", None);
                     return (None, false);
                 }
@@ -631,6 +662,16 @@ fn strip_diacritics(s: &str) -> String {
 fn ward_call(value: &Value) -> Option<String> {
     let id = value.get("ward")?.get("spot")?.as_str()?;
     WARD_SPOTS.iter().find(|s| s.id == id).map(|s| format!("Ward: {}", s.label))
+}
+
+/// Same objective and same stance ("Przygotuj się do smoka" / "Zbierzcie się na smoka"): a real game
+/// had three of those in a row. "Odpuść smoka" after "Smok teraz" is a change, not a repeat.
+pub fn same_objective_topic(a: &str, b: &str) -> bool {
+    let norm = |x: &str| strip_diacritics(&x.to_lowercase());
+    let topic = |s: &str| ["smok", "baron", "herol", "larw", "atakh"].into_iter().find(|t| s.contains(t));
+    let neg = |s: &str| ["odpu", "nie ", "unik", "zostaw"].iter().any(|n| s.contains(n));
+    let (na, nb) = (norm(a), norm(b));
+    matches!((topic(&na), topic(&nb)), (Some(x), Some(y)) if x == y) && neg(&na) == neg(&nb)
 }
 
 pub fn similar_call(a: &str, b: &str) -> bool {
@@ -881,6 +922,9 @@ mod tests {
     fn similar_call_matches_ts() {
         // As in TS: "farm" vs "farmu" differ, so the doc example of coach.ts is not similar (1 of 2 words).
         assert!(!similar_call("Farm pod wieżą", "Farmuj pod wieżą — gank"));
+        assert!(same_objective_topic("Przygotuj się do smoka", "Zbierzcie się na smoku"));
+        assert!(!same_objective_topic("Zbierzcie się na smoka", "Odpuść walkę o smoka"));
+        assert!(!same_objective_topic("Smok teraz", "Baron teraz"));
         assert!(similar_call("Farmuj pod wieżą", "Farmuj pod wieżą — gank"));
         assert!(similar_call("Nie pushuj — jungler top", "nie PUSHUJ, jungler top!"));
         assert!(similar_call("Zaczekaj na smoka", "Zaczekaj z grupą na smoka teraz"));

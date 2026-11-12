@@ -46,12 +46,16 @@ Zasady:
 - Nie komentuj wszystkiego: jedna rzecz naraz, tylko to, co zmienia decyzję gracza.
 - Wardy to częsta i ważna porada: gdy gracz nie ma wizji tam, skąd grozi gank, przed smokiem/baronem albo po pchnięciu fali, powiedz gdzie postawić ward (np. "Ward rzeka bot", "Ward krzaki tri") i ustaw pole "ward". Gdy ustawiasz "ward", "call" MUSI nazwać to miejsce słowami — gracz nie szuka znaczków na minimapie.
 - Invade / kontrdżungla: gdy jungler wroga jest widziany albo przewidywany po drugiej stronie mapy (albo nie żyje), jego obozy (jungleCamps) stoją, a gracz lub jego jungler ma przewagę i linie obok mają priorytet — zaproponuj invade konkretnej strony (np. "Invade top strona", "Kradnij jego raptory"). Nie proponuj, gdy wrogowie z linii obok są we mgle blisko albo gracz jest słabszy.
+- Roam: gdy fala gracza jest wepchnięta pod wieżę wroga, a rywal z linii wrócił do bazy albo nie żyje, i na linii obok jest wróg do zabicia (niskie HP, wysunięty, bez Flasha, przewaga liczebna) — powiedz gdzie roamować (np. "Roam bot teraz", "Idź mid z Rengarem"). Nie wysyłaj na roam, gdy fala idzie do gracza albo rywal jest na linii.
+- "unguardedPush" = wróg pcha linię po naszej stronie i nikt z nas tam nie stoi. Gdy gracz jest najbliżej albo nic ważniejszego się nie dzieje, powiedz to (np. "Yasuo pcha top — idź", "Złap falę top"); przy objective rozważ wymianę (np. "Smok za top").
+- "lanes" = stan wież i inhibitorów na liniach. Wykorzystuj go do makro: linia z leżącym inhibitorem wroga (supermininiony) albo bez jego wież to dobre miejsce na push/split ("Push top teraz"), zwłaszcza po Baronie, wygranej walce albo gdy wrogowie są daleko; przed odrodzeniem ich inhiba (ichInhibOdradzaSieZa) zdążcie wejść. Gdy nasz inhib leży, ostrzegaj przed supermininionami i nie wysyłaj wszystkich daleko od tej linii.
 - Gdy nie masz NOWEJ, konkretnej decyzji: "call": null (gracz nic nie zobaczy — to lepsze niż szum).
 - "tone": go = zrób to teraz, wait = czekaj/przygotuj się, danger = zagrożenie, farm = spokojnie farm.
 - "mapHint": gdzie iść/co unikać, albo null. target to np. "dragon", "baron", "herald", "top", "mid", "bot", "my-jungle", "enemy-jungle", "base".
 - "item": następny przedmiot do kupienia przy najbliższym powrocie. Jeśli w danych jest "plannedBuild" (plan z panelu buildu, który gracz widzi na ekranie), wybierz z niego pierwszy przedmiot, którego gracz jeszcze nie ma — nie proponuj innego. Odejdź od planu tylko, gdy sytuacja wyraźnie tego wymaga (np. wróg nagle nafeedowany AP). Gdy nie ma sensu nic mówić o przedmiotach: null.
 - "ward": gdzie postawić ward TERAZ (spot z listy wardSpots, nazwy względem strony gracza: my-* = jego dżungla, enemy-* = wroga) i krótki powód, albo null. Wybieraj miejsca o wyższej wartości (więcej wizji); faelight-* to Faelighty (2026): ward postawiony NA nich daje dużo większy zasięg wizji — preferuj je, gdy dostępne (mid-* dopiero po przemianie mapy po 2. smoku); plant-* to rośliny wizji — uderzenie odsłania duży obszar za darmo. Proponuj ward przed objective (60–90 s przed smokiem/baronem), przy pushowaniu linii bez wizji, gdy jungler wroga zniknął.
 - "deathReview": TYLKO gdy me.stan = "NIE ŻYJE" (jeśli "żyje", deathReview = null — także gdy zginął przed chwilą i już się odrodził): 3–5 krótkich punktów: dlaczego zginął (masz myDeath: kto zabił, kto asystował, czy to gank — używaj tego, nie zgaduj), co zrobić po respawnie (back/farm/gdzie iść), czy grać pasywnie czy agresywnie przez najbliższe minuty i dlaczego. Inaczej null.
+- Pisz bez form rodzajowych (nie "zginąłeś"/"zginęłaś", nie "byłeś"): np. "Gank Yasuo z Talonem", "Śmierć: brak wizji w rzece", "Po respawnie: back i ward".
 - "ttlSec": jak długo porada jest aktualna (10–40).
 Opieraj się na liczbach: przewaga złota, kto martwy i jak długo, timery, power spike'i, gdzie prawdopodobnie są wrogowie. Jeśli nic ważnego się nie dzieje — "call": null.`;
 
@@ -287,6 +291,15 @@ export class Coach extends EventEmitter {
 }
 
 /** Two calls say the same thing (shared content words), e.g. "Farm pod wieżą" vs "Farmuj pod wieżą — gank". */
+/** Same objective and same stance (see Rust same_objective_topic). */
+export function sameObjectiveTopic(a: string, b: string): boolean {
+  const n = (x: string) => x.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const topic = (s: string) => ['smok', 'baron', 'herol', 'larw', 'atakh'].find(t => s.includes(t));
+  const neg = (s: string) => ['odpu', 'nie ', 'unik', 'zostaw'].some(w => s.includes(w));
+  const A = n(a), B = n(b);
+  return !!topic(A) && topic(A) === topic(B) && neg(A) === neg(B);
+}
+
 export function similarCall(a: string, b: string): boolean {
   const words = (x: string) => new Set(x.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 3).map(w => w.slice(0, 5)));
   const A = words(a), B = words(b);

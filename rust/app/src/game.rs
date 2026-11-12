@@ -153,6 +153,7 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
             matchup,
             camps,
             covered_ward_spots: covered,
+            lane_pushes: { let now = crate::vision::now_ms(); g.field.push_seen.iter().filter(|(_, at)| now - at < 20000.0).map(|(k, _)| k.replace('@', " ")).collect() },
             self_profile,
             // Item plan from the HUD build panel: the coach's "item" must match it.
             planned_build: g.build.as_ref().map(|b| b.items.iter().map(|it| it.name.clone()).collect()).unwrap_or_default(),

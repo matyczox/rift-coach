@@ -159,6 +159,20 @@ pub struct GameIntel {
     pub streaks: BTreeMap<String, i64>,
     pub ace: Option<Ace>,
     pub my_stats: Option<MyStats>,
+    /// Per lane: towers lost by each side and inhibitors down (with respawn time).
+    pub lanes: Vec<LaneState>,
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct LaneState {
+    /// top | mid | bot
+    pub lane: &'static str,
+    pub ours_lost: u8,
+    pub theirs_lost: u8,
+    /// Game time when our / their inhibitor in this lane respawns (None = standing).
+    pub our_inhib_back: Option<f64>,
+    pub their_inhib_back: Option<f64>,
 }
 
 /// Passive gold + farm + takedowns: a rough "gold earned so far".
@@ -353,6 +367,7 @@ impl IntelTracker {
             buffs: ev.buffs,
             streaks: ev.streaks,
             ace: ev.ace,
+            lanes: ev.lanes,
             my_stats: me_idx.map(|_| MyStats {
                 gold: js_round(ap.current_gold),
                 hp: st("currentHealth"),
@@ -376,6 +391,7 @@ struct EventsOut {
     buffs: Vec<Buff>,
     streaks: BTreeMap<String, i64>,
     ace: Option<Ace>,
+    lanes: Vec<LaneState>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -395,6 +411,8 @@ fn events(
     let (mut last_dragon, mut last_baron): (Option<f64>, Option<f64>) = (None, None);
     let (mut herald_taken, mut grubs_taken, mut atakhan_taken, mut elder_unlocked) = (false, 0, false, false);
     let mut inhibs: Vec<(f64, bool, &'static str)> = Vec::new();
+    // (lane, our tower) for every destroyed lane tower.
+    let mut towers_down: Vec<(&'static str, bool)> = Vec::new();
     let mut my_deaths: Vec<MyDeath> = Vec::new();
     let mut buffs: Vec<Buff> = Vec::new();
     let mut streaks: BTreeMap<String, i64> = BTreeMap::new();
@@ -514,6 +532,16 @@ fn events(
                 if let Some(x) = sd!() {
                     x.towers += 1;
                 }
+                // "Turret_T1_L_03_A": T1 = ORDER's tower, T2 = CHAOS's; L = top, C = mid, R = bot.
+                let name = s(e.get("TurretKilled"));
+                let owner = if name.contains("_T1_") { Some("ORDER") } else if name.contains("_T2_") { Some("CHAOS") } else { None };
+                let lane = if name.contains("_L_") { Some("top") } else if name.contains("_R_") { Some("bot") } else if name.contains("_C_") { Some("mid") } else { None };
+                let nexus = name.contains("_C_01") || name.contains("_C_02");
+                if let (Some(o), Some(l)) = (owner, lane) {
+                    if !nexus {
+                        towers_down.push((l, o == my_team));
+                    }
+                }
                 recent.insert(0, Recent { at, text: format!("Wieża: {who}") });
             }
             "InhibKilled" => {
@@ -557,14 +585,28 @@ fn events(
     }
     let baron_at = last_baron.map(|l| l + obj::BARON_RESPAWN).unwrap_or(obj::BARON_FIRST);
     objectives.push(ObjectiveTimer { kind: "baron", label: "Baron".into(), spawns_at: (baron_at > t).then_some(baron_at), alive: baron_at <= t });
-    for (at, mine, name) in inhibs {
+    for &(at, mine, name) in &inhibs {
         let back = at + obj::INHIB_RESPAWN;
         if back > t {
             objectives.push(ObjectiveTimer { kind: "inhibitor", label: format!("Inhib {name} ({})", if mine { "nasz" } else { "wroga" }), spawns_at: Some(back), alive: false });
         }
     }
+    let lanes = ["top", "mid", "bot"]
+        .into_iter()
+        .map(|lane| {
+            let back = |mine: bool| inhibs.iter().filter(|(_, m, n)| *m == mine && *n == lane).map(|(at, _, _)| at + obj::INHIB_RESPAWN).filter(|b| *b > t).fold(None, |a: Option<f64>, b| Some(a.map_or(b, |a| a.max(b))));
+            LaneState {
+                lane,
+                ours_lost: towers_down.iter().filter(|(l, mine)| *l == lane && *mine).count() as u8,
+                theirs_lost: towers_down.iter().filter(|(l, mine)| *l == lane && !*mine).count() as u8,
+                our_inhib_back: back(true),
+                their_inhib_back: back(false),
+            }
+        })
+        .collect();
     recent.truncate(10);
     EventsOut {
+        lanes,
         ally,
         enemy,
         objectives,

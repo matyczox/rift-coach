@@ -407,6 +407,7 @@ pub(crate) mod tests {
             recent: vec![],
             my_deaths: vec![],
             buffs: vec![],
+            lanes: vec![],
             streaks: BTreeMap::new(),
             ace: None,
             my_stats: Some(MyStats { gold: 500.0, hp: 1000.0, max_hp: 1000.0, ad: 60.0, ap: 0.0, armor: 30.0, mr: 30.0, move_speed: 345.0 }),

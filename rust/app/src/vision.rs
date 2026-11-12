@@ -93,6 +93,8 @@ pub struct Toast {
 /// Per-game vision state (lives in `Game`, under the same lock as the intel).
 pub struct Field {
     pub toasts: Vec<Toast>,
+    /// Unguarded lane pushes announced: ("champion@lane", Date.now() ms).
+    pub push_seen: Vec<(String, f64)>,
     /// Lane opponent walking back to lane: (champion, ETA as Date.now() ms).
     pub returns: Vec<(String, f64)>,
     /// Enemies dead in the last frame (respawn detection).
@@ -125,6 +127,7 @@ impl Field {
         Field {
             toasts: Vec::new(),
             returns: Vec::new(),
+            push_seen: Vec::new(),
             prev_dead: Vec::new(),
             tracker,
             camps: CampTracker::default(),
@@ -153,6 +156,7 @@ impl Field {
         self.alerts.clear();
         self.toasts.clear();
         self.returns.clear();
+        self.push_seen.clear();
         self.prev_dead.clear();
         self.ghosts.clear();
         self.my_pos = None;
@@ -561,6 +565,31 @@ pub fn return_eta(p: &PlayerIntel, my_pos: Option<(f64, f64)>, game_t: f64) -> f
     (dist / speed - homeguard_extra_secs(30.0, game_t)).max(5.0)
 }
 
+/// Visible enemies standing in a lane on OUR half of the map with no ally (me included) within ~1/4
+/// of the map: (champion, "top" | "mid" | "bot"). Coordinates are mirrored for red side so that our
+/// base is always bottom-left (reflected across the diagonal, which keeps top lane = top).
+pub fn unguarded_pushes(enemies: &[SeenUnit], allies: &[SeenUnit], my_team: Team) -> Vec<(String, &'static str)> {
+    let flip = my_team == Team::Chaos;
+    let mut out = Vec::new();
+    for e in enemies {
+        let (x, y) = if flip { (e.y, e.x) } else { (e.x, e.y) };
+        let lane = if x < 0.18 && y > 0.45 && y < 0.88 {
+            "top"
+        } else if y > 0.82 && x > 0.12 && x < 0.55 {
+            "bot"
+        } else if (x - (1.0 - y)).abs() < 0.08 && x > 0.2 && x < 0.45 {
+            "mid"
+        } else {
+            continue;
+        };
+        if allies.iter().any(|a| (a.x - e.x).hypot(a.y - e.y) < 0.25) {
+            continue;
+        }
+        out.push((e.champion.clone(), lane));
+    }
+    out
+}
+
 pub fn lane_opponent(intel: &GameIntel) -> Option<&PlayerIntel> {
     let me = intel.me.as_ref()?;
     if me.role == "UNKNOWN" {
@@ -654,6 +683,16 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     }
     f.allies = r.detections.iter().filter(|d| d.team == my_team_t).map(|d| with_vel(&f.allies, d)).collect();
     f.visible_enemies = r.detections.iter().filter(|d| d.team != my_team_t).map(|d| with_vel(&f.visible_enemies, d)).collect();
+    // Enemy pushing a lane on our half with none of us near -> toast (once per champion+lane / 60 s).
+    for (champ, lane) in unguarded_pushes(&f.visible_enemies, &f.allies, my_team_t) {
+        let key = format!("{champ}@{lane}");
+        if f.push_seen.iter().any(|(k, at)| *k == key && now - at < 60000.0) {
+            continue;
+        }
+        f.push_seen.retain(|(k, _)| *k != key);
+        f.push_seen.push((key, now));
+        f.toasts.push(Toast { id: now as u64 + 7 + f.toasts.len() as u64, kind: "push".into(), team: "enemy".into(), champion: Some(champ.clone()), text: format!("{champ} pcha {lane} — nikt nie pilnuje"), expires_at: now + 5000.0 });
+    }
     // Teamplay prompts (gank ask, follow-up, ...).
     let (allies_s, enemies_s) = (crate::knowledge::seen(&f.allies), crate::knowledge::seen(&f.visible_enemies));
     for a in team_watcher.update(intel, crate::knowledge::pos(f.my_pos), &allies_s, &enemies_s, p_me, now) {
@@ -843,4 +882,24 @@ pub fn smoke_summary(st: &AppState) -> Value {
         "fogVisibleShare": f.mask.as_ref().map(|m| r3(m.iter().filter(|v| **v > 0.5).count() as f64 / m.len().max(1) as f64)),
         "hpEnemies": g.intel.as_ref().map(|i| i.players.iter().filter(|p| p.hp_pct.is_some()).map(|p| json!([p.champion, p.hp_pct])).collect::<Vec<_>>()),
     })
+}
+
+#[cfg(test)]
+mod push_tests {
+    use super::*;
+    fn u(c: &str, x: f64, y: f64) -> SeenUnit {
+        SeenUnit { champion: c.into(), x, y, vx: 0.0, vy: 0.0 }
+    }
+    #[test]
+    fn unguarded_push_on_our_half_only() {
+        // Blue: Yasuo deep in our top lane, our nearest player far away in bot.
+        let got = unguarded_pushes(&[u("Yasuo", 0.08, 0.6)], &[u("Akali", 0.5, 0.9)], Team::Order);
+        assert_eq!(got, vec![("Yasuo".to_string(), "top")]);
+        // Someone of ours is there: no alert.
+        assert!(unguarded_pushes(&[u("Yasuo", 0.08, 0.6)], &[u("Teemo", 0.1, 0.5)], Team::Order).is_empty());
+        // Enemy on THEIR half of top lane: not a threat to call.
+        assert!(unguarded_pushes(&[u("Yasuo", 0.3, 0.07)], &[], Team::Order).is_empty());
+        // Red side: mirrored (our top lane half is the top edge, right part).
+        assert_eq!(unguarded_pushes(&[u("Jhin", 0.6, 0.08)], &[], Team::Chaos), vec![("Jhin".to_string(), "top")]);
+    }
 }

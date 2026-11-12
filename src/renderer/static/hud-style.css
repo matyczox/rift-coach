@@ -222,3 +222,4 @@ canvas.full { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .toast.in { transform: none; opacity: 1; }
 .toast.out { transform: translate(40%, -60%) scale(0.9); opacity: 0; transition: transform 420ms ease-in, opacity 380ms ease-in; }
 .toast.recall span::after { content: ' ⌂'; color: #78c8ff; }
+.toast.push { box-shadow: inset 0 0 0 1px rgba(255, 170, 90, 0.6); }
