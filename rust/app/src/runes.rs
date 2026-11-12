@@ -13,6 +13,8 @@ use std::time::Duration;
 pub struct RunesState {
     key: String,
     timer: Option<tokio::task::JoinHandle<()>>,
+    /// Map of the current champion select (11 = Summoner's Rift), from the gameflow session.
+    map_id: Option<i64>,
 }
 
 fn role_name(pos: &str) -> Option<&'static str> {
@@ -26,14 +28,24 @@ fn role_name(pos: &str) -> Option<&'static str> {
     })
 }
 
-pub fn on_phase(rs: &Mutex<RunesState>, phase: &str) {
+pub fn on_phase(rt: &tokio::runtime::Handle, st: &Arc<AppState>, rs: &Arc<Mutex<RunesState>>, phase: &str) {
     if phase != "ChampSelect" {
         rs.lock().unwrap().key.clear();
+        return;
     }
+    // Runes only on Summoner's Rift: remember this lobby's map (gameflow session).
+    rs.lock().unwrap().map_id = None;
+    let (st, rs) = (st.clone(), rs.clone());
+    rt.spawn(async move {
+        if let Ok(g) = st.lcu_client.get::<Value>("/lol-gameflow/v1/session").await {
+            let map = g.pointer("/map/id").and_then(Value::as_i64).or_else(|| g.pointer("/gameData/queue/mapId").and_then(Value::as_i64));
+            rs.lock().unwrap().map_id = map;
+        }
+    });
 }
 
 pub fn on_champ_select(rt: &tokio::runtime::Handle, st: &Arc<AppState>, rs: &Arc<Mutex<RunesState>>, session: &Value) {
-    if !st.settings.lock().unwrap().value().auto_runes {
+    if !st.settings.lock().unwrap().value().auto_runes || rs.lock().unwrap().map_id != Some(11) {
         return;
     }
     let (sd, coach_state) = {

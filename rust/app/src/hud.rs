@@ -42,6 +42,13 @@ pub struct HudCtl {
 
 pub type Hud = Mutex<HudCtl>;
 
+impl HudCtl {
+    /// Last payload pushed to the HUD page (JSON text).
+    pub fn last_payload_text(&self) -> String {
+        self.last_payload.clone()
+    }
+}
+
 #[cfg(windows)]
 fn game_client_rect() -> Option<ClientRect> {
     use windows_sys::Win32::Foundation::{POINT, RECT};
@@ -104,6 +111,8 @@ pub fn create(app: &tauri::AppHandle) -> tauri::Result<()> {
 
 /// Show/move/hide on the main thread, never activating the window.
 fn apply(app: &tauri::AppHandle, show: Option<ClientRect>) {
+    // --smoke never shows a window (it may run next to a live game) unless --smoke-show-hud.
+    let show = show.filter(|_| !crate::smoke() || std::env::args().any(|a| a == "--smoke-show-hud"));
     let app2 = app.clone();
     let _ = app.run_on_main_thread(move || {
         let Some(w) = app2.get_webview_window(LABEL) else { return };
@@ -172,8 +181,9 @@ pub fn place(app: &tauri::AppHandle, st: &Arc<AppState>) {
 /// Compose and push the HUD state; show/hide/move the window (pushOverlay + Hud.update).
 pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
     let now = now_ms();
-    let (visible_setting, recording) = (st.settings.lock().unwrap().value().overlay_visible, false);
-    let visible = visible_setting && !st.replay_blocks();
+    let visible_setting = st.settings.lock().unwrap().value().overlay_visible;
+    let recording = st.recorder.lock().unwrap().active();
+    let visible = visible_setting && !st.replay_blocks() && !crate::playback::is_open(st);
     let show_frame = st.vision.show_frame();
     let advice = st.ui.lock().unwrap().last_advice.clone();
     let state = {
@@ -183,21 +193,37 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
         let icon = |c: &str| champion_icon(g, c);
         let vis_fn = |x: f64, y: f64| g.field.visible_at(x, y).unwrap_or(0.0);
         let vision_at: Option<&dyn Fn(f64, f64) -> f64> = if g.field.mask.is_some() { Some(&vis_fn) } else { None };
+        use crate::knowledge as k;
+        let profiles: Vec<Value> = g.profiles.iter().filter_map(|p| serde_json::to_value(p).ok()).collect();
+        let (power, danger, objective, fed) = match g.intel.as_ref() {
+            Some(i) => {
+                let fed = k::fed_names(i);
+                let tracks = k::fog_tracks(g);
+                let (allies, enemies) = (k::seen(&g.field.allies), k::seen(&g.field.visible_enemies));
+                (
+                    rc_core::intel::matchup::power_bar(i, g.matchup.as_ref(), &icon).and_then(|p| serde_json::to_value(p).ok()),
+                    rc_core::intel::situational::danger_at(i, k::pos(g.field.my_pos), &tracks, &enemies, k::current_p_me(g), &fed).and_then(|d| serde_json::to_value(d).ok()),
+                    rc_core::intel::situational::objective_call(i, &tracks, &allies, &enemies).and_then(|o| serde_json::to_value(o).ok()),
+                    fed,
+                )
+            }
+            None => (None, None, None, Vec::new()),
+        };
         compose_hud(&HudInputs {
             visible,
             intel: g.intel.as_ref(),
             advice: advice.as_ref(),
             alerts: &g.field.alerts,
             ghosts: &g.field.ghosts,
-            profiles: &[],
+            profiles: &profiles,
             champion_icon: &icon,
             show_frame,
             recording,
-            power: None,
-            build: None,
-            danger: None,
-            objective: None,
-            fed: Vec::new(),
+            power,
+            build: g.build.as_ref().and_then(|b| serde_json::to_value(b).ok()),
+            danger,
+            objective,
+            fed,
             vision_at,
             me: g.field.my_pos,
             now,

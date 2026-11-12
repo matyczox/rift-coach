@@ -363,7 +363,8 @@ pub fn sync_roster(rt: &tokio::runtime::Handle, st: &Arc<AppState>, g: &mut Game
 /// Per Live API sample (onGameData): learning switch + roster.
 pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, g: &mut Game, game_mode: &str, map: i64) {
     if let Some(t) = g.field.tracker.as_mut() {
-        t.learning_enabled = LEARN_MODES.contains(&game_mode) && map == 11;
+        // Never from replays (also not with --allow-replay): only real games teach the fog model.
+        t.learning_enabled = LEARN_MODES.contains(&game_mode) && map == 11 && !st.replay_open();
     }
     sync_roster(rt, st, g, map);
 }
@@ -393,6 +394,11 @@ pub fn spawn_threads(app: &tauri::AppHandle, st: &Arc<AppState>) {
         .expect("spawn vision result thread");
 }
 
+/// The user placed the minimap by hand (calibration.source === 'manual').
+fn manual_calibration(st: &AppState) -> bool {
+    st.settings.lock().unwrap().value().calibration.as_ref().and_then(|c| c.get("source")).and_then(Value::as_str) == Some("manual")
+}
+
 fn frame_loop(app: &tauri::AppHandle, st: &Arc<AppState>) {
     let mut last_seq = 0u64;
     let mut last_preview = 0u64;
@@ -402,9 +408,10 @@ fn frame_loop(app: &tauri::AppHandle, st: &Arc<AppState>) {
     let mut auto_cal_at: Option<Instant> = None;
     loop {
         std::thread::sleep(Duration::from_millis(15));
-        // Game window found: crop with the calibration; no calibration yet -> auto-calibrate after 1.5 s.
+        // Game window found: find the minimap by itself at every game start (HUD scale /
+        // resolution may have changed), unless the user placed it by hand.
         let connected = st.vision.capture.status().state == CaptureState::Connected;
-        if connected && !was_connected && st.vision.calibration().is_none() {
+        if connected && !was_connected && !manual_calibration(st) {
             auto_cal_at = Some(Instant::now() + Duration::from_millis(1500));
         }
         was_connected = connected;
@@ -425,11 +432,49 @@ fn frame_loop(app: &tauri::AppHandle, st: &Arc<AppState>) {
             preview_checked = Instant::now();
             preview_on = control_visible(app);
         }
-        if let Some(c) = cal.filter(|_| preview_on && f.at_ms.saturating_sub(last_preview) >= PREVIEW_GAP_MS) {
+        // Recording / replay harvest need every crop as PNG; the preview reuses the same encode.
+        let recording = st.recorder.lock().unwrap().active();
+        let harvesting = st.harvester.running();
+        // A recording open in the app's player owns the preview (index.ts: `if (!replay) sendFrame`).
+        let want_preview = preview_on && !crate::playback::is_open(st) && f.at_ms.saturating_sub(last_preview) >= PREVIEW_GAP_MS;
+        if let Some(c) = cal.filter(|_| want_preview || recording || harvesting) {
             if let Some(crop) = crop_rect(&f.image, c.rect_for(f.image.width as i32, f.image.height as i32)) {
-                last_preview = f.at_ms;
-                let frame = json!({ "at": f.at_ms, "width": crop.width, "height": crop.height, "dataUrl": data_url_png(&encode_png(&crop)) });
-                let _ = app.emit_to("main", "minimapFrame", frame);
+                let png = encode_png(&crop);
+                if harvesting {
+                    let age = Duration::from_millis((now_ms() as u64).saturating_sub(f.at_ms));
+                    st.harvester.frame(&png, Instant::now().checked_sub(age).unwrap_or_else(Instant::now));
+                }
+                if recording {
+                    let fps = st.settings.lock().unwrap().value().record_fps;
+                    st.recorder.lock().unwrap().frame(&png, f.at_ms as f64, fps);
+                }
+                if want_preview {
+                    last_preview = f.at_ms;
+                    let frame = json!({ "at": f.at_ms, "width": crop.width, "height": crop.height, "dataUrl": data_url_png(&png) });
+                    let _ = app.emit_to("main", "minimapFrame", frame);
+                }
+            }
+        }
+        // Full-window frame every `sceneEverySec` while recording (encoded off this thread).
+        if recording {
+            let every = st.settings.lock().unwrap().value().scene_every_sec as f64 * 1000.0;
+            let path = {
+                let mut r = st.recorder.lock().unwrap();
+                let due = every > 0.0 && f.at_ms as f64 - r.last_scene_at >= every;
+                if due {
+                    r.last_scene_at = f.at_ms as f64;
+                }
+                due.then(|| r.scene_path(f.at_ms as f64)).flatten()
+            };
+            if let Some(path) = path {
+                let (img, st2) = (f.image.clone(), st.clone());
+                std::thread::spawn(move || {
+                    // Half resolution: a full 1440p PNG is ~5 MB (TS wrote ~0.3 MB JPEGs).
+                    let png = encode_png(&rc_vision::image::resize(&img, img.width / 2, img.height / 2));
+                    if std::fs::write(&path, &png).is_ok() {
+                        st2.recorder.lock().unwrap().add_bytes(png.len() as u64);
+                    }
+                });
             }
         }
         // Live game only: detect + track (health bars on every map).
@@ -526,7 +571,8 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         return;
     }
     let icons: Vec<(String, String)> = guard.intel.as_ref().unwrap().players.iter().map(|p| (p.champion.clone(), champion_icon(&guard, &p.champion))).collect();
-    let Game { intel, field: f, .. } = &mut *guard;
+    let p_me = crate::knowledge::current_p_me(&guard);
+    let Game { intel, field: f, team_watcher, obs, obs_game_key, profiles, .. } = &mut *guard;
     let intel = intel.as_ref().unwrap();
     let now = now_ms();
     let my_team = intel.me.as_ref().map(|m| m.team.as_str()).unwrap_or("ORDER");
@@ -538,6 +584,11 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     }
     f.allies = r.detections.iter().filter(|d| d.team == my_team_t).map(|d| with_vel(&f.allies, d)).collect();
     f.visible_enemies = r.detections.iter().filter(|d| d.team != my_team_t).map(|d| with_vel(&f.visible_enemies, d)).collect();
+    // Teamplay prompts (gank ask, follow-up, ...).
+    let (allies_s, enemies_s) = (crate::knowledge::seen(&f.allies), crate::knowledge::seen(&f.visible_enemies));
+    for a in team_watcher.update(intel, crate::knowledge::pos(f.my_pos), &allies_s, &enemies_s, p_me, now) {
+        f.alerts.push(crate::game::alert_of(a));
+    }
     f.mask = r.fog_mask.clone();
     f.mask_grid = r.fog_grid;
     let grid = r.fog_grid;
@@ -556,7 +607,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             is_dead: p.is_dead,
             move_speed: p.move_speed,
             likely_recall: false,
-            start_top_side: None, // from opponent profiles (Riot API) once they are wired
+            start_top_side: profiles.iter().find(|pr| pr.champion == p.champion).and_then(|pr| pr.jungle.as_ref()).map(|j| j.start_top_side),
             item_gold: Some(p.item_gold),
             has_flash: p.summoner_spells.iter().any(|s| {
                 let l = s.to_lowercase();
@@ -619,6 +670,25 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             MinimapGhost { champion: gh.champion, x: gh.x, y: gh.y, radius: gh.radius, age: gh.age, confidence: gh.confidence, icon_url }
         })
         .collect();
+    // Self-training: one observation per second of what we saw (real Summoner's Rift games only).
+    if tracker.learning_enabled {
+        let gk = intel.players.iter().map(|p| p.champion.as_str()).collect::<Vec<_>>().join("|");
+        if gk != *obs_game_key {
+            *obs_game_key = gk;
+            obs.start(my_team);
+        }
+        let r4 = |v: f64| (v * 10000.0).round() / 10000.0;
+        let obj_round = |o: Option<f64>| o.map(f64::round);
+        obs.add(rc_core::self_train::ObsInput {
+            t,
+            d: r.detections.iter().filter(|d| d.team != my_team_t).map(|d| (d.champion.clone(), r4(d.x), r4(d.y))).collect(),
+            mask: r.fog_mask.as_deref(),
+            mask_size: r.fog_grid,
+            e: intel.players.iter().filter(|p| !p.is_ally).map(|p| (p.champion.clone(), p.role.clone(), p.is_dead as u8, p.move_speed, p.item_gold)).collect(),
+            dr: obj_round(obj_in(dragon)),
+            br: obj_round(obj_in(baron)),
+        });
+    }
     for a in tracker_alerts(&tracks, f.my_pos, my_team_t, t, now) {
         let kind = serde_json::to_value(a.kind).ok().and_then(|v| v.as_str().map(String::from)).unwrap_or_default();
         let al = Alert { kind, text: a.text, confidence: a.confidence, expires_at: a.expires_at };

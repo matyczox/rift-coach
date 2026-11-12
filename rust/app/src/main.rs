@@ -2,9 +2,14 @@
 
 mod bridge;
 mod game;
+mod harvest;
 mod hotkeys;
 mod hud;
 mod hud_state;
+mod knowledge;
+mod postgame;
+mod recorder;
+mod playback;
 mod runes;
 mod state;
 mod vision;
@@ -39,7 +44,7 @@ pub fn hud_test() -> bool {
 }
 
 /// Value of `--name=value`.
-fn arg_value(name: &str) -> Option<String> {
+pub fn arg_value(name: &str) -> Option<String> {
     let p = format!("--{name}=");
     std::env::args().find_map(|a| a.strip_prefix(&p).map(String::from))
 }
@@ -66,6 +71,7 @@ fn hotkeys_on() -> bool {
 }
 
 pub fn on_settings_changed(app: &tauri::AppHandle, st: &Arc<AppState>) {
+    knowledge::apply_models(st);
     vision::sync_settings(st);
     if hotkeys_on() {
         hotkeys::register(app, st);
@@ -84,6 +90,33 @@ fn show_inactive(w: &tauri::WebviewWindow) {
         return;
     }
     let _ = w.show();
+}
+
+/// `--smoke`: what the knowledge / post-game side has (counts and labels only; no Riot API
+/// payloads, no player names).
+fn smoke_knowledge(st: &AppState) -> Value {
+    let learning = bridge::learning(st);
+    let g = st.game.lock().unwrap();
+    let hud: Value = serde_json::from_str(&st.hud.lock().unwrap().last_payload_text()).unwrap_or(Value::Null);
+    serde_json::json!({
+        "profiles": st.ui.lock().unwrap().profiles,
+        "profilesLoaded": g.profiles.len(),
+        "profilesWithGames": g.profiles.iter().filter(|p| p.games_analyzed > 0).count(),
+        "patchBrief": g.patch_brief.as_ref().map(|b| &b.patch),
+        "matchup": g.matchup.as_ref().map(|m| format!("{} vs {} ({}) curve {}", m.me, m.enemy, m.role, m.curve.len())),
+        "matchupKey": g.matchup_key,
+        "build": g.build.as_ref().map(|b| b.items.iter().map(|i| i.name.clone()).collect::<Vec<_>>()),
+        "hudPower": hud.pointer("/state/power").map(|p| !p.is_null()),
+        "hudDanger": hud.pointer("/state/danger/label"),
+        "hudObjective": hud.pointer("/state/objective/verdict"),
+        "hudLoadingCard": hud.pointer("/state/loadingCard").map(|p| !p.is_null()),
+        "fed": hud.pointer("/state/fed"),
+        "matchLog": { "key": !g.match_log.game_key.is_empty(), "moments": g.match_log.moments.len(), "goldCurve": g.match_log.gold_curve.len() },
+        "obsFrames": g.obs.log.as_ref().map(|l| l.frames.len()),
+        "recording": st.recorder.lock().unwrap().status,
+        "harvest": harvest::status(st),
+        "learning": learning,
+    })
 }
 
 fn emit_status(app: &tauri::AppHandle, st: &Arc<AppState>, last: &mut String) {
@@ -130,6 +163,13 @@ fn main() {
                 game: Mutex::new(game::Game::new(&data_dir)),
                 vision: vision_hub,
                 hud: Mutex::new(hud::HudCtl::default()),
+                app: app.handle().clone(),
+                rt: rt.clone(),
+                recorder: Mutex::new(recorder::Recorder::new(&state::recordings_root(&data_dir))),
+                // --harvest-root=<dir> (testing): harvest somewhere other than the real recordings.
+                harvester: rc_core::harvest::Harvester::new(&arg_value("harvest-root").map(std::path::PathBuf::from).unwrap_or_else(|| state::recordings_root(&data_dir))),
+                harvest: Mutex::new(harvest::HarvestCtl::default()),
+                replay: Mutex::new(playback::ReplayCtl::default()),
             });
             app.manage(st.clone());
 
@@ -174,16 +214,22 @@ fn main() {
             rt.spawn(async move {
                 while let Some(ev) = live_rx.recv().await {
                     match ev {
-                        live::LiveEvent::State(s) if s != rc_core::types::SourceState::Connected => game::on_live_lost(&st3),
+                        live::LiveEvent::State(s) if s != rc_core::types::SourceState::Connected => {
+                            st3.ui.lock().unwrap().live_lost_at.get_or_insert_with(std::time::Instant::now);
+                            game::on_live_lost(&st3);
+                        }
                         live::LiveEvent::State(_) => {}
                         live::LiveEvent::Data(d, _) => {
-                            // Enemy profiles need a Riot API key (Riot API client not ported yet).
-                            if st3.settings.lock().unwrap().value().riot.api_key.is_empty() {
-                                st3.ui.lock().unwrap().profiles = rc_core::types::ProfilesStatus { state: "no-key".into(), count: 0, error: None };
-                            }
+                            st3.ui.lock().unwrap().live_lost_at = None;
+                            let at = vision::now_ms();
+                            st3.recorder.lock().unwrap().api_sample(&d, at);
                             // An open replay is not a live game (index.ts: replayApiState !== 'connected').
                             if !st3.replay_blocks() {
                                 game::on_game_data(&rt3, &st3, &d);
+                            }
+                            let auto = st3.settings.lock().unwrap().value().auto_record;
+                            if auto && !smoke() && !st3.replay_open() && !st3.recorder.lock().unwrap().active() && recorder::SUPPORTED_MODES.contains(&d.game_data.game_mode.as_str()) {
+                                recorder::start_recording(&st3);
                             }
                         }
                     }
@@ -195,25 +241,74 @@ fn main() {
                 while let Some(ev) = lcu_rx.recv().await {
                     match ev {
                         lcu::LcuEvent::State(_) => {}
-                        lcu::LcuEvent::Phase(p) => runes::on_phase(&runes_state, &p),
+                        lcu::LcuEvent::Phase(p) => {
+                            runes::on_phase(&rt4, &st4, &runes_state, &p);
+                            st4.recorder.lock().unwrap().lcu_phase(&p);
+                            if p == "PreEndOfGame" || p == "EndOfGame" {
+                                let st = st4.clone();
+                                rt4.spawn(async move {
+                                    tokio::time::sleep(Duration::from_secs(3)).await;
+                                    postgame::finish_game(st).await;
+                                });
+                            }
+                        }
                         lcu::LcuEvent::ChampSelect(sess) => runes::on_champ_select(&rt4, &st4, &runes_state, &sess),
                     }
                 }
             });
             // Status to the UI every 250 ms (only when it changed).
             let (app2, st2) = (app.handle().clone(), st.clone());
+            let rt5 = rt.clone();
             rt.spawn(async move {
                 let mut last = String::new();
                 loop {
                     emit_status(&app2, &st2, &mut last);
+                    let lost = st2.ui.lock().unwrap().live_lost_at.map(|t| t.elapsed());
+                    // Stop an auto recording ~15 s after the game API disappears (game over).
+                    let auto = st2.settings.lock().unwrap().value().auto_record;
+                    if auto && lost.is_some_and(|l| l > Duration::from_secs(15)) && st2.recorder.lock().unwrap().active() {
+                        recorder::stop_recording(&st2);
+                    }
+                    if lost.is_some_and(|l| l > Duration::from_secs(20)) {
+                        let pending = {
+                            let g = st2.game.lock().unwrap();
+                            !g.match_log.game_key.is_empty() && g.match_log.game_key != g.review_done_for
+                        };
+                        if pending {
+                            rt5.spawn(postgame::finish_game(st2.clone()));
+                        }
+                    }
                     tokio::time::sleep(Duration::from_millis(250)).await;
+                }
+            });
+            // Disk housekeeping at startup: newest 5 recordings, none older than 14 days.
+            let st7 = st.clone();
+            rt.spawn(async move {
+                tokio::time::sleep(Duration::from_secs(30)).await;
+                if !smoke() {
+                    let _ = tokio::task::spawn_blocking(move || recorder::prune(&st7)).await;
                 }
             });
             if smoke() {
                 let (app3, st5) = (app.handle().clone(), st.clone());
                 rt.spawn(async move {
                     let secs = arg_value("smoke-seconds").and_then(|s| s.parse().ok()).unwrap_or(12u64);
+                    // --smoke-record: record for the whole smoke run (tests the recorder).
+                    let record = std::env::args().any(|a| a == "--smoke-record");
+                    if record {
+                        tokio::time::sleep(Duration::from_secs(3)).await;
+                        recorder::start_recording(&st5);
+                    }
+                    // --smoke-harvest: harvest the open replay (no fog-team waits) for the smoke run.
+                    if std::env::args().any(|a| a == "--smoke-harvest") {
+                        harvest::smoke_start(&st5);
+                    }
                     tokio::time::sleep(Duration::from_secs(secs)).await;
+                    if record {
+                        recorder::stop_recording(&st5);
+                    }
+                    harvest::stop(&st5);
+                    println!("SMOKE-KNOWLEDGE {}", smoke_knowledge(&st5));
                     // Minimap crop of the newest frame (like --smoke-frame in the Electron app).
                     if let Some(out) = arg_value("smoke-frame") {
                         if let (Some((_, f)), Some(c)) = (st5.vision.capture.latest(), st5.vision.calibration()) {

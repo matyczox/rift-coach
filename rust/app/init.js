@@ -18,7 +18,7 @@
     'startRecording', 'stopRecording', 'listRecordings', 'deleteRecording', 'openRecordingsFolder',
     'replayOpen', 'replayPlay', 'replayPause', 'replaySeek', 'replaySpeed', 'replayClose',
     'listReplayFiles', 'harvestStart', 'harvestStop', 'harvestContinue',
-    'listReviews',
+    'listReviews', 'getLearning',
   ];
   const api = {};
   for (const method of INVOKE) {
