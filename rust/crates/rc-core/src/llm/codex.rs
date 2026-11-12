@@ -40,6 +40,12 @@ pub async fn resolve_codex() -> Option<PathBuf> {
 /// Models called in Codex fast mode by default (`service_tier="fast"`; Terra advertises support for it).
 pub const FAST_TIER_MODELS: &[&str] = &["gpt-6.1-terra"];
 
+static FAST_MODE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+/// Settings → Coach → Tryb fast (`coach.fast`, default on).
+pub fn set_fast_mode(on: bool) {
+    FAST_MODE.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
 pub fn build_args(opts: &ModelCall, dir: &Path, out: &Path) -> Vec<String> {
     let model = opts.model.strip_prefix("codex:").unwrap_or(&opts.model).to_string();
     let effort = opts.effort.map(|e| e.as_str()).unwrap_or("low");
@@ -50,7 +56,7 @@ pub fn build_args(opts: &ModelCall, dir: &Path, out: &Path) -> Vec<String> {
         a.push("tools.web_search=true".into());
     }
     // Codex fast mode (service tier) for the in-game model: lower latency, uses more of the plan's quota.
-    if FAST_TIER_MODELS.contains(&a[2].as_str()) {
+    if FAST_MODE.load(std::sync::atomic::Ordering::Relaxed) && FAST_TIER_MODELS.contains(&a[2].as_str()) {
         a.push("-c".into());
         a.push("service_tier=\"fast\"".into());
     }

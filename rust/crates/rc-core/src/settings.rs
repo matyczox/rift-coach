@@ -19,7 +19,7 @@ pub fn defaults() -> Value {
         "autoRecord": false,
         "overlayVisible": true,
         "hotkeys": { "toggleOverlay": "Alt+Shift+O", "toggleRecording": "Alt+Shift+R", "enemyFlash": "Alt+Shift+F" },
-        "coach": { "enabled": true, "liveModel": "gpt-6.1-terra", "reviewModel": "claude-opus-5-5", "periodSec": 25, "researchModel": "claude-opus-5-5", "draftModel": "gpt-6.1-terra" },
+        "coach": { "enabled": true, "liveModel": "gpt-6.1-terra", "reviewModel": "claude-opus-5-5", "periodSec": 25, "researchModel": "claude-opus-5-5", "draftModel": "gpt-6.1-terra", "fast": true },
         "riot": { "apiKey": "", "platform": "eun1" },
         "autoRunes": true,
         "launchAtLogin": false
@@ -111,6 +111,9 @@ pub struct CoachSettings {
     pub period_sec: u32,
     pub research_model: String,
     pub draft_model: String,
+    /// Codex fast mode for Terra (faster, uses more of the plan). `None` = on.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fast: Option<bool>,
 }
 
 #[derive(Clone, Serialize, Deserialize, PartialEq)]

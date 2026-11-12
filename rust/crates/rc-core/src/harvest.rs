@@ -82,6 +82,22 @@ pub trait ReplayControl: Send + Sync {
     fn seek(&self, time: f64) -> BoxFuture<'_, Result<Playback>>;
     /// `https://127.0.0.1:2999/liveclientdata/allgamedata` while the replay plays.
     fn allgamedata(&self) -> BoxFuture<'_, Result<Value>>;
+    /// Pick the fog team in the replay HUD ("Mgła wojny"). `true` = switched and verified.
+    /// Default: not supported (the harvester then asks the user, `waiting-fog`).
+    fn set_fog(&self, _team: FogTeam) -> BoxFuture<'_, bool> {
+        Box::pin(async { false })
+    }
+}
+
+/// `scripts/replay-fog.ps1` next to the repo (dev layout: <repo>/rust/target/<profile>/rift-coach.exe)
+/// or `RC_SCRIPTS`; two clicks in the replay window + reads the coloured label back to verify.
+fn replay_fog_script() -> Option<PathBuf> {
+    if let Ok(d) = std::env::var("RC_SCRIPTS") {
+        let p = PathBuf::from(d).join("replay-fog.ps1");
+        if p.exists() { return Some(p); }
+    }
+    let exe = std::env::current_exe().ok()?;
+    exe.ancestors().map(|a| a.join("scripts").join("replay-fog.ps1")).find(|p| p.exists())
 }
 
 /// The real Replay API on 127.0.0.1:2999.
@@ -102,6 +118,20 @@ impl ReplayControl for LiveReplayApi {
     }
     fn allgamedata(&self) -> BoxFuture<'_, Result<Value>> {
         Box::pin(crate::sources::http::get_json::<Value>("https://127.0.0.1:2999/liveclientdata/allgamedata", None, 1500))
+    }
+    fn set_fog(&self, team: FogTeam) -> BoxFuture<'_, bool> {
+        Box::pin(async move {
+            let Some(script) = replay_fog_script() else { return false };
+            let arg = match team { FogTeam::Blue => "blue", FogTeam::Red => "red", FogTeam::All => "all" };
+            let mut cmd = tokio::process::Command::new("powershell.exe");
+            cmd.args(["-NoProfile", "-ExecutionPolicy", "Bypass", "-File"]).arg(&script).args(["fog", arg]);
+            #[cfg(windows)]
+            cmd.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+            match tokio::time::timeout(Duration::from_secs(20), cmd.output()).await {
+                Ok(Ok(out)) => out.status.success() && String::from_utf8_lossy(&out.stdout).lines().any(|l| l.starts_with("OK fog")),
+                _ => false,
+            }
+        })
     }
 }
 
@@ -275,7 +305,9 @@ impl Harvester {
                     break;
                 }
                 let _ = api.set_playback(&json!({ "paused": true })).await;
-                if k > 0 || !req.confirm_first {
+                // Switch the replay HUD fog team by itself; ask the user only if that fails.
+                let switched = api.set_fog(pass).await;
+                if !switched && (k > 0 || !req.confirm_first) {
                     // Register before announcing the wait, so a quick confirm is not lost;
                     // confirms sent while not waiting are ignored (like TS).
                     let notified = self.resume.notified();
