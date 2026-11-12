@@ -54,19 +54,23 @@ export function LearningView({ status }: { status: AppStatus }) {
       <div className="section-head">
         <div>
           <h2 className="section-title">Czego się nauczył</h2>
-          <div className="muted small">Tylko z meczów na Summoner’s Rift. Najedź na kafelek, żeby zobaczyć szczegóły.</div>
+          <div className="muted small">Tylko z meczów na Summoner’s Rift. Najedź na kafelek, żeby zobaczyć, jak to działa.</div>
         </div>
       </div>
       {err && <div className="error-text small">{err}</div>}
       <div className="learn-grid">
         {sources.map(x => (
-          <div key={x.title} className="learn-card" title={x.text}>
+          <div key={x.title} className="learn-card" tabIndex={0}>
             <div className="learn-top">
               <span className="learn-ico"><svg viewBox="0 0 24 24" width="20" height="20"><path d={x.icon} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg></span>
               <span className="learn-title">{x.title}</span>
             </div>
             <div className="learn-value num">{x.value}</div>
             <div className="learn-sub">{x.sub}</div>
+            <div className="learn-detail">
+              <div className="learn-detail-title">{x.title}</div>
+              <p>{x.text}</p>
+            </div>
           </div>
         ))}
       </div>

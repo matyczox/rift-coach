@@ -748,3 +748,18 @@ body { font-feature-settings: "tnum" 0, "cv11" 1; letter-spacing: -0.005em; }
 .key-cap:hover { border-color: var(--border-strong); }
 .key-cap.rec { border-color: var(--gold); color: var(--gold-text); }
 .key-cap kbd { font-family: var(--font); font-size: 11px; font-weight: 700; padding: 2px 7px; border-radius: var(--r-sm); background: var(--panel-2); border: 1px solid var(--border-strong); border-bottom-width: 2px; }
+
+/* Nauka: hover reveals the explanation on the card itself (no native tooltip) */
+.learn-card { position: relative; overflow: hidden; cursor: default; transition: border-color .15s, transform .15s; }
+.learn-card:hover, .learn-card:focus-visible { border-color: rgba(48, 217, 211, .35); transform: translateY(-2px); outline: none; }
+.learn-detail {
+  position: absolute; inset: 0; padding: 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  background: linear-gradient(160deg, rgba(20, 44, 46, .97), rgba(19, 22, 29, .98) 60%);
+  opacity: 0; transform: translateY(8px); pointer-events: none;
+  transition: opacity .18s ease, transform .18s ease;
+}
+.learn-card:hover .learn-detail, .learn-card:focus-visible .learn-detail { opacity: 1; transform: none; }
+.learn-detail-title { font-weight: 800; font-size: 14px; color: var(--teal); }
+.learn-detail p { margin: 0; font-size: 12px; line-height: 1.55; color: var(--text); }
+.force-hover .learn-card:first-child .learn-detail { opacity: 1; transform: none; }
