@@ -30,6 +30,8 @@ pub struct CoachContext<'a> {
     pub field: Option<Value>,
     /// Enemies pushing a lane on our half with none of us near ("Yasuo top"), last ~20 s.
     pub lane_pushes: Vec<String>,
+    /// Minion waves per lane from the minimap ({top|mid|bot: {ally, enemy, front, state}}).
+    pub waves: Option<Value>,
     /// Player profile text (habits, weak spots, lessons) for the per-game system prompt.
     pub self_profile: Option<String>,
 }
@@ -68,6 +70,7 @@ Zasady:
 - "lanes" = stan wież i inhibitorów na liniach. Wykorzystuj go do makro: linia z leżącym inhibitorem wroga (supermininiony) albo bez jego wież to dobre miejsce na push/split ("Push top teraz"), zwłaszcza po Baronie, wygranej walce albo gdy wrogowie są daleko; przed odrodzeniem ich inhiba (ichInhibOdradzaSieZa) zdążcie wejść. Gdy nasz inhib leży, ostrzegaj przed supermininionami i nie wysyłaj wszystkich daleko od tej linii.
 - "field" = gdzie są wszyscy teraz (minimapa 0..1): ty, sojusznicy, widoczni wrogowie, oraz "fightHereNow" — lokalna szansa wygrania walki TU i TERAZ (liczy kto stoi obok, wrogów we mgle blisko, HP, poziomy, złoto; to samo co pasek gracza). Gdy fightHereNow ≥ 0.65 i jest cel w zasięgu (niskie HP, bez Flasha, odcięty) — zaproponuj wejście konkretnie ("Wejdź na Ahri", "All-in z Rengarem"); gdy ≤ 0.35 przy wrogach obok — "Odejdź" / "Nie wchodź". Używaj pozycji sojuszników do roamów, objective i "idź z X".
 - Powód zapytania "arrived" = gracz dotarł tam, gdzie kazała poprzednia porada; "ward-done" = postawił ward z poprzedniej porady. Wtedy ZAWSZE podaj następny konkretny krok w tym samym planie (np. "Herald teraz", "Czekaj na Rengara", "Ward krzak obok", "Wracaj na linię"), nie powtarzaj wykonanej porady.
+- "waves" = fale minionów na liniach odczytane z kropek na minimapie (przybliżone): ally/enemy = ile naszych/ich minionów widać, front = gdzie fale się stykają (0 = nasza wieża przy inhibitorze, ~0.35 nasza zewnętrzna, 0.5 środek linii, ~0.65 ich zewnętrzna, 1 = ich inhibitor), state: crashing = nasza fala wbija się w ich wieżę, pushing = styk po ich stronie, even = środek, our_side = styk po naszej stronie, under_our_tower = ich fala pod naszą wieżą, no_wave = brak fali, unknown = brak wizji. Roam i back proponuj, gdy fala gracza jest crashing/pushing (po wepchnięciu fali: "Back po fali", "Roam mid teraz"); gdy na linii gracza jest under_our_tower z dużą falą wroga, nie wysyłaj go z linii — najpierw "Wyczyść falę". Przy objective porównaj fale: nasza fala wbijająca się w ich wieżę to darmowa presja, ich duża fala pod naszą wieżą to koszt. Bez "waves" albo przy unknown nie zgaduj stanu fal.
 - Gdy nie masz NOWEJ, konkretnej decyzji: "call": null (gracz nic nie zobaczy — to lepsze niż szum).
 - "tone": go = zrób to teraz, wait = czekaj/przygotuj się, danger = zagrożenie, farm = spokojnie farm.
 - "mapHint": gdzie iść/co unikać, albo null. target to np. "dragon", "baron", "herald", "top", "mid", "bot", "my-jungle", "enemy-jungle", "base".
@@ -336,6 +339,9 @@ pub fn build_snapshot(ctx: &CoachContext, previous: &[Value]) -> Value {
     }
     if !ctx.lane_pushes.is_empty() {
         o.insert("unguardedPush".into(), json!(ctx.lane_pushes));
+    }
+    if let Some(w) = &ctx.waves {
+        o.insert("waves".into(), w.clone());
     }
     Value::Object(o)
 }
@@ -1068,6 +1074,12 @@ mod tests {
         c.planned_build = vec!["Taniec Śmierci".into(), "Opancerzone Natarcie".into()];
         let s = build_snapshot(&c, &[]);
         assert_eq!(s["plannedBuild"], json!(["Taniec Śmierci", "Opancerzone Natarcie"]));
+        // Minion waves only when vision read them; the prompt explains the field.
+        assert!(s.get("waves").is_none());
+        c.waves = Some(json!({ "bot": { "ally": 5, "enemy": 2, "front": 0.64, "state": "crashing" } }));
+        let s = build_snapshot(&c, &[]);
+        assert_eq!(s["waves"]["bot"]["state"], "crashing");
+        assert!(SYSTEM.contains("\n- \"waves\" = fale minionów na liniach"));
     }
 
     /// Port of coach.ts similarCall.

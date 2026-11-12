@@ -193,6 +193,7 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
                     "fightHereNow": fight,
                 })
             }),
+            waves: g.field.waves.as_ref().map(crate::vision::waves_json),
             lane_pushes: { let now = crate::vision::now_ms(); g.field.push_seen.iter().filter(|(_, at)| now - at < 20000.0).map(|(k, _)| k.replace('@', " ")).collect() },
             self_profile,
             // Item plan from the HUD build panel: the coach's "item" must match it.

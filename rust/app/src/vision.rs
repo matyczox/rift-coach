@@ -155,6 +155,8 @@ pub struct Field {
     /// Fog mask (P(visible) per cell, `mask_grid`², row-major).
     pub mask: Option<Vec<f32>>,
     pub mask_grid: usize,
+    /// Minion waves per lane from the last vision frame (smoothed in the vision worker).
+    pub waves: Option<rc_vision::waves::WaveReading>,
     /// Champions + my team of the roster given to the VisionService ('' = none).
     pub roster_key: String,
     /// Roster loaded into the VisionService (frames may be pushed).
@@ -189,6 +191,7 @@ impl Field {
             visible_enemies: Vec::new(),
             mask: None,
             mask_grid: 64,
+            waves: None,
             roster_key: String::new(),
             roster_ready: false,
             detect: false,
@@ -209,6 +212,7 @@ impl Field {
             self.visible_enemies.clear();
             self.ghosts.clear();
             self.mask = None;
+            self.waves = None;
         }
     }
 
@@ -232,6 +236,7 @@ impl Field {
         self.allies.clear();
         self.visible_enemies.clear();
         self.mask = None;
+        self.waves = None;
         self.save_learner();
     }
 
@@ -866,6 +871,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     }
     f.mask = r.fog_mask.clone();
     f.mask_grid = r.fog_grid;
+    f.waves = r.waves.clone();
     let grid = r.fog_grid;
     let mask_ref = r.fog_mask.as_deref();
     let vis_fn = |x: f64, y: f64| mask_at(mask_ref.unwrap_or(&[]), grid, x, y);
@@ -1004,6 +1010,20 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
 }
 
 // ---------- coach context ----------
+
+/// Wave state for the coach: {"top": {"ally", "enemy", "front", "state"}, ...}; lanes without
+/// minions carry the state only.
+pub fn waves_json(w: &rc_vision::waves::WaveReading) -> Value {
+    let mut o = serde_json::Map::new();
+    for l in &w.lanes {
+        let v = match l.front {
+            Some(front) => serde_json::json!({ "ally": l.ally, "enemy": l.enemy, "front": front, "state": l.state.as_str() }),
+            None => serde_json::json!({ "ally": l.ally, "enemy": l.enemy, "state": l.state.as_str() }),
+        };
+        o.insert(l.lane.to_string(), v);
+    }
+    Value::Object(o)
+}
 
 /// Ward spots our team already sees (from the fog mask).
 pub fn covered_spots(intel: &GameIntel, f: &Field) -> Vec<String> {
