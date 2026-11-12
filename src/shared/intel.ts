@@ -265,5 +265,7 @@ export interface HudState {
   /** Top-right toasts (enemy back); expiresAt = Date.now() ms. */
   toasts?: Array<{ id: number; kind: 'recall'; team: 'ally' | 'enemy'; text: string; iconUrl: string | null; expiresAt: number }>;
   /** Active Baron / Elder buffs with seconds left. */
-  buffs?: Array<{ kind: 'baron' | 'elder'; team: 'ally' | 'enemy'; secondsLeft: number }>;
+  buffs?: Array<{ kind: 'baron' | 'elder' | 'herald'; team: 'ally' | 'enemy'; secondsLeft: number }>;
+  /** Lane opponent walking back to lane after a back / respawn: ETA in seconds. */
+  returns?: Array<{ champion: string; iconUrl: string; secondsLeft: number }>;
 }

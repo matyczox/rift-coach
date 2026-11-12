@@ -118,7 +118,7 @@ pub struct MyDeath {
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
 pub struct Buff {
-    pub kind: &'static str, // baron | elder
+    pub kind: &'static str, // baron | elder | herald (held Eye of the Herald, ~240 s)
     pub team: &'static str, // ally | enemy
     pub until: f64,
 }
@@ -494,6 +494,9 @@ fn events(
                     x.heralds += 1;
                 }
                 herald_taken = true;
+                if killer_team.is_some() {
+                    buffs.push(Buff { kind: "herald", team: rel(&killer_team), until: at + 240.0 });
+                }
                 recent.insert(0, Recent { at, text: format!("Herald: {who}") });
             }
             "HordeKill" => grubs_taken += 1,

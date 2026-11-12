@@ -210,6 +210,10 @@ canvas.full { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .chip img { width: 1.5rem; height: 1.5rem; margin: -0.125rem 0; display: block; filter: drop-shadow(0 0 0.25rem var(--kc)); }
 .chip.baron { --kc: #b07cff; }
 .chip.elder { --kc: #ffa94d; }
+.chip.herald { --kc: #5fd0e6; }
+.chip.return { --kc: transparent; box-shadow: inset 0 0 0 1px rgba(120, 200, 255, 0.45); animation: none; }
+.chip.return b { color: #78c8ff; }
+.chip img.champ { border-radius: 50%; filter: none; }
 .chip b { font-size: 1.0625rem; font-weight: 800; font-variant-numeric: tabular-nums; color: rgb(var(--tc)); }
 @keyframes chip-flare { 0% { transform: scale(1.12); box-shadow: inset 0 0 0 1px rgba(var(--tc), 1), 0 0 2rem rgba(var(--tc), 0.85); } 100% { transform: none; } }
 .toast { display: flex; align-items: center; gap: 0.5rem; padding: 0.3125rem 0.75rem 0.3125rem 0.3125rem; border-radius: 99rem; background: var(--bg-card); font-size: 0.875rem; font-weight: 700; text-shadow: var(--shadow);

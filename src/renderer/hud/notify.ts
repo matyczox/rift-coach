@@ -7,15 +7,18 @@ const chips = $('chips');
 const toasts = $('toasts');
 const live = new Map<number, HTMLElement>();
 
-const BUFF_NAME: Record<string, string> = { baron: 'Baron', elder: 'Starszy smok' };
+const BUFF_NAME: Record<string, string> = { baron: 'Baron', elder: 'Starszy smok', herald: 'Oko Herolda' };
 /** In-game minimap icons (CommunityDragon), bundled with the app. */
-const BUFF_ICON: Record<string, string> = { baron: 'icons/baron.png', elder: 'icons/dragon_elder.png' };
+const BUFF_ICON: Record<string, string> = { baron: 'icons/baron.png', elder: 'icons/dragon_elder.png', herald: 'icons/riftherald.png' };
+/** Held Eye duration is not exact (it may be used earlier): show it as an estimate. */
+const APPROX = new Set(['herald']);
 
 subscribe(({ state }, clock) => {
   const on = state.visible;
   // Chips: one per active buff, counting down between pushes.
   const buffs = on ? state.buffs ?? [] : [];
-  const key = buffs.map((b) => `${b.kind}:${b.team}`).join(',');
+  const rets = on ? state.returns ?? [] : [];
+  const key = buffs.map((b) => `${b.kind}:${b.team}`).concat(rets.map((r) => `r:${r.champion}`)).join(',');
   if (chips.dataset.k !== key) {
     chips.dataset.k = key;
     chips.replaceChildren(...buffs.map((b) => {
@@ -28,11 +31,25 @@ subscribe(({ state }, clock) => {
       const t = document.createElement('b');
       c.append(ic, n, t);
       return c;
+    }), ...rets.map((r) => {
+      const c = document.createElement('div');
+      c.className = 'chip return enemy';
+      const ic = document.createElement('img');
+      ic.src = r.iconUrl; ic.alt = ''; ic.className = 'champ';
+      const n = document.createElement('span');
+      n.textContent = 'na linii za';
+      c.append(ic, n, document.createElement('b'));
+      return c;
     }));
   }
+  const dt = clock.gameTime() - state.gameTime;
   [...chips.children].forEach((c, i) => {
     const b = buffs[i];
-    if (b) (c.lastChild as HTMLElement).textContent = fmtClock(b.secondsLeft - (clock.gameTime() - state.gameTime));
+    const r = rets[i - buffs.length];
+    const left = b ? b.secondsLeft : r ? r.secondsLeft : null;
+    if (left == null) return;
+    const shown = Math.max(0, left - dt);
+    (c.lastChild as HTMLElement).textContent = (b && APPROX.has(b.kind) ? '~' : '') + (r && shown <= 0 ? 'już' : fmtClock(shown));
   });
 
   // Toasts: add new ones, fly out the ones that left the state.

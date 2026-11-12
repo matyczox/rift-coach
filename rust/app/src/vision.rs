@@ -93,6 +93,10 @@ pub struct Toast {
 /// Per-game vision state (lives in `Game`, under the same lock as the intel).
 pub struct Field {
     pub toasts: Vec<Toast>,
+    /// Lane opponent walking back to lane: (champion, ETA as Date.now() ms).
+    pub returns: Vec<(String, f64)>,
+    /// Enemies dead in the last frame (respawn detection).
+    pub prev_dead: Vec<String>,
     pub tracker: Option<EnemyTracker>,
     pub camps: CampTracker,
     pub camp_status: Vec<CampStatus>,
@@ -120,6 +124,8 @@ impl Field {
         let tracker = std::panic::catch_unwind(|| EnemyTracker::new(Arc::new(GridTerrain::from_asset(128)), learner, 400)).map_err(|_| log::warn!("terrain: no walkable grid")).ok();
         Field {
             toasts: Vec::new(),
+            returns: Vec::new(),
+            prev_dead: Vec::new(),
             tracker,
             camps: CampTracker::default(),
             camp_status: Vec::new(),
@@ -146,6 +152,8 @@ impl Field {
     pub fn on_live_lost(&mut self) {
         self.alerts.clear();
         self.toasts.clear();
+        self.returns.clear();
+        self.prev_dead.clear();
         self.ghosts.clear();
         self.my_pos = None;
         self.roster_key.clear();
@@ -534,6 +542,25 @@ fn frame_loop(app: &tauri::AppHandle, st: &Arc<AppState>) {
 
 // ---------- results ----------
 
+/// Seconds for an enemy leaving their fountain to reach the lane: to me if I am on the map (not in
+/// my base), else to their lane's middle; straight line x1.15 for pathing, at their move speed,
+/// minus the Homeguard head start.
+pub fn return_eta(p: &PlayerIntel, my_pos: Option<(f64, f64)>, game_t: f64) -> f64 {
+    use rc_vision::tracker::{enemy::homeguard_extra_secs, predictor::fountain_of, MAP_UNITS};
+    let team = Team::parse(&p.team).unwrap_or(Team::Chaos);
+    let (fx, fy) = fountain_of(team);
+    let lane = match p.role.as_str() {
+        "TOP" => (0.13, 0.18),
+        "BOTTOM" | "UTILITY" => (0.82, 0.87),
+        _ => (0.5, 0.5),
+    };
+    let (bx, by) = fountain_of(team.other());
+    let target = my_pos.filter(|&(x, y)| (x - bx).hypot(y - by) > 0.2).unwrap_or(lane);
+    let dist = (target.0 - fx).hypot(target.1 - fy) * MAP_UNITS * 1.15;
+    let speed = if p.move_speed > 0.0 { p.move_speed } else { 345.0 };
+    (dist / speed - homeguard_extra_secs(30.0, game_t)).max(5.0)
+}
+
 pub fn lane_opponent(intel: &GameIntel) -> Option<&PlayerIntel> {
     let me = intel.me.as_ref()?;
     if me.role == "UNKNOWN" {
@@ -696,6 +723,21 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     let tracks = tracker.update(&FrameInput { t, detections: &dets, visible, enemies: &enemies, dragon_in: obj_in(dragon), baron_in: obj_in(baron) });
     // Proven recall (bought items while unseen) of any enemy -> short top-right toast.
     // (Auto-Flash stays off: dashes look the same on the minimap; Flash timers come from the hotkey.)
+    // Lane opponent back in base (proven back or respawn) -> ETA to lane, until seen again.
+    if let Some(opp) = lane_opponent(intel) {
+        let backed = tracks.iter().any(|tr| tr.champion == opp.champion && tr.recalled_at == Some(t));
+        let respawned = !opp.is_dead && f.prev_dead.contains(&opp.champion);
+        if backed || respawned {
+            let eta = return_eta(opp, f.my_pos, t);
+            f.returns.retain(|(c, _)| *c != opp.champion);
+            f.returns.push((opp.champion.clone(), now + eta * 1000.0));
+        }
+        if opp.is_dead || f.visible_enemies.iter().any(|e| e.champion == opp.champion) {
+            f.returns.retain(|(c, _)| *c != opp.champion);
+        }
+    }
+    f.returns.retain(|(_, until)| *until > now - 3000.0);
+    f.prev_dead = intel.players.iter().filter(|p| !p.is_ally && p.is_dead).map(|p| p.champion.clone()).collect();
     for tr in &tracks {
         if tr.recalled_at == Some(t) && intel.players.iter().any(|x| x.champion == tr.champion && !x.is_ally) {
             f.toasts.push(Toast { id: now as u64 ^ (f.toasts.len() as u64) << 1, kind: "recall".into(), team: "enemy".into(), champion: Some(tr.champion.clone()), text: format!("{} w bazie", tr.champion), expires_at: now + 3500.0 });

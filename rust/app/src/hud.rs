@@ -170,7 +170,7 @@ fn wants(st: &Value, has_minimap: bool, now: f64) -> Value {
         "loading": st["loadingCard"].is_object(),
         "power": (st["power"].is_object() || st["danger"].is_object() || st["alert"].is_object() || st["objective"].is_object()) && !st["deathCard"].is_object(),
         "build": st["build"]["items"].as_array().is_some_and(|a| !a.is_empty()),
-        "notify": !arr("toasts").is_empty() || !arr("buffs").is_empty(),
+        "notify": !arr("toasts").is_empty() || !arr("buffs").is_empty() || !arr("returns").is_empty(),
     })
 }
 
@@ -233,6 +233,7 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
         if let Some(o) = s.as_object_mut() {
             let gt = g.intel.as_ref().map(|i| i.game_time).unwrap_or(0.0);
             o.insert("toasts".into(), Value::Array(g.field.toasts.iter().map(|t| serde_json::json!({ "id": t.id, "kind": t.kind, "team": t.team, "text": t.text, "iconUrl": t.champion.as_deref().map(&icon), "expiresAt": t.expires_at })).collect()));
+            o.insert("returns".into(), Value::Array(g.field.returns.iter().map(|(c, until)| serde_json::json!({ "champion": c, "iconUrl": icon(c), "secondsLeft": ((until - now) / 1000.0).max(0.0).round() })).collect()));
             o.insert("buffs".into(), Value::Array(g.intel.as_ref().map(|i| i.buffs.iter().map(|b| serde_json::json!({ "kind": b.kind, "team": b.team, "secondsLeft": (b.until - gt).max(0.0).round() })).collect()).unwrap_or_default()));
         }
         s

@@ -257,7 +257,7 @@ pub fn build_snapshot(ctx: &CoachContext, previous: &[Value]) -> Value {
     if !i.buffs.is_empty() {
         o.insert(
             "buffs".into(),
-            json!(i.buffs.iter().map(|b| format!("{} ({}) do {}", if b.kind == "baron" { "Baron" } else { "Starszy smok" }, if b.team == "ally" { "my" } else { "wróg" }, fmt(b.until))).collect::<Vec<_>>()),
+            json!(i.buffs.iter().map(|b| format!("{} ({}) do {}", match b.kind { "baron" => "Baron", "herald" => "Oko Herolda", _ => "Starszy smok" }, if b.team == "ally" { "my" } else { "wróg" }, fmt(b.until))).collect::<Vec<_>>()),
         );
     }
     if let Some(a) = &i.ace {
