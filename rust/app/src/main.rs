@@ -72,6 +72,15 @@ fn hotkeys_on() -> bool {
 }
 
 pub fn on_settings_changed(app: &tauri::AppHandle, st: &Arc<AppState>) {
+    // New / fixed Riot key: fetch the enemy profiles again (also mid-game).
+    let key = st.settings.lock().unwrap().value().riot.api_key.clone();
+    {
+        let mut g = st.game.lock().unwrap();
+        if g.profiles_riot_key != key {
+            g.profiles_riot_key = key;
+            g.profiles_key.clear();
+        }
+    }
     knowledge::apply_models(st);
     vision::sync_settings(st);
     if hotkeys_on() {

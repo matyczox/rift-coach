@@ -28,6 +28,8 @@ pub struct Game {
     // ---- knowledge (Riot API / research) ----
     pub profiles: Vec<rc_core::riot::OpponentProfile>,
     pub profiles_key: String,
+    /// Riot key the profiles were fetched with: a new key retries them.
+    pub profiles_riot_key: String,
     pub patch_brief: Option<rc_core::patch_brief::PatchBrief>,
     pub patch_brief_requested: bool,
     pub matchup: Option<rc_core::intel::matchup::MatchupBrief>,
@@ -56,6 +58,7 @@ impl Game {
             field: crate::vision::Field::new(data_dir),
             profiles: Vec::new(),
             profiles_key: String::new(),
+            profiles_riot_key: String::new(),
             patch_brief: None,
             patch_brief_requested: false,
             matchup: None,

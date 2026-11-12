@@ -224,3 +224,34 @@ fn partial_vision_leaves_no_ghost() {
     }
     assert!(tr.all()[0].estimate.is_none(), "ghost under 80% vision: {:?}", tr.all()[0].estimate);
 }
+
+/// Audit V4 D: two hidden groups with an empty (visible) gap between them -> the estimate is in one
+/// group, not in the empty middle.
+#[test]
+fn estimate_not_in_empty_middle() {
+    let terrain = Arc::new(GridTerrain::open(64));
+    let mut pf = ParticleFilter::new(terrain, goals_for(Team::Chaos), 200);
+    pf.set_points(&[(0.42, 0.5), (0.42, 0.51), (0.58, 0.5), (0.58, 0.51)]);
+    let est = pf.estimate(0.7);
+    assert!((est.x - 0.42).abs() < 0.02 || (est.x - 0.58).abs() < 0.02, "center in the empty middle: {:?}", (est.x, est.y));
+}
+
+/// Audit V4 B: particles never end inside a wall while walking (no corner cutting, no partial step
+/// into a blocked cell).
+#[test]
+fn particles_never_walk_into_walls() {
+    let size = 64;
+    let mut grid = vec![1u8; size * size];
+    // A diagonal wall of single cells: corner cutting would slip through.
+    for k in 10..54 {
+        grid[k * size + k] = 0;
+    }
+    let terrain = Arc::new(GridTerrain::new(size, grid));
+    let mut pf = ParticleFilter::new(terrain.clone(), goals_for(Team::Chaos), 300);
+    let mut rng = Rng::new(3);
+    pf.reset((0.3, 0.6), &PriorContext::default(), None, &mut rng);
+    for _ in 0..60 {
+        pf.step(1.0, 380.0, &mut rng);
+        assert!(pf.particles.iter().all(|p| terrain.walkable(p.x, p.y)), "particle inside a wall");
+    }
+}

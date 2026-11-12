@@ -494,6 +494,10 @@ impl ParticleFilter {
                 }
                 let (mut bx, mut by, mut best) = (0i32, 0i32, here);
                 for &(dx, dy) in &NB8 {
+                    // No corner cutting: a diagonal step needs both orthogonal neighbours walkable.
+                    if dx != 0 && dy != 0 && (!t.walkable(p.x + dx as f64 * cell, p.y) || !t.walkable(p.x, p.y + dy as f64 * cell)) {
+                        continue;
+                    }
                     let v = t.sample(field, p.x + dx as f64 * cell, p.y + dy as f64 * cell);
                     if v < best {
                         best = v;
@@ -507,8 +511,13 @@ impl ParticleFilter {
                 let h = (bx as f64).hypot(by as f64);
                 let len = h * cell;
                 let mv = remaining.min(len);
-                p.x = clamp01(p.x + (bx as f64 / h) * mv);
-                p.y = clamp01(p.y + (by as f64 / h) * mv);
+                let (nx, ny) = (clamp01(p.x + (bx as f64 / h) * mv), clamp01(p.y + (by as f64 / h) * mv));
+                // A partial step can end inside a wall cell even when the target cell is free.
+                if !t.walkable(nx, ny) {
+                    break;
+                }
+                p.x = nx;
+                p.y = ny;
                 remaining -= mv;
             }
             self.particles[pi] = p;
@@ -618,7 +627,9 @@ impl ParticleFilter {
         }
         // The mean of two clusters on both sides of a wall can be inside the wall: then take the densest
         // particle (all particles are on walkable ground), not a point between the clusters.
-        if !self.terrain.walkable(mx, my) && !self.particles.is_empty() {
+        // Also when hardly any mass is near the center: the middle between two hidden groups (e.g. on
+        // both sides of a strip we can see) is an empty place, not a guess.
+        if (!self.terrain.walkable(mx, my) || self.mass_near((mx, my), 0.06) < 0.02) && !self.particles.is_empty() {
             let best = self
                 .particles
                 .iter()
