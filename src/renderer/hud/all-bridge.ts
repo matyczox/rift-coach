@@ -101,12 +101,18 @@ function layout(m: HudMessage, s: number): void {
   }
 }
 
-// ---- dragging: hover a panel (the window takes the mouse after 0.3 s) and drag it ----
+// ---- dragging: the app watches the cursor (this window never takes the mouse) ----
 const DRAGGABLE: HudWindowKind[] = ['topbar', 'death', 'loading', 'power', 'build', 'notify'];
 const localLayout: Partial<Record<HudWindowKind, { x: number; y: number }>> = {};
 let dragging: HudWindowKind | null = null;
-interface TauriEmit { event: { emit(name: string, payload: unknown): Promise<void> } }
-const tauriEmit = (window as unknown as { __TAURI__?: TauriEmit }).__TAURI__;
+let dragBase = { x: 0, y: 0 };
+interface TauriBus {
+  event: {
+    emit(name: string, payload: unknown): Promise<void>;
+    listen<T>(name: string, cb: (e: { payload: T }) => void): Promise<() => void>;
+  };
+}
+const bus = (window as unknown as { __TAURI__?: TauriBus }).__TAURI__;
 
 /** Visible content box of a panel (cards / pills), in window CSS px. */
 function contentBox(el: HTMLElement): DOMRect | null {
@@ -122,48 +128,46 @@ function contentBox(el: HTMLElement): DOMRect | null {
 
 let lastRects = '';
 function reportRects(): void {
-  const rects: number[][] = [];
+  const rects: Array<[string, number[]]> = [];
   for (const kind of DRAGGABLE) {
     const el = panels.get(kind)!;
     if (el.style.visibility !== 'visible') continue;
     const b = contentBox(el);
-    if (b) rects.push([Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)]);
+    if (b) rects.push([kind, [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)]]);
   }
   const key = JSON.stringify(rects);
-  if (key !== lastRects) { lastRects = key; void tauriEmit?.event.emit('hud-rects', rects); }
+  if (key !== lastRects) { lastRects = key; void bus?.event.emit('hud-rects', rects); }
 }
-window.setInterval(reportRects, 300);
+window.setInterval(reportRects, 250);
 
-for (const kind of DRAGGABLE) {
+const panelOf = (k: unknown) => (DRAGGABLE.includes(k as HudWindowKind) ? (k as HudWindowKind) : null);
+void bus?.event.listen<{ kind: string | null }>('hud-hover', (e) => {
+  for (const k of DRAGGABLE) panels.get(k)!.classList.toggle('grab', k === e.payload.kind);
+});
+void bus?.event.listen<{ kind: string; dx: number; dy: number }>('hud-drag', (e) => {
+  const kind = panelOf(e.payload.kind);
+  if (!kind) return;
   const el = panels.get(kind)!;
-  el.style.pointerEvents = 'auto';
-  el.style.cursor = 'move';
-  el.addEventListener('mousedown', (ev) => {
-    if (ev.button !== 0) return;
-    ev.preventDefault();
-    dragging = kind;
-    const sx = ev.clientX, sy = ev.clientY, ox = el.offsetLeft, oy = el.offsetTop;
-    const move = (e: MouseEvent) => {
-      el.style.left = `${Math.round(ox + e.clientX - sx)}px`;
-      el.style.top = `${Math.round(oy + e.clientY - sy)}px`;
-    };
-    const up = () => {
-      window.removeEventListener('mousemove', move);
-      window.removeEventListener('mouseup', up);
-      dragging = null;
-      const pos = { x: el.offsetLeft / viewW(), y: el.offsetTop / viewH() };
-      localLayout[kind] = pos;
-      void tauriEmit?.event.emit('hud-layout', { kind, ...pos });
-    };
-    window.addEventListener('mousemove', move);
-    window.addEventListener('mouseup', up);
-  });
-  // Double-click: back to the default place.
-  el.addEventListener('dblclick', () => {
-    delete localLayout[kind];
-    void tauriEmit?.event.emit('hud-layout', { kind, reset: true });
-  });
-}
+  if (dragging !== kind) { dragging = kind; dragBase = { x: el.offsetLeft, y: el.offsetTop }; }
+  el.classList.add('grab');
+  el.style.left = `${Math.round(dragBase.x + e.payload.dx)}px`;
+  el.style.top = `${Math.round(dragBase.y + e.payload.dy)}px`;
+});
+void bus?.event.listen<{ kind: string }>('hud-drag-end', (e) => {
+  const kind = panelOf(e.payload.kind);
+  if (!kind) return;
+  const el = panels.get(kind)!;
+  dragging = null;
+  const pos = { x: el.offsetLeft / viewW(), y: el.offsetTop / viewH() };
+  localLayout[kind] = pos;
+  void bus?.event.emit('hud-layout', { kind, ...pos });
+});
+void bus?.event.listen<{ kind: string }>('hud-drag-reset', (e) => {
+  const kind = panelOf(e.payload.kind);
+  if (!kind) return;
+  delete localLayout[kind];
+  void bus?.event.emit('hud-layout', { kind, reset: true });
+});
 
 const hideTimers = new Map<HudWindowKind, number>();
 

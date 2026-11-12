@@ -161,7 +161,10 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
     c.live_effort = Some(live.effort);
     c.review_effort = Some(death.effort);
     c.period_sec = coach_cfg.period_sec as f64;
-    crate::knowledge::maybe_build(st, &mut g, &coach_cfg.live_model, now);
+    // Build advice (an AI call) only on Summoner's Rift, like the coach.
+    if d.game_data.map_number == 11 {
+        crate::knowledge::maybe_build(st, &mut g, &coach_cfg.live_model, now);
+    }
     crate::knowledge::maybe_patch_brief(st, &mut g);
 
     let action = {

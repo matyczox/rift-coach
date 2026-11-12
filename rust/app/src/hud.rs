@@ -38,11 +38,15 @@ pub struct HudCtl {
     hide_at: Option<Instant>,
     last_payload: String,
     last_emit: Option<Instant>,
-    /// Draggable panels' visible boxes, CSS px relative to the HUD window (reported by the page).
-    pub rects: Vec<[f64; 4]>,
-    /// The window takes the mouse right now (cursor resting on a panel, or dragging one).
-    capture: bool,
+    /// Draggable panels' visible boxes (kind, [x, y, w, h] in CSS px of the HUD window), from the page.
+    pub rects: Vec<(String, [f64; 4])>,
+    hover_kind: Option<String>,
     hover_since: Option<Instant>,
+    hover_sent: bool,
+    /// Dragging: (panel, cursor x, cursor y at the press) in CSS px.
+    drag: Option<(String, f64, f64)>,
+    last_press: Option<(Instant, String)>,
+    lbutton_prev: bool,
 }
 
 pub type Hud = Mutex<HudCtl>;
@@ -218,7 +222,9 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
     let now = now_ms();
     let visible_setting = st.settings.lock().unwrap().value().overlay_visible;
     let recording = st.recorder.lock().unwrap().active();
-    let visible = visible_setting && !st.replay_blocks() && !crate::playback::is_open(st);
+    // Summoner's Rift only: no overlay at all in ARAM / Arena / other modes (no death card, no build).
+    let rift = st.game.lock().unwrap().field.map11 || crate::hud_test();
+    let visible = visible_setting && rift && !st.replay_blocks() && !crate::playback::is_open(st);
     let show_frame = st.vision.show_frame();
     let advice = st.ui.lock().unwrap().last_advice.clone();
     let state = {
@@ -351,16 +357,18 @@ pub fn spawn(app: &tauri::AppHandle, st: &Arc<AppState>) {
         .expect("spawn hud thread");
 }
 
-/// Drag panels by just hovering: the click-through window takes the mouse only while the cursor rests
-/// on a panel for 0.3 s (quick moves and clicks while playing still go to the game) or while the left
-/// button is held after that (dragging). The page reports panel boxes ('hud-rects') and new positions
-/// ('hud-layout', saved in settings.hudLayout as fractions of the game client area).
+/// Drag panels by just hovering. The HUD window stays click-through (an input-taking transparent
+/// WebView2 window either passes every click on or stops drawing); instead the app watches the cursor and
+/// the left button: rest on a panel for 0.3 s (the panel lights up), then press and drag. Double-click =
+/// default place. The page reports panel boxes ('hud-rects') and gets 'hud-hover' / 'hud-drag' /
+/// 'hud-drag-end' / 'hud-drag-reset'; it saves new positions with 'hud-layout' (settings.hudLayout,
+/// fractions of the game client area).
 pub fn spawn_drag(app: &tauri::AppHandle, st: &Arc<AppState>) {
     use tauri::Listener;
     {
         let st = st.clone();
         app.listen("hud-rects", move |e| {
-            if let Ok(v) = serde_json::from_str::<Vec<[f64; 4]>>(e.payload()) {
+            if let Ok(v) = serde_json::from_str::<Vec<(String, [f64; 4])>>(e.payload()) {
                 st.hud.lock().unwrap().rects = v;
             }
         });
@@ -388,7 +396,7 @@ pub fn spawn_drag(app: &tauri::AppHandle, st: &Arc<AppState>) {
     std::thread::Builder::new()
         .name("rc-hud-drag".into())
         .spawn(move || loop {
-            std::thread::sleep(Duration::from_millis(40));
+            std::thread::sleep(Duration::from_millis(30));
             hover_tick(&app, &st);
         })
         .expect("spawn hud drag thread");
@@ -396,50 +404,62 @@ pub fn spawn_drag(app: &tauri::AppHandle, st: &Arc<AppState>) {
 
 #[cfg(windows)]
 fn hover_tick(app: &tauri::AppHandle, st: &Arc<AppState>) {
+    use tauri::Emitter;
     use windows_sys::Win32::Foundation::POINT;
     use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
     use windows_sys::Win32::UI::WindowsAndMessaging::GetCursorPos;
     let Some(win) = app.get_webview_window(LABEL) else { return };
+    let scale = win.scale_factor().unwrap_or(1.0).max(0.1);
     let mut h = st.hud.lock().unwrap();
-    let over = match (h.placed, h.shown) {
-        (Some(g), true) if !h.rects.is_empty() => {
-            let mut p = POINT { x: 0, y: 0 };
-            // SAFETY: plain Win32 call with a valid out pointer.
-            let ok = unsafe { GetCursorPos(&mut p) } != 0;
-            let scale = win.scale_factor().unwrap_or(1.0).max(0.1);
-            let (cx, cy) = ((p.x - g.x) as f64 / scale, (p.y - g.y) as f64 / scale);
-            ok && h.rects.iter().any(|r| cx >= r[0] && cy >= r[1] && cx <= r[0] + r[2] && cy <= r[1] + r[3])
-        }
-        _ => false,
-    };
-    // SAFETY: plain Win32 call.
+    // SAFETY: plain Win32 calls with valid out pointers.
     let lbutton = unsafe { GetAsyncKeyState(VK_LBUTTON as i32) } as u16 & 0x8000 != 0;
-    if over {
-        h.hover_since.get_or_insert_with(Instant::now);
+    let mut p = POINT { x: 0, y: 0 };
+    let ok = unsafe { GetCursorPos(&mut p) } != 0;
+    let (Some(g), true, true) = (h.placed, h.shown, ok) else {
+        h.lbutton_prev = lbutton;
+        return;
+    };
+    let (cx, cy) = ((p.x - g.x) as f64 / scale, (p.y - g.y) as f64 / scale);
+    let mut emits: Vec<(&str, Value)> = Vec::new();
+    if let Some((kind, sx, sy)) = h.drag.clone() {
+        if lbutton {
+            emits.push(("hud-drag", json!({ "kind": kind, "dx": cx - sx, "dy": cy - sy })));
+        } else {
+            emits.push(("hud-drag-end", json!({ "kind": kind })));
+            h.drag = None;
+        }
     } else {
-        h.hover_since = None;
+        let over = h.rects.iter().find(|(_, r)| cx >= r[0] && cy >= r[1] && cx <= r[0] + r[2] && cy <= r[1] + r[3]).map(|(k, _)| k.clone());
+        if over != h.hover_kind {
+            h.hover_kind = over.clone();
+            h.hover_since = over.as_ref().map(|_| Instant::now());
+            if h.hover_sent {
+                emits.push(("hud-hover", json!({ "kind": Value::Null })));
+                h.hover_sent = false;
+            }
+        }
+        let rested = h.hover_since.is_some_and(|t| t.elapsed() >= Duration::from_millis(300));
+        if rested && !h.hover_sent {
+            emits.push(("hud-hover", json!({ "kind": h.hover_kind })));
+            h.hover_sent = true;
+        }
+        if lbutton && !h.lbutton_prev && rested {
+            if let Some(kind) = h.hover_kind.clone() {
+                let double = h.last_press.as_ref().is_some_and(|(t, k)| *k == kind && t.elapsed() < Duration::from_millis(400));
+                if double {
+                    emits.push(("hud-drag-reset", json!({ "kind": kind })));
+                    h.last_press = None;
+                } else {
+                    h.drag = Some((kind.clone(), cx, cy));
+                    h.last_press = Some((Instant::now(), kind));
+                }
+            }
+        }
     }
-    let rested = h.hover_since.is_some_and(|t| t.elapsed() >= Duration::from_millis(300));
-    let want = (over && rested) || (h.capture && lbutton);
-    if want != h.capture {
-        h.capture = want;
-        drop(h);
-        set_click_through(&win, !want);
-    }
-}
-
-/// Toggle only WS_EX_TRANSPARENT (mouse passes through). Tauri's set_ignore_cursor_events also drops
-/// WS_EX_LAYERED, which made the transparent HUD content vanish while it held the mouse.
-#[cfg(windows)]
-fn set_click_through(win: &tauri::WebviewWindow, through: bool) {
-    use windows_sys::Win32::UI::WindowsAndMessaging::{GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_LAYERED, WS_EX_TRANSPARENT};
-    let Ok(h) = win.hwnd() else { return };
-    // SAFETY: our own top-level window.
-    unsafe {
-        let h = h.0 as _;
-        let ex = GetWindowLongPtrW(h, GWL_EXSTYLE) as u32 | WS_EX_LAYERED;
-        let next = if through { ex | WS_EX_TRANSPARENT } else { ex & !WS_EX_TRANSPARENT };
-        SetWindowLongPtrW(h, GWL_EXSTYLE, next as isize);
+    h.lbutton_prev = lbutton;
+    drop(h);
+    for (name, v) in emits {
+        let _ = app.emit_to(LABEL, name, v);
     }
 }
 

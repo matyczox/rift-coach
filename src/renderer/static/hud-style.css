@@ -232,3 +232,5 @@ canvas.full { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .bd-buy-label { font-size: 0.75rem; font-weight: 700; color: #ffd27a; margin-bottom: 0.25rem; }
 .bd-buy-icons { display: flex; gap: 0.25rem; flex-wrap: wrap; }
 .bd-buy-icons img { width: 1.75rem; height: 1.75rem; border-radius: 0.25rem; box-shadow: 0 0 0 1px rgba(255, 210, 122, 0.6); }
+/* Panel you can grab now (cursor rested on it) */
+.panel.grab .card, .panel.grab .bar, .panel.grab .notify { outline: 2px dashed rgba(255, 210, 122, 0.85); outline-offset: 2px; border-radius: 0.625rem; }
