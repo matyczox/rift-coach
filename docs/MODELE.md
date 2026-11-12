@@ -137,4 +137,6 @@ W **Ustawieniach → Coach** wybierasz modele do każdej roli; jest też pole �
 - **Claude Code:** `claude-sonnet-5-5`, `claude-opus-5-5`, `claude-haiku-5-5`. Opus 5.5 wymaga Claude Code ≥ 2.1.280 (`claude update`).
 - **Codex:** `gpt-6.1-terra`, `gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-luna`.
 
+**Tryb fast:** GPT-6.1-Terra jest domyślnie wywoływana w trybie fast Codexa (`service_tier="fast"`), więc porady w grze przychodzą szybciej, ale zużywają więcej limitu subskrypcji. Lista modeli w trybie fast to `FAST_TIER_MODELS` w `src/main/coach/llm.ts` (oraz w `rust/crates/rc-core/src/llm/codex.rs`).
+
 Poziomy rozumowania są dobierane automatycznie według tego testu (`src/main/coach/profiles.ts`). Test można powtórzyć skryptem `scripts/dev/bench-models.ts` i ocenić skryptem `scripts/dev/bench-score.ts`.
