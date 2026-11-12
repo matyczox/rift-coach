@@ -7,6 +7,13 @@ use rc_core::wards::{ward_point, WARD_SPOTS};
 use serde_json::{json, Value};
 
 /// Fixed points on the minimap, normalized 0..1 (blue base bottom-left; never flipped).
+/// map_point for targets relative to the player's side ("base", "my-jungle", "enemy-jungle"):
+/// mirrored for the red side; objectives and lanes stay absolute.
+pub fn map_point_for(name: &str, red_side: bool) -> Option<(f64, f64)> {
+    let p = map_point(name)?;
+    Some(if red_side && matches!(name, "base" | "my-jungle" | "enemy-jungle") { (1.0 - p.0, 1.0 - p.1) } else { p })
+}
+
 pub fn map_point(name: &str) -> Option<(f64, f64)> {
     Some(match name {
         "dragon" => (0.67, 0.70),
@@ -186,7 +193,8 @@ pub fn compose_hud(i: &HudInputs) -> Value {
     let mut hints: Vec<Value> = Vec::new();
     if let Some(mh) = advice.and_then(|a| a.get("mapHint")).filter(|v| v.is_object()) {
         let target = mh.get("target").and_then(Value::as_str).unwrap_or("");
-        let p = map_point(target).or_else(|| Some((mh.get("x")?.as_f64()?, mh.get("y")?.as_f64()?)));
+        let red_side = intel.and_then(|x| x.me.as_ref()).is_some_and(|m| m.team == "CHAOS");
+        let p = map_point_for(target, red_side).or_else(|| Some((mh.get("x")?.as_f64()?, mh.get("y")?.as_f64()?)));
         if let Some((x, y)) = p {
             let kind = match mh.get("type").and_then(Value::as_str) {
                 Some("avoid") => "avoid",

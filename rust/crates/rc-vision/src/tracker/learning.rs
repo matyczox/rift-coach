@@ -84,6 +84,24 @@ pub struct Learner {
     pub model: LearnedModel,
     file: Option<PathBuf>,
     dirty: bool,
+    /// While a copy trains elsewhere (post-game timeline), live observations are also kept here so
+    /// they can be replayed onto the trained copy instead of being lost.
+    journal: Option<Vec<OwnedObservation>>,
+}
+
+/// Owned copy of an Observation (for the journal).
+#[derive(Clone, Debug)]
+pub struct OwnedObservation {
+    pub champion: String,
+    pub role: Role,
+    pub game_time: f64,
+    pub gap_sec: f64,
+    pub credit: KindMap,
+    pub prior: KindMap,
+    pub mass_model: f64,
+    pub mass_baseline: f64,
+    pub error_pred: f64,
+    pub error_base: f64,
 }
 
 fn r3(v: f64) -> f64 {
@@ -103,7 +121,7 @@ impl Learner {
                 }
             }
         }
-        Learner { model, file, dirty: false }
+        Learner { model, file, dirty: false, journal: None }
     }
 
     pub fn multipliers(&self, role: Role, game_time: f64) -> KindMap {
@@ -111,7 +129,30 @@ impl Learner {
     }
 
     /// Exponentiated-gradient step towards the goal kinds that explained the reappearance.
+    /// Copy to train on elsewhere; from now on live observations are journaled (see take_journal).
+    pub fn fork_for_training(&mut self) -> Learner {
+        let mut copy = self.clone();
+        copy.journal = None;
+        self.journal = Some(Vec::new());
+        copy
+    }
+
+    /// Live observations since fork_for_training (and stop journaling).
+    pub fn take_journal(&mut self) -> Vec<OwnedObservation> {
+        self.journal.take().unwrap_or_default()
+    }
+
+    /// Apply journaled live observations (merge after training on a fork).
+    pub fn replay(&mut self, js: &[OwnedObservation]) {
+        for o in js {
+            self.observe(Observation { champion: &o.champion, role: o.role, game_time: o.game_time, gap_sec: o.gap_sec, credit: o.credit.clone(), prior: o.prior.clone(), mass_model: o.mass_model, mass_baseline: o.mass_baseline, error_pred: o.error_pred, error_base: o.error_base });
+        }
+    }
+
     pub fn observe(&mut self, e: Observation) {
+        if let Some(j) = self.journal.as_mut() {
+            j.push(OwnedObservation { champion: e.champion.to_string(), role: e.role, game_time: e.game_time, gap_sec: e.gap_sec, credit: e.credit.clone(), prior: e.prior.clone(), mass_model: e.mass_model, mass_baseline: e.mass_baseline, error_pred: e.error_pred, error_base: e.error_base });
+        }
         let eps = 1e-3;
         let s = &mut self.model.score;
         s.n += 1;

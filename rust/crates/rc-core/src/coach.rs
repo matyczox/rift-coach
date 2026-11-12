@@ -346,6 +346,8 @@ pub struct AskRequest {
     pub reason: String,
     pub context_id: String,
     pub game_time: f64,
+    /// Coach session (one per game): a late answer from a previous game is dropped.
+    pub session: u64,
 }
 
 pub enum TickAction {
@@ -376,6 +378,8 @@ pub struct Coach {
     last_signature: String,
     /// Alert texts already reacted to (game time last seen); an alert triggers a call only when new.
     seen_alerts: Vec<(String, f64)>,
+    /// Incremented on every new game; requests carry it.
+    session: u64,
 }
 
 impl Default for Coach {
@@ -392,6 +396,7 @@ impl Default for Coach {
             auth_checked_at: None,
             last_signature: String::new(),
             seen_alerts: Vec::new(),
+            session: 0,
         }
     }
 }
@@ -416,6 +421,20 @@ impl Coach {
         self.set_state(if logged_in { "idle" } else { "not-logged-in" }, Some(error));
     }
 
+/// New game (or the game ended): forget everything per game — history, clocks (game time of the
+    /// last call would block the next game's early triggers), signature, alerts, pending/in-flight.
+    pub fn reset_session(&mut self) {
+        self.history.clear();
+        self.last_seen = LastSeen { dead: false, events: 0.0, my_level: 0, game_key: String::new() };
+        self.last_call_game_time = -999.0;
+        self.last_call_at = None;
+        self.last_signature.clear();
+        self.seen_alerts.clear();
+        self.pending_reason = None;
+        self.in_flight = false;
+        self.session += 1;
+    }
+
     /// Call on every intel update (~2/s).
     pub fn tick(&mut self, ctx: &CoachContext, now: Instant) -> TickAction {
         if !self.config.enabled {
@@ -436,8 +455,8 @@ impl Coach {
         let i = ctx.intel.expect("intel");
         let game_key = i.players.iter().map(|p| p.champion.as_str()).collect::<Vec<_>>().join("|");
         if game_key != self.last_seen.game_key {
-            self.history.clear();
-            self.last_seen = LastSeen { dead: false, events: 0.0, my_level: 0, game_key };
+            self.reset_session();
+            self.last_seen.game_key = game_key;
         }
         if let Some(r) = self.trigger(ctx) {
             if self.pending_reason.is_none() {
@@ -553,6 +572,7 @@ impl Coach {
         // In-game: no extended thinking. 5.x models answer without a thinking phase (/-5-5|-5/ in the TS).
         let thinking = if model.contains("-5") { None } else if is_death { Some(2000) } else { Some(0) };
         AskRequest {
+            session: self.session,
             call: ModelCall {
                 model,
                 system: game_system_prompt(ctx),
@@ -576,11 +596,17 @@ impl Coach {
     /// Result of an `Ask`. Returns the advice (CoachAdvice JSON; None when the model had nothing new
     /// to say or on error) and whether to re-check auth.
     pub fn complete(&mut self, req: &AskRequest, result: anyhow::Result<(Value, u64)>, created_at_ms: f64) -> (Option<Value>, bool) {
+        // Answer to a previous game's request: ignore (and leave the current request's in-flight flag alone).
+        if req.session != self.session {
+            return (None, false);
+        }
         self.in_flight = false;
         match result {
             Ok((value, latency)) => {
                 self.status.calls += 1;
                 self.status.last_latency_ms = Some(latency);
+                let mut value = value;
+                sanitize_advice(&mut value);
                 let call = value.get("call").and_then(Value::as_str).unwrap_or("").trim().to_string();
                 // A ward spot without words is easy to miss on the minimap: say it on the top bar.
                 let call = if call.is_empty() { ward_call(&value).unwrap_or(call) } else { call };
@@ -674,15 +700,38 @@ fn ward_call(value: &Value) -> Option<String> {
 
 /// Same objective and same stance ("Przygotuj się do smoka" / "Zbierzcie się na smoka"): a real game
 /// had three of those in a row. "Odpuść smoka" after "Smok teraz" is a change, not a repeat.
+/// The schema is only asked for: enforce it. TTL 10–40 s (a 3600 s ttl kept old advice for half a
+/// game), known tone, short call.
+pub fn sanitize_advice(v: &mut Value) {
+    let Some(o) = v.as_object_mut() else { return };
+    let ttl = o.get("ttlSec").and_then(Value::as_f64).filter(|t| t.is_finite()).unwrap_or(25.0).clamp(10.0, 40.0);
+    o.insert("ttlSec".into(), json!(ttl));
+    let tone = o.get("tone").and_then(Value::as_str).filter(|t| ["go", "wait", "danger", "farm"].contains(t)).unwrap_or("farm").to_string();
+    o.insert("tone".into(), json!(tone));
+    if let Some(c) = o.get("call").and_then(Value::as_str) {
+        let short: String = c.chars().take(40).collect();
+        o.insert("call".into(), json!(short));
+    }
+}
+
+/// "Nie rób Dragona", "Odpuść Dragona", "Unikaj walki": a call that says NOT to do something.
+pub fn negated(s: &str) -> bool {
+    let n = strip_diacritics(&s.to_lowercase());
+    n.split(|c: char| !c.is_alphanumeric()).any(|w| w == "nie" || w == "bez" || w.starts_with("odpu") || w.starts_with("unik") || w.starts_with("zostaw"))
+}
+
 pub fn same_objective_topic(a: &str, b: &str) -> bool {
     let norm = |x: &str| strip_diacritics(&x.to_lowercase());
     let topic = |s: &str| ["smok", "drag", "elder", "baron", "herol", "heral", "larw", "grub", "atakh"].into_iter().find(|t| s.contains(t)).map(|t| match t { "drag" | "elder" => "smok", "heral" => "herol", "grub" => "larw", x => x });
-    let neg = |s: &str| ["odpu", "nie ", "unik", "zostaw"].iter().any(|n| s.contains(n));
     let (na, nb) = (norm(a), norm(b));
-    matches!((topic(&na), topic(&nb)), (Some(x), Some(y)) if x == y) && neg(&na) == neg(&nb)
+    matches!((topic(&na), topic(&nb)), (Some(x), Some(y)) if x == y) && negated(a) == negated(b)
 }
 
 pub fn similar_call(a: &str, b: &str) -> bool {
+    // Changing the stance ("Dragon teraz" -> "Nie rób Dragona") is new information, never a repeat.
+    if negated(a) != negated(b) {
+        return false;
+    }
     let words = |x: &str| -> std::collections::HashSet<String> {
         let s: String = strip_diacritics(&x.to_lowercase()).chars().map(|c| if c.is_ascii_lowercase() || c.is_ascii_digit() || c == ' ' { c } else { ' ' }).collect();
         s.split_whitespace().filter(|w| w.len() > 3).map(|w| w[..w.len().min(5)].to_string()).collect()
@@ -720,6 +769,31 @@ mod tests {
         assert!(!text.contains(".0,"), "integers written like JSON.stringify: {text}");
         // me.hp from myStats replaces the per-player hp in place.
         assert!(s["me"]["hp"].as_str().unwrap().contains('/'));
+    }
+
+    /// Audit #6 + #11: a new game is not blocked by the previous game's clock; a late answer from the
+    /// old game is dropped; ttlSec is clamped.
+    #[test]
+    fn new_game_resets_session() {
+        let mut c = Coach::default();
+        let mut i = intel();
+        let t0 = Instant::now();
+        assert!(matches!(c.tick(&CoachContext { intel: Some(&i), ..Default::default() }, t0), TickAction::CheckAuth));
+        c.auth_result(true, None);
+        i.game_time = 1800.0;
+        let TickAction::Ask(old) = c.tick(&CoachContext { intel: Some(&i), ..Default::default() }, t0) else { panic!("ask") };
+        // New game: other champions, early game time.
+        let mut j = intel();
+        j.players[0].champion = "Garen".into();
+        j.game_time = 70.0;
+        let TickAction::Ask(_new) = c.tick(&CoachContext { intel: Some(&j), ..Default::default() }, t0 + Duration::from_secs(1)) else { panic!("new game must ask") };
+        // The old game's answer arrives late: ignored.
+        let (adv, _) = c.complete(&old, Ok((json!({ "call": "Baron teraz", "tone": "go", "ttlSec": 20 }), 10)), 1.0e12);
+        assert!(adv.is_none());
+        let mut v = json!({ "call": "Dragon teraz", "tone": "weird", "ttlSec": 3600 });
+        sanitize_advice(&mut v);
+        assert_eq!(v["ttlSec"], 40.0);
+        assert_eq!(v["tone"], "farm");
     }
 
     #[test]
@@ -867,7 +941,7 @@ mod tests {
         assert_eq!(c.status.state, "idle");
         assert_eq!(c.status.calls, 1);
         let ok = |c: &mut Coach, call: &str| {
-            let req = AskRequest { call: ModelCall::default(), reason: "periodic".into(), context_id: "x".into(), game_time: 0.0 };
+            let req = AskRequest { call: ModelCall::default(), reason: "periodic".into(), context_id: "x".into(), game_time: 0.0, session: c.session };
             c.in_flight = true;
             c.complete(&req, Ok((json!({ "call": call, "tone": "farm", "ttlSec": 20, "deathReview": null }), 10)), 1.0).0
         };
@@ -933,6 +1007,10 @@ mod tests {
         assert!(same_objective_topic("Przygotuj się do smoka", "Zbierzcie się na smoku"));
         assert!(!same_objective_topic("Zbierzcie się na smoka", "Odpuść walkę o smoka"));
         assert!(!same_objective_topic("Smok teraz", "Baron teraz"));
+        // Audit #1: reversing a decision must get through.
+        assert!(!similar_call("Dragon teraz", "Nie rób Dragona"));
+        assert!(!similar_call("Pushuj", "Nie pushuj"));
+        assert!(!same_objective_topic("Dragon teraz", "Nie rób Dragona"));
         assert!(similar_call("Farmuj pod wieżą", "Farmuj pod wieżą — gank"));
         assert!(similar_call("Nie pushuj — jungler top", "nie PUSHUJ, jungler top!"));
         assert!(similar_call("Zaczekaj na smoka", "Zaczekaj z grupą na smoka teraz"));

@@ -151,7 +151,8 @@ pub fn train_file(st: &AppState, file: &std::path::Path, m: &rc_core::riot::type
         let ids = g.static_data.as_ref().map(|sd| sd.champion_ids.clone()).unwrap_or_default();
         let model_file = st.data_dir.join("model").join("fog-model.json");
         let l = match g.field.tracker.as_mut() {
-            Some(t) => std::mem::replace(&mut t.learner, Learner::new(None)),
+            // Train a copy; the live tracker keeps learning (journaled) and both are merged after.
+            Some(t) => t.learner.fork_for_training(),
             None => Learner::new(Some(model_file)),
         };
         (l, ids)
@@ -162,11 +163,16 @@ pub fn train_file(st: &AppState, file: &std::path::Path, m: &rc_core::riot::type
     let mut tt = TrainTracker::new(learner);
     let res = train_from_observations(&log, &mut tt, &truth);
     let mut learner = tt.0.learner;
-    let saved = learner.save();
     let mut g = st.game.lock().unwrap();
-    if let Some(t) = g.field.tracker.as_mut() {
-        t.learner = learner;
-    }
+    let saved = match g.field.tracker.as_mut() {
+        Some(t) => {
+            let live = t.learner.take_journal();
+            learner.replay(&live);
+            t.learner = learner;
+            t.learner.save()
+        }
+        None => learner.save(),
+    };
     saved?;
     Ok(serde_json::to_string(&res)?)
 }

@@ -139,6 +139,11 @@ pub struct Field {
     pub ghosts: Vec<MinimapGhost>,
     pub alerts: Vec<Alert>,
     pub my_pos: Option<(f64, f64)>,
+    /// When my portrait was last seen (Date.now() ms): the position expires after a few seconds.
+    pub my_pos_at: f64,
+    /// Recalls already announced: (champion, recalled_at game time). Vision runs faster than the Live
+    /// API, so the same recall shows up on several frames.
+    pub recall_seen: Vec<(String, f64)>,
     pub allies: Vec<SeenUnit>,
     pub visible_enemies: Vec<SeenUnit>,
     /// Fog mask (P(visible) per cell, `mask_grid`², row-major).
@@ -170,6 +175,8 @@ impl Field {
             ghosts: Vec::new(),
             alerts: Vec::new(),
             my_pos: None,
+            my_pos_at: 0.0,
+            recall_seen: Vec::new(),
             allies: Vec::new(),
             visible_enemies: Vec::new(),
             mask: None,
@@ -195,6 +202,7 @@ impl Field {
         self.prev_dead.clear();
         self.ghosts.clear();
         self.my_pos = None;
+        self.recall_seen.clear();
         self.roster_key.clear();
         self.roster_ready = false;
         self.allies.clear();
@@ -491,6 +499,7 @@ fn manual_calibration(st: &AppState) -> bool {
 
 fn frame_loop(app: &tauri::AppHandle, st: &Arc<AppState>) {
     let mut last_seq = 0u64;
+    let mut last_frame_at = 0u64;
     let mut last_preview = 0u64;
     let mut preview_on = false;
     let mut preview_checked = Instant::now() - Duration::from_secs(1);
@@ -516,6 +525,12 @@ fn frame_loop(app: &tauri::AppHandle, st: &Arc<AppState>) {
             continue;
         }
         last_seq = seq;
+        // Same image again (WGC repeats its last frame with a new seq when nothing new arrives) or an
+        // image older than 2 s: not a new observation of the game.
+        if f.at_ms <= last_frame_at || (now_ms() as u64).saturating_sub(f.at_ms) > 2000 {
+            continue;
+        }
+        last_frame_at = f.at_ms;
         let cal = st.vision.calibration();
         // Minimap preview for the control window (Minimapa tab), only while it is shown.
         if preview_checked.elapsed() >= Duration::from_millis(500) {
@@ -757,6 +772,10 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     if let Some(me) = intel.me.as_ref() {
         if let Some(d) = r.detections.iter().find(|d| d.champion == me.champion) {
             f.my_pos = Some((d.x, d.y));
+            f.my_pos_at = now;
+        } else if me.is_dead || now - f.my_pos_at > 3000.0 {
+            // Unknown, not "where I was": an old position fed alerts, the fight bar and the coach.
+            f.my_pos = None;
         }
     }
     f.allies = r.detections.iter().filter(|d| d.team == my_team_t).map(|d| with_vel(&f.allies, d)).collect();
@@ -813,7 +832,9 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     let n0 = f.camps.events.len();
     f.camp_status = f.camps.update(t, &r.camps, visible);
     let new_events: Vec<_> = f.camps.events[n0..].to_vec();
-    let mut camp_sightings: Vec<Detection> = Vec::new();
+    // Camp cleared on the enemy side: a soft hint for their jungler's fog estimate (it may have been a
+    // laner or one of us), never a detection / learning label.
+    let mut camp_hints: Vec<(String, (f64, f64))> = Vec::new();
     let enemy_jg = intel.players.iter().find(|p| !p.is_ally && p.role == "JUNGLE");
     for ev in new_events.iter().filter(|e| e.kind == CampEventKind::Cleared) {
         let Some(camp) = CAMPS.iter().find(|c| c.id == ev.id) else { continue };
@@ -821,7 +842,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         let fresh = ev.earliest.is_none_or(|e| ev.at - e <= 10.0);
         if let Some(jg) = enemy_jg {
             if side != my_team && camp.side != CampSide::Neutral && fresh && !r.detections.iter().any(|d| d.champion == jg.champion) {
-                camp_sightings.push(Detection { champion: jg.champion.clone(), team: Team::parse(&jg.team).unwrap_or(my_team_t.other()), x: camp.x, y: camp.y, score: 0.7, margin: 0.0, votes: 0.0 });
+                camp_hints.push((jg.champion.clone(), (camp.x, camp.y)));
             }
         }
         if side == my_team {
@@ -834,15 +855,28 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             }
         }
     }
-    let mut dets: Vec<Detection> = r.detections.iter().filter(|d| d.team != my_team_t).cloned().collect();
-    dets.extend(camp_sightings);
+    let dets: Vec<Detection> = r.detections.iter().filter(|d| d.team != my_team_t).cloned().collect();
     let tracker = f.tracker.as_mut().unwrap();
+    for (c, q) in &camp_hints {
+        tracker.soft_hint(c, *q);
+    }
     let tracks = tracker.update(&FrameInput { t, detections: &dets, visible, enemies: &enemies, dragon_in: obj_in(dragon), baron_in: obj_in(baron) });
     // Proven recall (bought items while unseen) of any enemy -> short top-right toast.
     // (Auto-Flash stays off: dashes look the same on the minimap; Flash timers come from the hotkey.)
     // Lane opponent back in base (proven back or respawn) -> ETA to lane, until seen again.
+    // New recalls only (once per recall, not once per vision frame).
+    let mut new_recalls: Vec<String> = Vec::new();
+    for tr in &tracks {
+        if let Some(at) = tr.recalled_at.filter(|at| t - at < 5.0) {
+            if !f.recall_seen.iter().any(|(c, a)| *c == tr.champion && (*a - at).abs() < 1e-6) {
+                f.recall_seen.retain(|(c, _)| *c != tr.champion);
+                f.recall_seen.push((tr.champion.clone(), at));
+                new_recalls.push(tr.champion.clone());
+            }
+        }
+    }
     if let Some(opp) = lane_opponent(intel) {
-        let backed = tracks.iter().any(|tr| tr.champion == opp.champion && tr.recalled_at == Some(t));
+        let backed = new_recalls.contains(&opp.champion);
         let respawned = !opp.is_dead && f.prev_dead.contains(&opp.champion);
         if backed || respawned {
             let eta = return_eta(opp, f.my_pos, t);
@@ -856,7 +890,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     f.returns.retain(|(_, until)| *until > now - 3000.0);
     f.prev_dead = intel.players.iter().filter(|p| !p.is_ally && p.is_dead).map(|p| p.champion.clone()).collect();
     for tr in &tracks {
-        if tr.recalled_at == Some(t) && intel.players.iter().any(|x| x.champion == tr.champion && !x.is_ally) {
+        if new_recalls.contains(&tr.champion) && intel.players.iter().any(|x| x.champion == tr.champion && !x.is_ally) {
             f.toasts.push(Toast { id: now as u64 ^ (f.toasts.len() as u64) << 1, kind: "recall".into(), team: "enemy".into(), champion: Some(tr.champion.clone()), text: format!("{} w bazie", tr.champion), expires_at: now + 3500.0 });
         }
     }

@@ -482,6 +482,7 @@ impl ParticleFilter {
     /// Negative evidence: `visible(x,y)` = P(point in our vision now). Returns false when every
     /// hypothesis is contradicted (weights left unnormalised, as in TS).
     pub fn observe_absent(&mut self, visible: &dyn Fn(f64, f64) -> f64, rng: &mut Rng) -> bool {
+        let before: f64 = self.particles.iter().map(|p| p.w).sum();
         let mut total = 0.0;
         for p in self.particles.iter_mut() {
             let v = visible(clamp01(p.x), clamp01(p.y));
@@ -489,7 +490,10 @@ impl ParticleFilter {
             p.w *= 1.0 - 0.95 * v;
             total += p.w;
         }
-        if !(total > 1e-9) {
+        // Almost all of the mass sat where we can see and nobody is there: the whole hypothesis is
+        // contradicted. (Normalizing would bring the same distribution back — e.g. full map vision
+        // left a ghost at ~95% confidence.)
+        if !(total > 1e-9) || total < before * 0.12 {
             return false;
         }
         for p in self.particles.iter_mut() {
@@ -499,6 +503,32 @@ impl ParticleFilter {
             self.resample(rng);
         }
         true
+    }
+
+    /// Soft evidence ("a camp near q was just cleared"): particles near q gain weight, the rest keep
+    /// at least `floor` of theirs. Not a sighting: no state change, nothing to learn from.
+    pub fn observe_hint(&mut self, q: (f64, f64), r: f64, floor: f64, rng: &mut Rng) {
+        let mut total = 0.0;
+        for p in self.particles.iter_mut() {
+            let d2 = (p.x - q.0).powi(2) + (p.y - q.1).powi(2);
+            p.w *= floor + (1.0 - floor) * (-d2 / (2.0 * r * r)).exp();
+            total += p.w;
+        }
+        if total > 1e-12 {
+            for p in self.particles.iter_mut() {
+                p.w /= total;
+            }
+            if self.effective_n() < self.n as f64 * 0.5 {
+                self.resample(rng);
+            }
+        }
+    }
+
+    /// Tests: replace the particles with equally weighted points.
+    #[doc(hidden)]
+    pub fn set_points(&mut self, pts: &[(f64, f64)]) {
+        let w = 1.0 / pts.len().max(1) as f64;
+        self.particles = pts.iter().map(|&(x, y)| Particle { x, y, goal: 0, w, arrived: false }).collect();
     }
 
     pub fn effective_n(&self) -> f64 {
@@ -547,6 +577,18 @@ impl ParticleFilter {
                 mx = sx / sw;
                 my = sy / sw;
             }
+        }
+        // The mean of two clusters on both sides of a wall can be inside the wall: then take the densest
+        // particle (all particles are on walkable ground), not a point between the clusters.
+        if !self.terrain.walkable(mx, my) && !self.particles.is_empty() {
+            let best = self
+                .particles
+                .iter()
+                .step_by((self.particles.len() / 80).max(1))
+                .max_by(|a, b| self.mass_near((a.x, a.y), 0.05).total_cmp(&self.mass_near((b.x, b.y), 0.05)))
+                .unwrap();
+            mx = best.x;
+            my = best.y;
         }
         let mut ds: Vec<(f64, f64)> = self.particles.iter().map(|p| ((p.x - mx).hypot(p.y - my), p.w)).collect();
         ds.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap_or(std::cmp::Ordering::Equal));

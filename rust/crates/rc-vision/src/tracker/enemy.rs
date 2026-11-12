@@ -334,6 +334,7 @@ impl EnemyTracker {
                         let mult = hg.map_or(1.0, |a| homeguard_mult(a - dt * 0.5, f.t));
                         pf.step(dt, e.move_speed * mult, &mut self.rng);
                     }
+                    let mut contradicted = false;
                     if let Some(vis) = f.visible {
                         let ok = pf.observe_absent(vis, &mut self.rng);
                         if !ok {
@@ -342,16 +343,23 @@ impl EnemyTracker {
                                 pf.reset((l.x, l.y), &ctx, None, &mut self.rng);
                                 pf.step((f.t - l.t).min(60.0), e.move_speed, &mut self.rng);
                             }
+                            // Still all in sight (e.g. full vision): no honest guess -> no ghost.
+                            contradicted = !pf.observe_absent(vis, &mut self.rng);
                         }
                     }
                     // Calibrated: the particle spread alone is overconfident; a speed x time floor
                     // brings truth-inside to ~70% for the first 15 s in fog.
-                    let est = pf.estimate(0.7);
-                    let age = f.t - tr.pub_.fog_since.unwrap_or(f.t);
-                    let extra = hg.map_or(0.0, |a| homeguard_extra_secs(a, f.t));
-                    let est = Estimate { radius: est.radius.max((e.move_speed / MAP_UNITS) * (age + extra)).min(0.45), ..est };
-                    tr.pub_.estimate = Some(est);
-                    tr.frozen = Some(est);
+                    if contradicted {
+                        tr.pub_.estimate = None;
+                        tr.frozen = None;
+                    } else {
+                        let est = pf.estimate(0.7);
+                        let age = f.t - tr.pub_.fog_since.unwrap_or(f.t);
+                        let extra = hg.map_or(0.0, |a| homeguard_extra_secs(a, f.t));
+                        let est = Estimate { radius: est.radius.max((e.move_speed / MAP_UNITS) * (age + extra)).min(0.45), ..est };
+                        tr.pub_.estimate = Some(est);
+                        tr.frozen = Some(est);
+                    }
                 }
             }
         }
@@ -359,6 +367,16 @@ impl EnemyTracker {
     }
 
     /// Offline training: the true position of a fogged champion at time t is known.
+    /// Soft evidence for a champion in fog (e.g. a camp near q was cleared): reweights the fog
+    /// estimate only. Never a sighting: the track stays in Fog and nothing is learned from it.
+    pub fn soft_hint(&mut self, champion: &str, q: (f64, f64)) {
+        if let Some(tr) = self.tracks.iter_mut().find(|t| t.pub_.champion == champion && t.pub_.state == TrackState::Fog) {
+            if let Some(pf) = tr.pf.as_mut() {
+                pf.observe_hint(q, 0.06, 0.35, &mut self.rng);
+            }
+        }
+    }
+
     pub fn train_at(&mut self, champion: &str, q: (f64, f64), t: f64) {
         let Some(i) = self.tracks.iter().position(|t| t.pub_.champion == champion) else { return };
         if self.tracks[i].pub_.state != TrackState::Fog {

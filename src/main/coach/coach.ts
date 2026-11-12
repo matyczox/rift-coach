@@ -303,7 +303,13 @@ export function sameObjectiveTopic(a: string, b: string): boolean {
   return !!topic(A) && topic(A) === topic(B) && neg(A) === neg(B);
 }
 
+/** "Nie rób Dragona" / "Odpuść" / "Unikaj": a call that says NOT to do something. */
+export function negated(s: string): boolean {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').split(/[^a-z0-9]+/).some(w => w === 'nie' || w === 'bez' || w.startsWith('odpu') || w.startsWith('unik') || w.startsWith('zostaw'));
+}
+
 export function similarCall(a: string, b: string): boolean {
+  if (negated(a) !== negated(b)) return false;
   const words = (x: string) => new Set(x.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 3).map(w => w.slice(0, 5)));
   const A = words(a), B = words(b);
   if (!A.size || !B.size) return false;

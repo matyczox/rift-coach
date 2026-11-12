@@ -82,8 +82,9 @@ pub fn on_live_lost(st: &Arc<AppState>) {
     let mut g = st.game.lock().unwrap();
     g.intel = None;
     g.build = None;
-    // Per-game tip counter.
+    // Per-game tip counter and the whole coach session (clocks, history, pending answers).
     g.coach.status.calls = 0;
+    g.coach.reset_session();
     g.field.on_live_lost();
     drop(g);
     st.ui.lock().unwrap().last_advice = None;
@@ -206,8 +207,19 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
 pub fn check_auth(rt: &tokio::runtime::Handle, st: &Arc<AppState>) {
     let st = st.clone();
     rt.spawn(async move {
-        let a = rc_core::llm::claude::auth_status().await;
-        st.game.lock().unwrap().coach.auth_result(a.logged_in, a.error);
+        // Check the backend of the selected model: a Codex-only setup must not be blocked by a missing
+        // Claude login (and the other way round).
+        let model = st.game.lock().unwrap().coach.config.live_model.clone();
+        let (ok, err) = if rc_core::llm::is_codex_model(&model) {
+            match rc_core::llm::codex::resolve_codex().await {
+                Some(_) => (true, None),
+                None => (false, Some("Codex nie jest zainstalowany".to_string())),
+            }
+        } else {
+            let a = rc_core::llm::claude::auth_status().await;
+            (a.logged_in, a.error)
+        };
+        st.game.lock().unwrap().coach.auth_result(ok, err);
     });
 }
 

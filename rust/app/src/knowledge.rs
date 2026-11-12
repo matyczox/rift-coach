@@ -204,6 +204,12 @@ pub fn fed_names(intel: &GameIntel) -> Vec<String> {
     fed_champions(intel).into_iter().filter(|p| !p.is_ally).map(|p| p.champion.clone()).collect()
 }
 
+/// Game + my champion: a build answer is only valid for the session it was asked for.
+fn build_session(intel: &GameIntel) -> String {
+    let me = intel.me.as_ref().map(|m| m.champion.as_str()).unwrap_or("");
+    format!("{me}|{}", intel.players.iter().map(|p| p.champion.as_str()).collect::<Vec<_>>().join(","))
+}
+
 /// Build panel: re-ask the build model on item / enemy-item / death changes or every 3 min.
 pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64) {
     let (Some(sd), Some(intel)) = (g.static_data.clone(), g.intel.as_ref()) else { return };
@@ -213,6 +219,8 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
     let brief = brief_text(g, intel);
     let Some(ctx) = build_context(intel, &sd.items, &g.profiles, brief.as_deref(), &fed_names(intel)) else { return };
     g.build_busy = true;
+    // Who asked: same game + same champion when the answer comes back, or it is dropped.
+    let asked_for = build_session(intel);
     let p = pick(live_model, Task::Build, g.backends);
     let st = st.clone();
     st.rt.clone().spawn(async move {
@@ -222,7 +230,19 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
         let mut g = st.game.lock().unwrap();
         g.build_busy = false;
         match r {
-            Ok(b) => g.build = Some(b),
+            Ok(mut b) => {
+                let Some(intel) = g.intel.as_ref() else { return };
+                if build_session(intel) != asked_for {
+                    log::info!("build: answer for another game / champion dropped");
+                    return;
+                }
+                // Bought while the model was thinking: never recommend what I already have.
+                let owned: Vec<String> = intel.me.as_ref().map(|m| m.items.iter().map(|i| i.name.to_lowercase()).collect()).unwrap_or_default();
+                b.items.retain(|it| !owned.contains(&it.name.to_lowercase()));
+                if !b.items.is_empty() {
+                    g.build = Some(b);
+                }
+            }
             Err(e) => log::warn!("build {e}"),
         }
     });

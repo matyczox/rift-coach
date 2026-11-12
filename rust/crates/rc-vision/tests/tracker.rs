@@ -149,3 +149,60 @@ fn rng_matches_ts_xorshift() {
     let v: Vec<f64> = (0..4).map(|_| r.next()).collect();
     assert_eq!(v, vec![0.92633, 0.253807, 0.511904, 0.480042]);
 }
+
+// ---- Audit regressions (2026-11-12) ----
+
+/// #3: full map vision, portrait missing for a while -> no ghost (was ~95% confidence).
+#[test]
+fn full_vision_leaves_no_ghost() {
+    let mut tr = EnemyTracker::new(open(), Learner::new(None), 200);
+    let e = [ww()];
+    let all_visible = |_x: f64, _y: f64| 1.0;
+    let mut t = 200.0;
+    for _ in 0..5 {
+        tr.update(&FrameInput { t, detections: &[det(0.6, 0.4)], visible: Some(&all_visible), enemies: &e, dragon_in: None, baron_in: None });
+        t += 0.1;
+    }
+    for _ in 0..10 {
+        tr.update(&FrameInput { t, detections: &[], visible: Some(&all_visible), enemies: &e, dragon_in: None, baron_in: None });
+        t += 0.1;
+    }
+    assert!(tr.all()[0].estimate.is_none(), "ghost under full vision: {:?}", tr.all()[0].estimate);
+}
+
+/// #2: a camp hint reweights the fog estimate but is not a sighting and teaches nothing.
+#[test]
+fn camp_hint_is_not_a_sighting() {
+    let mut tr = EnemyTracker::new(open(), Learner::new(None), 200);
+    let e = [ww()];
+    let mut t = 200.0;
+    for _ in 0..5 {
+        upd(&mut tr, t, &[det(0.3, 0.3)], &e);
+        t += 0.1;
+    }
+    for _ in 0..40 {
+        upd(&mut tr, t, &[], &e);
+        t += 0.1;
+    }
+    assert_eq!(tr.all()[0].state, TrackState::Fog);
+    tr.soft_hint("Warwick", (0.35, 0.3));
+    upd(&mut tr, t, &[], &e);
+    assert_eq!(tr.all()[0].state, TrackState::Fog);
+    assert_eq!(tr.learner.summary().samples, 0);
+}
+
+/// #7: two clusters on both sides of a wall -> the estimate is on walkable ground.
+#[test]
+fn estimate_not_inside_a_wall() {
+    let size = 64;
+    let mut grid = vec![1u8; size * size];
+    for y in 0..size {
+        grid[y * size + 32] = 0;
+    }
+    let terrain = Arc::new(GridTerrain::new(size, grid));
+    let mut pf = ParticleFilter::new(terrain.clone(), goals_for(Team::Chaos), 200);
+    // The audit case: one particle each side of the wall column (x = 32/64).
+    pf.set_points(&[(0.45, 0.5), (0.55, 0.5)]);
+    let est = pf.estimate(0.7);
+    assert!(terrain.walkable(est.x, est.y), "center in a wall: {:?}", (est.x, est.y));
+}

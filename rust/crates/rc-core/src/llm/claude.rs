@@ -100,13 +100,20 @@ pub async fn run(bin: &std::path::Path, args: &[String], stdin: &str, env: &[(&s
         st
     })
     .await;
-    let _ = writer.await;
-    let stdout = String::from_utf8_lossy(&out_buf.lock().await).into_owned();
-    let stderr = String::from_utf8_lossy(&err_buf.lock().await).into_owned();
     match waited {
-        Ok(st) => Ok(Output { stdout, stderr, code: st.ok().and_then(|s| s.code()) }),
+        Ok(st) => {
+            let _ = writer.await;
+            let stdout = String::from_utf8_lossy(&out_buf.lock().await).into_owned();
+            let stderr = String::from_utf8_lossy(&err_buf.lock().await).into_owned();
+            Ok(Output { stdout, stderr, code: st.ok().and_then(|s| s.code()) })
+        }
         Err(_) => {
+            // Kill first: a child that does not read stdin keeps the writer blocked on a full pipe, and
+            // awaiting it here delayed the timeout until the child exited on its own.
             let _ = child.kill().await;
+            writer.abort();
+            let stdout = String::from_utf8_lossy(&out_buf.lock().await).into_owned();
+            let stderr = String::from_utf8_lossy(&err_buf.lock().await).into_owned();
             Err(RunError::Timeout { stdout, stderr })
         }
     }

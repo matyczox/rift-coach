@@ -208,6 +208,12 @@ pub fn train_from_observations(log: &ObsLog, tracker: &mut dyn ObsTracker, truth
         let visible = unpack_mask(&f.m);
         let tracks = tracker.update(f.t, &f.d, &visible, &enemies, &log.enemy_team, f.dr, f.br);
         if f.t >= next_minute as f64 * 60.0 {
+            // Compare only with the truth of THIS moment: a frame at 190 s must not be scored against the
+            // timeline position of minute 1 (late start / gaps). Skip minutes with no frame near them.
+            if f.t - next_minute as f64 * 60.0 > 3.0 {
+                next_minute = (f.t / 60.0).floor() as usize + 1;
+                continue;
+            }
             for tr in &tracks {
                 let (true, Some(est), Some(last)) = (tr.in_fog, tr.estimate, tr.last) else { continue };
                 let Some(q) = truth(&tr.champion, next_minute) else { continue };
@@ -307,6 +313,23 @@ mod tests {
         assert_eq!(s.trained[0], ("Zed".into(), (0.55, 0.5), 60.0));
         assert!((r.inside - 0.5).abs() < 1e-9);
         assert!((r.err_model - (0.05 + 0.4) / 2.0).abs() < 1e-9);
+    }
+
+    /// Audit #5: a log starting at 190 s must not be scored against minute 1's truth.
+    #[test]
+    fn late_start_skips_past_minutes() {
+        let m = pack_mask(&vec![1f32; 64 * 64], 64);
+        let frames = (190..=245).map(|t| ObsFrame { t: t as f64, d: vec![], m: m.clone(), e: vec![("Zed".into(), "MIDDLE".into(), 0, 345.0, 0.0)], dr: None, br: None }).collect();
+        let log = ObsLog { game_id: Some(1), team: "ORDER".into(), enemy_team: "CHAOS".into(), frames };
+        let mut s = Stub { trained: vec![], updates: 0 };
+        let asked = std::cell::RefCell::new(Vec::new());
+        train_from_observations(&log, &mut s, &|_, minute| {
+            asked.borrow_mut().push(minute);
+            Some((0.5, 0.5))
+        });
+        assert_eq!(*asked.borrow(), vec![4]);
+        assert_eq!(s.trained.len(), 1);
+        assert_eq!(s.trained[0].2, 240.0);
     }
 
     #[test]
