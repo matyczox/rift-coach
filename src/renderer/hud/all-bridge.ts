@@ -39,6 +39,14 @@ const mm = () => panels.get('minimap')!;
 Object.defineProperty(window, 'innerWidth', { configurable: true, get: () => mm().clientWidth || 1 });
 Object.defineProperty(window, 'innerHeight', { configurable: true, get: () => mm().clientHeight || 1 });
 
+// minimap.ts animates with requestAnimationFrame forever; while its panel has nothing to show
+// run those frames at 4 Hz instead of 60 Hz (the game needs the CPU/GPU more than an empty canvas).
+let minimapActive = false;
+let minimapWanted = false;
+const raf = window.requestAnimationFrame.bind(window);
+window.requestAnimationFrame = (cb: FrameRequestCallback) =>
+  minimapActive ? raf(cb) : window.setTimeout(() => cb(performance.now()), 250);
+
 window.hud = {
   onState(cb) {
     const kind = KINDS[loading++];
@@ -86,6 +94,12 @@ export function dispatch(m: HudMessage): void {
   for (const kind of KINDS) {
     const want = !!m.wanted[kind] && (kind !== 'minimap' || !!m.minimap);
     const el = panels.get(kind)!;
+    // Keep 60 fps a moment after the content goes so ghosts can fade out.
+    if (kind === 'minimap') {
+      minimapWanted = want;
+      if (want) minimapActive = true;
+      else window.setTimeout(() => { if (!minimapWanted) minimapActive = false; }, 600);
+    }
     // Keep a panel mapped 180 ms after its content goes away so it can fade out.
     if (want) {
       const t = hideTimers.get(kind);

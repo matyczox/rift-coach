@@ -37,6 +37,7 @@ pub struct HudCtl {
     placed: Option<ClientRect>,
     hide_at: Option<Instant>,
     last_payload: String,
+    last_emit: Option<Instant>,
 }
 
 pub type Hud = Mutex<HudCtl>;
@@ -90,12 +91,12 @@ pub fn create(app: &tauri::AppHandle) -> tauri::Result<()> {
     w.set_ignore_cursor_events(true)?;
     #[cfg(windows)]
     if let Ok(h) = w.hwnd() {
-        use windows_sys::Win32::UI::WindowsAndMessaging::{GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT};
+        use windows_sys::Win32::UI::WindowsAndMessaging::{GetWindowLongPtrW, SetWindowLongPtrW, GWL_EXSTYLE, WS_EX_APPWINDOW, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT};
         // SAFETY: our own top-level window.
         unsafe {
             let h = h.0 as _;
             let ex = GetWindowLongPtrW(h, GWL_EXSTYLE) as u32;
-            SetWindowLongPtrW(h, GWL_EXSTYLE, (ex | WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_TOPMOST) as isize);
+            SetWindowLongPtrW(h, GWL_EXSTYLE, ((ex & !WS_EX_APPWINDOW) | WS_EX_NOACTIVATE | WS_EX_TRANSPARENT | WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_TOPMOST) as isize);
         }
     }
     Ok(())
@@ -216,8 +217,10 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
     let any = PANELS.iter().any(|k| wanted[*k].as_bool().unwrap_or(false));
     let payload = json!({ "state": state, "wanted": wanted, "minimap": minimap });
     let text = payload.to_string();
-    if text != h.last_payload {
+    // Changed, or a 1 s refresh (the page may have loaded after the last change).
+    if text != h.last_payload || h.last_emit.is_none_or(|t| t.elapsed() >= Duration::from_secs(1)) {
         h.last_payload = text;
+        h.last_emit = Some(Instant::now());
         let _ = app.emit_to(LABEL, "hud", &payload);
     }
     match (any, game) {
@@ -252,7 +255,9 @@ pub fn spawn(app: &tauri::AppHandle, st: &Arc<AppState>) {
             loop {
                 if last_rect.elapsed() >= Duration::from_millis(500) {
                     last_rect = Instant::now();
-                    let r = game_client_rect();
+                    // Only over the game while it is the active window: never float over the
+                    // browser / desktop after alt-tab (and never hide the taskbar there).
+                    let r = game_client_rect().filter(|r| r.foreground || crate::hud_test());
                     st.hud.lock().unwrap().game = r;
                 }
                 push(&app, &st);

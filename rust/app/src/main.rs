@@ -2,6 +2,7 @@
 
 mod bridge;
 mod game;
+mod hotkeys;
 mod hud;
 mod hud_state;
 mod runes;
@@ -32,6 +33,11 @@ pub fn allow_replay() -> bool {
     *V.get_or_init(|| std::env::args().any(|a| a == "--allow-replay"))
 }
 
+/// Testing: HUD shows the minimap outline and stays up even when the game is not the active window.
+pub fn hud_test() -> bool {
+    std::env::args().any(|a| a == "--hud-test")
+}
+
 /// Value of `--name=value`.
 fn arg_value(name: &str) -> Option<String> {
     let p = format!("--{name}=");
@@ -54,8 +60,17 @@ fn open_external(url: String) -> Result<(), String> {
     std::process::Command::new("rundll32.exe").args(["url.dll,FileProtocolHandler", &url]).spawn().map(|_| ()).map_err(|e| e.to_string())
 }
 
+/// Global hotkeys: not in --smoke (it runs next to a normal instance) unless --smoke-hotkeys.
+fn hotkeys_on() -> bool {
+    !smoke() || std::env::args().any(|a| a == "--smoke-hotkeys")
+}
+
 pub fn on_settings_changed(app: &tauri::AppHandle, st: &Arc<AppState>) {
     vision::sync_settings(st);
+    if hotkeys_on() {
+        hotkeys::register(app, st);
+    }
+    hotkeys::apply_login_item(st.settings.lock().unwrap().value().launch_at_login);
     hud::place(app, st);
 }
 
@@ -94,6 +109,7 @@ fn main() {
         }));
     }
     builder
+        .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .invoke_handler(tauri::generate_handler![rc_call, open_external])
         .setup(move |app| {
             let rt = tauri::async_runtime::block_on(async { tokio::runtime::Handle::current() });
@@ -136,6 +152,11 @@ fn main() {
 
             // In-game HUD (hidden until a panel has content) + capture -> vision -> tracker.
             hud::create(app.handle())?;
+            on_settings_changed(app.handle(), &st);
+            // Testing: keep the minimap outline on so the HUD window has something to show.
+            if hud_test() {
+                *st.vision.frame_until.lock().unwrap() = Some(std::time::Instant::now() + Duration::from_secs(3600));
+            }
             vision::spawn_threads(app.handle(), &st);
             hud::spawn(app.handle(), &st);
             let st6 = st.clone();
@@ -203,6 +224,7 @@ fn main() {
                     }
                     println!("SMOKE-VISION {}", vision::smoke_summary(&st5));
                     println!("SMOKE-HUD {}", hud::smoke_summary(&st5));
+                    println!("SMOKE-HOTKEYS {}", hotkeys::smoke_summary(&app3, &st5));
                     let mut s = serde_json::to_value(st5.status()).unwrap_or_default();
                     // Never print the Riot API key.
                     if let Some(k) = s.pointer_mut("/settings/riot/apiKey") {
