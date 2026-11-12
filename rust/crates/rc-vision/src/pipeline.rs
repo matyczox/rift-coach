@@ -199,7 +199,7 @@ impl Vision {
 }
 
 struct Pending {
-    frame: Option<(Rgba, u64, Option<Vec<Hint>>)>,
+    frame: Option<(Arc<Rgba>, u64, Option<Vec<Hint>>)>,
     roster: Option<Roster>,
     calibration: Option<Option<Calibration>>,
     stop: bool,
@@ -270,9 +270,9 @@ impl VisionService {
     }
 
     /// Queue a full game frame (replaces any frame still waiting). `hints` = tracker positions.
-    pub fn push(&self, frame: Rgba, at: u64, hints: Option<Vec<Hint>>) {
+    pub fn push(&self, frame: impl Into<Arc<Rgba>>, at: u64, hints: Option<Vec<Hint>>) {
         let (m, cv) = &*self.shared;
-        m.lock().unwrap().frame = Some((frame, at, hints));
+        m.lock().unwrap().frame = Some((frame.into(), at, hints));
         cv.notify_one();
     }
 
