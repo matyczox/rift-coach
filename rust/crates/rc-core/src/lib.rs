@@ -5,12 +5,17 @@
 pub mod build_advisor;
 pub mod coach;
 pub mod files;
+pub mod harvest;
 pub mod intel;
 pub mod jsutil;
 pub mod llm;
 pub mod patch_brief;
+pub mod recorder;
+pub mod replayer;
 pub mod research;
+pub mod review;
 pub mod riot;
+pub mod self_train;
 pub mod runes;
 pub mod settings;
 pub mod sources;
