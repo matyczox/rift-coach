@@ -689,6 +689,8 @@ async function harvestOpen(speed: number, gameId: number | null, extra: { passes
   capture.configure({ fps: 30 });
   for (let i = 0; i < 20 && capture.status.state !== 'connected'; i++) await sleep(500);
   await autoCalibrate();
+  // Replay opened by hand: the League client still knows which game it is.
+  if (gameId === null) gameId = await lcu.get<{ gameData?: { gameId?: number } }>('/lol-gameflow/v1/session').then(g => g?.gameData?.gameId || null, () => null);
   try {
     await harvester.run({ gameId, speed, meta: { calibration: settings.value.calibration, appVersion: app.getVersion() }, ...extra });
   } finally {
