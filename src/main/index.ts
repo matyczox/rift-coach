@@ -45,6 +45,9 @@ import { Lcu } from './sources/lcu';
 import { LiveApi, normalizeChampionNames, toGameInfo, type AllGameData } from './sources/liveApi';
 import { WindowTracker } from './winrect';
 
+// No yellow 'being captured' border around the game: use the classic window capturer instead of
+// Windows Graphics Capture (unless RC_WGC=1).
+if (process.env.RC_WGC !== '1') app.commandLine.appendSwitch('disable-features', 'AllowWgcWindowCapturer,AllowWgcScreenCapturer,AllowWgcZeroHz');
 if (!app.requestSingleInstanceLock()) app.quit();
 
 const RENDERER = path.join(__dirname, 'renderer');
