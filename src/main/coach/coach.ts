@@ -6,6 +6,8 @@ import { WARD_SPOTS } from '../../shared/wards';
 
 /** What System 1 and the rest of the app know right now. */
 export interface CoachContext {
+  /** Player profile text (habits, weak spots, lessons) for the per-game system prompt. */
+  selfProfile?: string;
   intel: GameIntel;
   ghosts: MinimapGhost[];
   alerts: AlertState[];
@@ -78,6 +80,7 @@ export function gameSystemPrompt(ctx: CoachContext): string {
   if (ctx.patchBrief) parts.push(`Brief patcha (aktualna meta):\n${ctx.patchBrief}`);
   const prof = ctx.profiles.filter(p => p.gamesAnalyzed > 0).map(p => `${p.champion}: ${p.summary}${p.rank ? ` (${p.rank})` : ''}`);
   if (prof.length) parts.push(`Profile wrogów z historii gier:\n${prof.join('\n')}`);
+  if (ctx.selfProfile) parts.push(ctx.selfProfile);
   parts.push(`Miejsca na wardy (id: opis, wartość wizji):\n${Object.entries(WARD_SPOTS).map(([id, s]) => `${id}: ${s.label}, ${s.value}/5`).join('\n')}`);
   return parts.join('\n\n');
 }

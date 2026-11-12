@@ -16,7 +16,7 @@ screen (minimap) and Riot's official local APIs; it never sends input to the gam
 | `Config\game.cfg` with `EnableReplayApi=1` in `[General]` | `install.ps1` reports `replayApi` | only for learning from replays |
 | Claude Code CLI, logged in | `claude auth status` → `"loggedIn": true` | one AI backend needed |
 | Codex app | `Get-AppxPackage OpenAI.Codex` | alternative AI backend |
-| Riot API developer key | user gets it at https://developer.riotgames.com | optional (enemy profiles) |
+| Riot API developer key | user gets it at https://developer.riotgames.com | strongly recommended (see section 6) |
 
 Only to build from source (not needed with a ready installer): Node.js 22+ with npm 10+ (tested Node 24 / npm 11; with an older npm `npm ci` may report the lock file out of sync - use `npm install`, the build script falls back to it automatically), `npm`, Rust via rustup with
 the `stable-x86_64-pc-windows-gnu` toolchain (`rustup toolchain install stable-x86_64-pc-windows-gnu`),
@@ -108,8 +108,13 @@ and returns immediately; wait until the folder is gone). User data in `%APPDATA%
 An agent cannot (and must not) do these:
 - **Log in to an AI backend**: run `claude auth login` in a terminal (Claude subscription), or install and
   sign in to the Codex app. Without one, the tracker works but the AI coach is silent.
-- **Riot API key** (optional, enemy profiles): create a development key at https://developer.riotgames.com
-  (expires every 24 h) and paste it into Rift Coach → Settings. Never ask for it in chat logs.
+- **Riot API key**: create a development key at https://developer.riotgames.com (free, **expires every 24 h**,
+  must be renewed) and paste it into Rift Coach → Settings. Never ask for it in chat logs.
+  **Tell the user explicitly what does NOT work without a valid key:**
+  - enemy profiles on the loading screen (rank, form, aggression, jungle pathing) and their use by the coach,
+  - the player profile (own habits and weak spots the coach watches),
+  - self-training after each game (true positions from Riot timelines).
+  Without the key the tracker, minimap ghosts, AI coach calls, death/post-game reviews and runes still work.
 - **Play Summoner's Rift** (Ranked / Normal / Swiftplay) for coaching and learning; ARAM and Arena are ignored.
 - Start League once so `Config\game.cfg` exists; for replay learning restart the client after `-EnableReplayApi`.
 

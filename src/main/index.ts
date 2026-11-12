@@ -17,6 +17,7 @@ import { adviseBuild, buildContext, BuildTrigger } from './coach/build';
 import { WARD_SPOTS, wardPoint } from '../shared/wards';
 import { adviseRunes, applyRunePage, loadRuneTrees } from './runes/runes';
 import { MatchLog, buildReview, listReviews } from './coach/review';
+import { buildSelfProfile, lessonsFrom, loadSelfProfile, saveSelfProfile, selfProfileForCoach } from './riot/selfProfile';
 import { setFastResearchModel, setResearchModel } from './coach/research';
 import { detectBackends, usableModel, type Backends } from './coach/profiles';
 import { ObsRecorder, obsDir, riotToMinimap, trainFromObservations } from './tracker/selfTrain';
@@ -124,12 +125,35 @@ let frameUntil = 0; // show the minimap outline until this time
 let liveLostAt: number | null = null;
 let harvester: Harvester;
 let meProfile: import('../shared/types').PlayerProfile | null = null;
+let myRiotId: string | null = null;
+let selfProfile: import('../shared/types').PlayerSelfProfile | null = null;
+let selfProfileBusy = false;
+const selfProfileFile = () => path.join(app.getPath('userData'), 'player-profile.json');
+
+/** Player profile from recent SR games (Riot API) + review lessons; rebuilt every 6 h and after each game. */
+async function refreshSelfProfile(force = false) {
+  if (!selfProfile) selfProfile = loadSelfProfile(selfProfileFile());
+  if (selfProfile) selfProfile = { ...selfProfile, lessons: lessonsFrom(listReviews(reviewsDir())) };
+  const key = settings.value.riot.apiKey, platform = settings.value.riot.platform;
+  if (selfProfileBusy || !key || !myRiotId) return;
+  if (!force && selfProfile && Date.now() - selfProfile.updatedAt < 6 * 3600_000) return;
+  selfProfileBusy = true;
+  try {
+    const client = new RiotClient({ apiKey: key, platform: isPlatform(platform) ? platform : 'eun1', cacheDir: path.join(app.getPath('userData'), 'riot-cache') });
+    const acc = await client.resolveRiotId(myRiotId);
+    if (!acc) throw new Error('account not found');
+    selfProfile = await buildSelfProfile(client, acc.puuid, listReviews(reviewsDir()));
+    saveSelfProfile(selfProfileFile(), selfProfile);
+  } catch (e) { console.warn('player profile failed', String(e)); } finally { selfProfileBusy = false; }
+}
 
 /** Name, level, icon and ranks of the logged-in player (League client). */
 async function refreshMe() {
   if (lcu.state !== 'connected') return;
   try {
-    const s = await lcu.get<{ gameName?: string; tagLine?: string; summonerLevel?: number; profileIconId?: number }>('/lol-summoner/v1/current-summoner');
+    const s = await lcu.get<{ gameName?: string; tagLine?: string; summonerLevel?: number; profileIconId?: number; puuid?: string }>('/lol-summoner/v1/current-summoner');
+    // The LCU puuid is not the one the (dev-key) Riot API expects: resolve by Riot ID instead.
+    if (s?.gameName && s.tagLine) { myRiotId = `${s.gameName}#${s.tagLine}`; void refreshSelfProfile(); }
     const rk = await lcu.get<{ queues?: Array<{ queueType: string; tier: string; division: string; leaguePoints: number; wins: number; losses: number }> }>('/lol-ranked/v1/current-ranked-stats').catch(() => null);
     const ranks = (rk?.queues ?? []).filter(q => (q.queueType === 'RANKED_SOLO_5x5' || q.queueType === 'RANKED_FLEX_SR') && q.tier && q.tier !== 'NONE')
       .map(q => ({ queue: q.queueType === 'RANKED_SOLO_5x5' ? 'solo' as const : 'flex' as const, tier: q.tier, division: q.division, lp: q.leaguePoints, wins: q.wins, losses: q.losses }));
@@ -152,6 +176,7 @@ function status(): AppStatus {
     version: app.getVersion(),
     ddragonVersion: staticData?.version ?? null,
     me: meProfile,
+    playerProfile: selfProfile,
     liveApi: live.state,
     lcu: lcu.state,
     lcuPhase: lcu.phase,
@@ -362,7 +387,7 @@ function onGameData(d: AllGameData) {
     buildPatchBrief({ dir: briefDir(), patch: patchOf(staticData.version), focusChampions: [...new Set(['Rumble', 'Akali', 'Ambessa', ...champions])] })
       .then(b => { patchBrief = b; }, e => { console.warn('patch brief failed', e); setTimeout(() => { patchBriefRequested = false; }, 10 * 60000); });
   }
-  coach.tick({ intel, ghosts, alerts, profiles, patchBrief: patchBrief ? briefForGame(patchBrief, champions) : undefined, matchup: matchupForCoach(intel, matchup), coveredWardSpots: coveredSpots(intel), camps: campSummary(intel) });
+  coach.tick({ intel, ghosts, alerts, profiles, patchBrief: patchBrief ? briefForGame(patchBrief, champions) : undefined, matchup: matchupForCoach(intel, matchup), coveredWardSpots: coveredSpots(intel), camps: campSummary(intel), selfProfile: selfProfileForCoach(selfProfile) });
 }
 
 /** Fetch enemy profiles once per game (needs a Riot API key). */
@@ -580,6 +605,8 @@ async function finishGame() {
     gameId = eog?.gameId ?? null;
   } catch { /* client didn't show EOG (practice tool) */ }
   void selfTrain(gameId);
+  // New game in the history + a new review: rebuild the player profile once Riot has the match.
+  setTimeout(() => void refreshSelfProfile(true), 4 * 60000);
   try {
     const r = await buildReview(matchLog, {
       model: pickModel(settings.value.coach.reviewModel, 'review'), effort: pick(settings.value.coach.reviewModel, 'review').effort, win, dir: reviewsDir(),

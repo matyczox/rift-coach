@@ -125,6 +125,36 @@ function CoachCard({ status }: { status: AppStatus }) {
   );
 }
 
+function PlayerCard({ status }: { status: AppStatus }) {
+  const p = status.playerProfile;
+  if (!p) {
+    return (
+      <div className="side-card">
+        <div className="side-title">Twój profil</div>
+        <div className="muted small">{status.profiles.state === 'no-key' ? 'Dodaj klucz Riot API w Ustawieniach — coach pozna Twoje nawyki i słabe strony.' : 'Buduję z Twoich ostatnich meczów…'}</div>
+      </div>
+    );
+  }
+  const wr = p.games ? Math.round((p.wins / p.games) * 100) : 0;
+  return (
+    <div className="side-card player-card">
+      <div className="side-title">Twój profil <span className="muted small">· {p.games} gier</span></div>
+      <div className="pc-stats">
+        <div><b className={wr >= 50 ? 'good' : 'bad'}>{wr}%</b><small>WR</small></div>
+        <div><b>{p.kda}</b><small>KDA</small></div>
+        <div><b>{p.csPerMin}</b><small>CS/min</small></div>
+        <div><b>{p.deathsBefore10 ?? '—'}</b><small>śm. przed 10'</small></div>
+      </div>
+      {p.weaknesses.length > 0 && (
+        <div className="pc-weak">
+          <div className="card-label warn">Coach pilnuje</div>
+          {p.weaknesses.map(w => <div key={w} className="pc-chip">{w}</div>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ChampsCard({ items, version }: { items: MatchReview[]; version: string | null }) {
   const by = new Map<string, { n: number; w: number; kda: number; cs: number }>();
   for (const r of items) {
@@ -207,6 +237,7 @@ export function HomeView({ status }: { status: AppStatus }) {
           <RanksCard me={status.me} />
           <ReadyCard status={status} />
           <CoachCard status={status} />
+          <PlayerCard status={status} />
           <ChampsCard items={items} version={status.ddragonVersion} />
         </aside>
         <div className="home-main">

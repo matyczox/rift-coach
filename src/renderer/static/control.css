@@ -763,3 +763,13 @@ body { font-feature-settings: "tnum" 0, "cv11" 1; letter-spacing: -0.005em; }
 .learn-detail-title { font-weight: 800; font-size: 14px; color: var(--teal); }
 .learn-detail p { margin: 0; font-size: 12px; line-height: 1.55; color: var(--text); }
 .force-hover .learn-card:first-child .learn-detail { opacity: 1; transform: none; }
+
+/* Player profile card */
+.pc-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 10px; }
+.pc-stats > div { text-align: center; padding: 8px 4px; border-radius: var(--r-md); background: var(--rail); }
+.pc-stats b { display: block; font-size: 16px; font-weight: 800; }
+.pc-stats b.good { color: var(--win); } .pc-stats b.bad { color: var(--loss); }
+.pc-stats small { font-size: 11px; color: var(--text-faint); }
+.pc-weak { display: flex; flex-direction: column; gap: 5px; }
+.pc-weak .card-label { margin-bottom: 2px; }
+.pc-chip { font-size: 12px; padding: 5px 9px; border-radius: var(--r-sm); background: rgba(232, 182, 90, .08); border: 1px solid rgba(232, 182, 90, .2); color: var(--gold-text); }

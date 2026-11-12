@@ -40,6 +40,7 @@ export interface MatchParticipantDto {
   firstBloodAssist?: boolean;
   totalMinionsKilled?: number;
   neutralMinionsKilled?: number;
+  visionScore?: number;
   gameEndedInEarlySurrender?: boolean;
   riotIdGameName?: string;
   riotIdTagline?: string;

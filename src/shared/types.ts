@@ -104,12 +104,27 @@ export interface ReplayFile {
 export interface RankEntry { queue: 'solo' | 'flex'; tier: string; division: string; lp: number; wins: number; losses: number }
 export interface PlayerProfile { gameName: string; tagLine: string; level: number; iconId: number; ranks: RankEntry[]; /** Highest-mastery champion (English name), for the header splash. */ topChampion?: string | null }
 
+/** The player's own habits (recent SR games + lessons from post-game reviews). */
+export interface PlayerSelfProfile {
+  games: number; wins: number;
+  mainRole: string | null;
+  champions: Array<{ name: string; games: number; wins: number }>;
+  kda: number; deathsPerGame: number; csPerMin: number; visionPerMin: number; killParticipation: number;
+  deathsBefore10: number | null;
+  weaknesses: string[];
+  lessons: string[];
+  summary: string;
+  updatedAt: number;
+}
+
 export interface AppStatus {
   version: string;
   /** Data Dragon version for champion portraits (null until static data loads). */
   ddragonVersion: string | null;
   /** Logged-in player from the League client (for the profile header). */
   me: PlayerProfile | null;
+  /** Player profile for the coach (null until built: needs a Riot API key). */
+  playerProfile: PlayerSelfProfile | null;
   liveApi: SourceState;
   lcu: SourceState;
   lcuPhase: string | null;

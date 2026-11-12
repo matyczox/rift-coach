@@ -243,6 +243,14 @@ if ($RiotKey) {
   } catch { Problem "could not save the Riot API key: $($_.Exception.GetType().Name)" }
 }
 
+# ---------------------------------------------------------------- Riot key present? (value never printed)
+try {
+  $sp = Join-Path $dataDir 'settings.json'
+  $hasKey = (Test-Path $sp) -and [bool]((Get-Content $sp -Raw -Encoding UTF8 | ConvertFrom-Json).riot.apiKey)
+} catch { $hasKey = $false }
+$result.riotKey = $hasKey
+if (-not $hasKey) { Problem 'no Riot API key: enemy profiles, player profile and self-training are OFF until the user pastes a dev key (https://developer.riotgames.com, renew every 24 h) in Settings - tell the user' }
+
 # ---------------------------------------------------------------- smoke test
 # --smoke: hidden window, coach off, no autostart/hotkeys, prints SMOKE-* lines and exits by itself.
 if (-not $SkipSmoke) {
@@ -260,5 +268,5 @@ if (-not $SkipSmoke) {
   }
 }
 
-if ($problems | Where-Object { $_ -notmatch '^(League of Legends not found|missing .*game\.cfg|no AI coach backend|League of Legends game is running)' }) { Finish 1 }
+if ($problems | Where-Object { $_ -notmatch '^(League of Legends not found|missing .*game\.cfg|no AI coach backend|League of Legends game is running|no Riot API key)' }) { Finish 1 }
 Finish 0
