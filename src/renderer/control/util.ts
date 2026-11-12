@@ -91,3 +91,16 @@ export function lcuPhaseLabel(phase: string | null): string | null {
 }
 
 export const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+/** Data Dragon id for a champion display name (English or Polish client names). */
+const CHAMP_ID_EXCEPTIONS: Record<string, string> = {
+  wukong: 'MonkeyKing', nunuwillump: 'Nunu', nunuiwillump: 'Nunu', renataglasc: 'Renata', leblanc: 'Leblanc',
+  chogath: 'Chogath', velkoz: 'Velkoz', khazix: 'Khazix', kaisa: 'Kaisa', belveth: 'Belveth', ksante: 'KSante',
+  jarvaniv: 'JarvanIV', reksai: 'RekSai', kogmaw: 'KogMaw', drmundo: 'DrMundo', fiddlesticks: 'Fiddlesticks',
+};
+export function champId(name: string): string {
+  const k = name.toLowerCase().replace(/[^a-z]/g, '');
+  if (CHAMP_ID_EXCEPTIONS[k]) return CHAMP_ID_EXCEPTIONS[k];
+  return name.replace(/[^A-Za-z ]/g, '').split(' ').map(w => w ? w[0]!.toUpperCase() + w.slice(1) : '').join('');
+}
+export const champIcon = (version: string | null, id: string) => version ? `https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${id}.png` : null;

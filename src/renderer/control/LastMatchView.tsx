@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useState } from 'react';
 import type { MatchReview } from '../../shared/types';
-import { fmtClock, fmtDate, rc, useAction } from './util';
+import { champIcon, champId, fmtClock, fmtDate, rc, useAction } from './util';
 
 type Moment = MatchReview['moments'][number];
 type GoldPoint = MatchReview['goldCurve'][number];
@@ -50,7 +50,12 @@ function ResultBadge({ win }: { win: boolean | null }) {
   return <span className={'rv-badge ' + (win ? 'rv-win' : 'rv-loss')}>{win ? 'W' : 'L'}</span>;
 }
 
-export const LastMatchView = memo(function LastMatchView() {
+function ChampIcon({ name, version, size = 44 }: { name: string; version: string | null; size?: number }) {
+  const src = name ? champIcon(version, champId(name)) : null;
+  return <span className="mh-icon" style={{ width: size, height: size }}>{src ? <img src={src} alt={name} onError={e => { e.currentTarget.style.display = 'none'; }} /> : null}</span>;
+}
+
+export const LastMatchView = memo(function LastMatchView({ ddragonVersion }: { ddragonVersion: string | null }) {
   const [items, setItems] = useState<MatchReview[] | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const list = useAction();
@@ -85,7 +90,7 @@ export const LastMatchView = memo(function LastMatchView() {
   return (
     <section className="section">
       <div className="section-head">
-        <h1>Ostatni mecz</h1>
+        <h2 className="section-title">Ostatnie mecze</h2>
         <div className="toolbar">
           {!showingNewest && items && items.length > 0 && (
             <button type="button" className="btn" onClick={() => setSelectedId(null)}>Pokaż najnowszy</button>
@@ -98,49 +103,41 @@ export const LastMatchView = memo(function LastMatchView() {
       {items === null ? (
         <div className="empty">{list.busy ? 'Wczytywanie…' : 'Nie udało się wczytać analiz.'}</div>
       ) : !current ? (
-        <div className="placeholder">Po meczu pojawi się tu analiza Twojej gry.</div>
+        <div className="placeholder">Po pierwszym meczu na Summoner’s Rift pojawi się tu analiza Twojej gry: co poprawić, kluczowe momenty i wykres złota.</div>
       ) : (
         <>
-          <ReviewCard review={current} newest={showingNewest} />
           {items.length > 1 && (
-            <>
-              <h2 className="h2-inline">Wcześniejsze mecze</h2>
-              <div className="table-wrap">
-                <table className="rec-table">
-                  <tbody>
-                    {items.map((it) => (
-                      <tr
-                        key={it.id}
-                        className={'rec-row' + (it.id === current.id ? ' open' : '')}
-                        onClick={() => setSelectedId(it.id === items[0]?.id ? null : it.id)}
-                        title="Kliknij, aby otworzyć analizę"
-                      >
-                        <td className="c-date num">{it.createdAt ? fmtDate(it.createdAt) : it.id}</td>
-                        <td className="rv-c-res"><ResultBadge win={it.win} /></td>
-                        <td className="c-champ">
-                          {it.champion || '—'}
-                          {it.role && <span className="muted small"> · {roleLabel(it.role)}</span>}
-                        </td>
-                        <td className="c-num num">{it.kda || '—'}</td>
-                        <td className="c-num num">{it.durationSec ? fmtClock(it.durationSec) : '—'}</td>
-                        <td className="rv-c-first muted">{it.improve[0] ?? it.summary}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
+            <div className="mh-list">
+              {items.map((it) => (
+                <button
+                  type="button"
+                  key={it.id}
+                  className={'mh-row' + (it.win === true ? ' win' : it.win === false ? ' loss' : '') + (it.id === current.id ? ' open' : '')}
+                  onClick={() => setSelectedId(it.id === items[0]?.id ? null : it.id)}
+                >
+                  <span className="mh-result">{it.win === null ? '—' : it.win ? 'Wygrana' : 'Przegrana'}<small>{it.durationSec ? fmtClock(it.durationSec) : ''}</small></span>
+                  <ChampIcon name={it.champion} version={ddragonVersion} />
+                  <span className="mh-champ">{it.champion || '—'}<small>{roleLabel(it.role)}</small></span>
+                  <span className="mh-kda num">{it.kda || '—'}<small>KDA</small></span>
+                  <span className="mh-cs num">{Number.isFinite(it.csPerMin) ? it.csPerMin.toFixed(1) : '—'}<small>CS/min</small></span>
+                  <span className="mh-tip">{it.improve[0] ?? it.summary}</span>
+                  <span className="mh-date num">{it.createdAt ? fmtDate(it.createdAt) : ''}</span>
+                </button>
+              ))}
+            </div>
           )}
+          <ReviewCard review={current} newest={showingNewest} version={ddragonVersion} />
         </>
       )}
     </section>
   );
 });
 
-function ReviewCard({ review: r, newest }: { review: MatchReview; newest: boolean }) {
+function ReviewCard({ review: r, newest, version }: { review: MatchReview; newest: boolean; version: string | null }) {
   return (
     <article className={'rv-card' + (r.win === true ? ' win' : r.win === false ? ' loss' : '')}>
       <header className="rv-head">
+        <ChampIcon name={r.champion} version={version} size={48} />
         <ResultBadge win={r.win} />
         <span className="rv-champ">{r.champion || 'Nieznana postać'}</span>
         {r.role && <span className="muted">{roleLabel(r.role)}</span>}

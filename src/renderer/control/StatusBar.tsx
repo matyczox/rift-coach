@@ -1,5 +1,5 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import type { AppStatus, GameInfo, SourceState } from '../../shared/types';
+import type { AppStatus, SourceState } from '../../shared/types';
 import type { CoachStatus } from '../../shared/intel';
 import { fmtClock, fmtMB, lcuPhaseLabel, STATE_LABEL } from './util';
 import { isHarvestBusy, overallProgress, PASS_LABEL } from './HarvestView';
@@ -74,40 +74,13 @@ function systemItems(s: AppStatus): Item[] {
   return items;
 }
 
-const Portrait = memo(function Portrait({ id, name, version, side }: { id?: string; name: string; version: string | null; side: 'ally' | 'enemy' }) {
+export const Portrait = memo(function Portrait({ id, name, version, side }: { id?: string; name: string; version: string | null; side: 'ally' | 'enemy' }) {
   const [broken, setBroken] = useState(false);
   const src = id && version && !broken ? `https://ddragon.leagueoflegends.com/cdn/${version}/img/champion/${id}.png` : null;
   return (
     <span className={`portrait ${side}`} title={name}>
       {src ? <img src={src} alt={name} onError={() => setBroken(true)} /> : <span className="portrait-fallback">{name.slice(0, 2)}</span>}
     </span>
-  );
-});
-
-const GameCard = memo(function GameCard({ game, version, phase }: { game: GameInfo | null; version: string | null; phase: string | null }) {
-  if (!game) {
-    return (
-      <div className="game-card idle">
-        <span className="pulse" />
-        <div>
-          <div className="game-title">Czekam na mecz</div>
-          <div className="game-sub">{phase ? `Klient: ${phase}` : 'Uruchom League of Legends'}</div>
-        </div>
-      </div>
-    );
-  }
-  return (
-    <div className="game-card">
-      <div className="game-meta">
-        <span className="mode-badge">{game.gameMode === 'CLASSIC' ? 'Summoner’s Rift' : game.gameMode}</span>
-        <span className="game-clock num">{fmtClock(game.gameTime)}</span>
-      </div>
-      <div className="teams">
-        <div className="team">{game.allies.map((n, i) => <Portrait key={n + i} id={game.allyIds?.[i]} name={n} version={version} side="ally" />)}</div>
-        <span className="vs">VS</span>
-        <div className="team">{game.enemies.map((n, i) => <Portrait key={n + i} id={game.enemyIds?.[i]} name={n} version={version} side="enemy" />)}</div>
-      </div>
-    </div>
   );
 });
 
@@ -143,22 +116,24 @@ function SystemPill({ items }: { items: Item[] }) {
   );
 }
 
-export const StatusBar = memo(function StatusBar({ status, error }: { status: AppStatus | null; error: string | null }) {
+export const StatusBar = memo(function StatusBar({ status, error, title }: { status: AppStatus | null; error: string | null; title: string }) {
   if (!status) {
     return (
       <header className="topbar">
-        <div className="game-card idle"><span className="pulse" /><div className="game-title">{error ? 'Błąd połączenia z aplikacją' : 'Łączenie…'}</div></div>
-        {error && <div className="error-text small">{error}</div>}
+        <h1 className="page-title">{title}</h1>
+        <div className="topbar-right">{error ? <span className="error-text small">{error}</span> : <span className="muted small">Łączenie…</span>}</div>
       </header>
     );
   }
   const coach = coachOf(status.coach);
   return (
     <header className="topbar">
-      <GameCard game={status.game} version={status.ddragonVersion} phase={status.lcu === 'connected' ? lcuPhaseLabel(status.lcuPhase) : null} />
+      <h1 className="page-title">{title}</h1>
+      {status.game && title !== 'Główna' && <span className="live-pill"><i />NA ŻYWO <span className="num">{fmtClock(status.game.gameTime)}</span></span>}
       <div className="topbar-right">
         {status.coach.state !== 'off' && (
-          <div className={`coach-badge s-${coach.state}`} title={status.coach.model ?? undefined}>
+          <div className={`coach-badge s-${coach.state}`} title={status.coach.lastError ?? status.coach.model ?? undefined}>
+            <span className="coach-dot" />
             <span className="coach-label">Coach</span>
             <span className="coach-value">{status.coach.state === 'thinking' ? 'myśli…' : coach.state === 'error' ? coach.value : modelLabel(status.coach.model)}</span>
           </div>

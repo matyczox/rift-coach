@@ -286,7 +286,9 @@ function sendFrame(f: MinimapFrame) {
 function createControl() {
   control = new BrowserWindow({
     width: 1180, height: 780, minWidth: 900, minHeight: 600, show: false,
-    title: 'Rift Coach', backgroundColor: '#0e1418', autoHideMenuBar: true,
+    title: 'Rift Coach', backgroundColor: '#0c0f14', autoHideMenuBar: true,
+    // Own dark title bar (Blitz-style); Windows keeps native min/max/close drawn over it.
+    titleBarStyle: 'hidden', titleBarOverlay: { color: '#0c0f14', symbolColor: '#9aa3b2', height: 44 },
     icon: path.join(__dirname, '..', 'assets', 'icon.png'),
     webPreferences: { preload: PRELOAD, sandbox: false },
   });

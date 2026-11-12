@@ -1,36 +1,40 @@
 import { useEffect, useState } from 'react';
 import type { AppStatus } from '../../shared/types';
-import { errText, rc } from './util';
+import { errText, fmtClock, rc } from './util';
 import { StatusBar } from './StatusBar';
 import { CalibrationView } from './CalibrationView';
 import { RecordingsView } from './RecordingsView';
 import { SettingsView } from './SettingsView';
 import { HarvestView, isHarvestBusy } from './HarvestView';
-import { LastMatchView } from './LastMatchView';
+import { HomeView } from './HomeView';
 
-type Section = 'lastMatch' | 'calibration' | 'recordings' | 'harvest' | 'settings';
+type Section = 'home' | 'calibration' | 'recordings' | 'harvest' | 'settings';
 
 const ICON: Record<Section, string> = {
-  lastMatch: 'M4 19V9m5 10V5m5 14v-7m5 7V8',
+  home: 'M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
   calibration: 'M12 3v4m0 10v4M3 12h4m10 0h4M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
   recordings: 'M12 4a8 8 0 1 0 0 16 8 8 0 0 0 0-16zm0 5a3 3 0 1 0 0 6 3 3 0 0 0 0-6z',
-  harvest: 'M4 6h16v12H4zM9 9.5v5l4.5-2.5z',
+  harvest: 'M4 6h16v12H4zM10 9.5v5l4.5-2.5z',
   settings: 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zm7.4 3a7.4 7.4 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14.5 3h-5l-.4 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6a7.4 7.4 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2l.4 2.6h5l.4-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2z',
 };
 
-const SECTIONS: { id: Section; label: string }[] = [
-  { id: 'lastMatch', label: 'Mecz' },
-  { id: 'calibration', label: 'Minimapa' },
-  { id: 'recordings', label: 'Nagrania' },
-  { id: 'harvest', label: 'Powtórki' },
+const GROUPS: Array<{ title: string; items: Array<{ id: Section; label: string }> }> = [
+  { title: 'Gra', items: [{ id: 'home', label: 'Główna' }] },
+  { title: 'Narzędzia', items: [
+    { id: 'calibration', label: 'Minimapa' },
+    { id: 'recordings', label: 'Nagrania' },
+    { id: 'harvest', label: 'Powtórki' },
+  ] },
 ];
 
-function NavButton({ id, label, active, badge, onClick }: { id: Section; label: string; active: boolean; badge?: boolean; onClick: () => void }) {
+const TITLE: Record<Section, string> = { home: 'Główna', calibration: 'Minimapa', recordings: 'Nagrania', harvest: 'Powtórki', settings: 'Ustawienia' };
+
+function NavItem({ id, label, active, badge, onClick }: { id: Section; label: string; active: boolean; badge?: string; onClick: () => void }) {
   return (
-    <button type="button" className={'rail-item' + (active ? ' active' : '')} onClick={onClick} title={label} aria-current={active ? 'page' : undefined}>
-      <svg viewBox="0 0 24 24" width="22" height="22"><path d={ICON[id]} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
-      <span>{label}</span>
-      {badge && <i className="rail-badge" />}
+    <button type="button" className={'nav-item' + (active ? ' active' : '')} onClick={onClick} aria-current={active ? 'page' : undefined}>
+      <svg viewBox="0 0 24 24" width="18" height="18"><path d={ICON[id]} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      <span className="nav-label">{label}</span>
+      {badge && <span className="nav-badge">{badge}</span>}
     </button>
   );
 }
@@ -38,7 +42,7 @@ function NavButton({ id, label, active, badge, onClick }: { id: Section; label: 
 export function App() {
   const [status, setStatus] = useState<AppStatus | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [section, setSection] = useState<Section>('lastMatch');
+  const [section, setSection] = useState<Section>('home');
 
   useEffect(() => {
     let unsub: (() => void) | undefined;
@@ -61,25 +65,43 @@ export function App() {
     };
   }, []);
 
+  const badge = (id: Section): string | undefined => {
+    if (!status) return undefined;
+    if (id === 'home' && status.game) return fmtClock(status.game.gameTime);
+    if (id === 'recordings' && status.recording.active) return 'REC';
+    if (id === 'harvest' && isHarvestBusy(status.harvest)) return 'zbiera';
+    return undefined;
+  };
+
   return (
     <div className="app">
-      <nav className="rail">
-        <img className="rail-logo" src="icon.png" alt="Rift Coach" />
-        {SECTIONS.map((s) => (
-          <NavButton key={s.id} id={s.id} label={s.label} active={section === s.id} onClick={() => setSection(s.id)}
-            badge={(s.id === 'recordings' && Boolean(status?.replay)) || (s.id === 'harvest' && Boolean(status && isHarvestBusy(status.harvest)))} />
+      <nav className="sidebar">
+        <div className="brand">
+          <img src="icon.png" alt="" />
+          <div>
+            <div className="brand-name">Rift Coach</div>
+            <div className="brand-sub">League of Legends</div>
+          </div>
+        </div>
+        {GROUPS.map(g => (
+          <div key={g.title} className="nav-group">
+            <div className="nav-group-title">{g.title}</div>
+            {g.items.map(it => (
+              <NavItem key={it.id} id={it.id} label={it.label} active={section === it.id} badge={badge(it.id)} onClick={() => setSection(it.id)} />
+            ))}
+          </div>
         ))}
-        <div className="rail-spacer" />
-        <NavButton id="settings" label="Ustawienia" active={section === 'settings'} onClick={() => setSection('settings')} />
-        <div className="rail-foot">{status ? `v${status.version}` : ''}</div>
+        <div className="nav-spacer" />
+        <NavItem id="settings" label="Ustawienia" active={section === 'settings'} onClick={() => setSection('settings')} />
+        <div className="nav-foot">{status ? `v${status.version}` : ''}</div>
       </nav>
       <div className="main">
-        <StatusBar status={status} error={loadError} />
+        <StatusBar status={status} error={loadError} title={TITLE[section]} />
         <main className="content">
           {!status ? (
             <div className="empty">{loadError ? 'Nie udało się pobrać stanu aplikacji.' : 'Łączenie…'}</div>
-          ) : section === 'lastMatch' ? (
-            <LastMatchView />
+          ) : section === 'home' ? (
+            <HomeView status={status} />
           ) : section === 'calibration' ? (
             <CalibrationView
               calibration={status.settings.calibration}
