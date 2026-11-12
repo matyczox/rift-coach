@@ -37,6 +37,9 @@ pub async fn resolve_codex() -> Option<PathBuf> {
         .clone()
 }
 
+/// Models called in Codex fast mode by default (`service_tier="fast"`; Terra advertises support for it).
+pub const FAST_TIER_MODELS: &[&str] = &["gpt-6.1-terra"];
+
 pub fn build_args(opts: &ModelCall, dir: &Path, out: &Path) -> Vec<String> {
     let model = opts.model.strip_prefix("codex:").unwrap_or(&opts.model).to_string();
     let effort = opts.effort.map(|e| e.as_str()).unwrap_or("low");
@@ -45,6 +48,11 @@ pub fn build_args(opts: &ModelCall, dir: &Path, out: &Path) -> Vec<String> {
     if opts.tools.iter().any(|t| t.to_lowercase().contains("web")) {
         a.push("-c".into());
         a.push("tools.web_search=true".into());
+    }
+    // Codex fast mode (service tier) for the in-game model: lower latency, uses more of the plan's quota.
+    if FAST_TIER_MODELS.contains(&a[2].as_str()) {
+        a.push("-c".into());
+        a.push("service_tier=\"fast\"".into());
     }
     for s in ["-s", "read-only", "--skip-git-repo-check", "--ephemeral", "--ignore-user-config", "--color", "never", "-C"] {
         a.push(s.into());
