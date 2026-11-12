@@ -1,5 +1,6 @@
 import { setFastMode } from './coach/llm';
-import { app, BrowserWindow, globalShortcut, ipcMain, nativeImage, screen, shell } from 'electron';
+import { app, BrowserWindow, dialog, globalShortcut, ipcMain, nativeImage, screen, shell } from 'electron';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { writeFileSync, readdirSync, statSync, existsSync, readFileSync } from 'node:fs';
 import os from 'node:os';
@@ -48,6 +49,18 @@ import { WindowTracker } from './winrect';
 
 // No yellow 'being captured' border around the game: use the classic window capturer instead of
 // Windows Graphics Capture (unless RC_WGC=1).
+// The Rust version (rift-coach.exe) shares settings, reviews and the learned model: running both meant two
+// HUDs, two coaches answering and two post-game reviews. Refuse to start next to it (dev tools may opt out).
+if (!process.argv.includes('--smoke') && !process.env.RC_ALLOW_BOTH) {
+  try {
+    const out = execFileSync('tasklist', ['/FI', 'IMAGENAME eq rift-coach.exe', '/NH'], { encoding: 'utf8', windowsHide: true });
+    if (/rift-coach.exe/i.test(out)) {
+      // showErrorBox works before 'ready'; exit right away so no window, HUD or coach ever starts.
+      dialog.showErrorBox('Rift Coach', 'Działa już Rift Coach (Rust). Zamknij go, żeby uruchomić tę wersję — obie naraz pokazałyby podwójną nakładkę i porady.');
+      app.exit(0);
+    }
+  } catch { /* tasklist missing: just start */ }
+}
 if (process.env.RC_WGC !== '1') app.commandLine.appendSwitch('disable-features', 'AllowWgcWindowCapturer,AllowWgcScreenCapturer,AllowWgcZeroHz');
 if (!app.requestSingleInstanceLock()) app.quit();
 
