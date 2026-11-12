@@ -51,7 +51,7 @@ export interface DetectParams {
   refine: number;
 }
 
-export const DEFAULT_PARAMS: DetectParams = { ringR: 0.042, innerR: 0.032, zoom: 1.2, minVotes: 0.28, minScore: 0.45, minScoreEnemy: 0.6, refine: 2 };
+export const DEFAULT_PARAMS: DetectParams = { ringR: 0.042, innerR: 0.032, zoom: 1.2, minVotes: 0.28, minScore: 0.45, minScoreEnemy: 0.6, refine: 2, fallbackMinScore: 0.75, fallbackSupport: 0.5 };
 
 export interface Template { champion: string; team: Team; size: number; /** zero-mean, unit-norm masked RGB vector */ vec: Float32Array; mask: Uint8Array }
 

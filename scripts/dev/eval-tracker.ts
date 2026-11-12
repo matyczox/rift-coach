@@ -37,6 +37,21 @@ function mergeTruth(a: Cached, b: Cached): Cached {
       else { const z = (x ?? y)!; if (z.s >= 0.75) out[k]!.push(z); }
     }
   }
+  // Physics filter: a champion can't jump across the map in a second (minion waves next to a tower can
+  // look like a portrait while the real one hides under a teammate). Allow jumps into the CHAOS fountain (recall).
+  const last = new Map<string, { t: number; x: number; y: number }>();
+  for (const k of Object.keys(out).map(Number).sort((p, q) => p - q)) {
+    out[k] = out[k]!.filter(d => {
+      const prev = last.get(d.c);
+      const fountain = d.x > 0.86 && d.y < 0.14;
+      if (prev && !fountain) {
+        const dt = (k - prev.t) / 1000;
+        if (dt < 15 && Math.hypot(d.x - prev.x, d.y - prev.y) > 0.05 + 0.08 * dt) return false;
+      }
+      last.set(d.c, { t: k, x: d.x, y: d.y });
+      return true;
+    });
+  }
   return out;
 }
 
