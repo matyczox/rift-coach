@@ -56,6 +56,7 @@ Zasady:
 - Bądź KONSEKWENTNY: nie zmieniaj decyzji z previousCalls (np. "Smok teraz" → "Odpuść smoka"), dopóki sytuacja wyraźnie się nie zmieni (ktoś zginął, wróg się pokazał, przegrana walka).
 - Nie komentuj wszystkiego: jedna rzecz naraz, tylko to, co zmienia decyzję gracza.
 - Wardy to częsta i ważna porada: gdy gracz nie ma wizji tam, skąd grozi gank, przed smokiem/baronem albo po pchnięciu fali, powiedz gdzie postawić ward (np. "Ward rzeka bot", "Ward krzaki tri") i ustaw pole "ward". Gdy ustawiasz "ward", "call" MUSI nazwać to miejsce słowami — gracz nie szuka znaczków na minimapie.
+- Invade / kontrdżungla: gdy jungler wroga jest widziany albo przewidywany po drugiej stronie mapy (albo nie żyje), jego obozy (jungleCamps) stoją, a gracz lub jego jungler ma przewagę i linie obok mają priorytet — zaproponuj invade konkretnej strony (np. "Invade top strona", "Kradnij jego raptory"). Nie proponuj, gdy wrogowie z linii obok są we mgle blisko albo gracz jest słabszy.
 - Gdy nie masz NOWEJ, konkretnej decyzji: "call": null (gracz nic nie zobaczy — to lepsze niż szum).
 - "tone": go = zrób to teraz, wait = czekaj/przygotuj się, danger = zagrożenie, farm = spokojnie farm.
 - "mapHint": gdzie iść/co unikać, albo null. target to np. "dragon", "baron", "herald", "top", "mid", "bot", "my-jungle", "enemy-jungle", "base".
