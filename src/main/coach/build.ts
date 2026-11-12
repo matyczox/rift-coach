@@ -1,0 +1,70 @@
+import type { BuildPanelState, GameIntel, OpponentProfile } from '../../shared/intel';
+import type { ItemData } from '../intel/ddragon';
+import { callModel, type Effort } from './llm';
+
+/**
+ * AI build advisor: the next 2–3 items for me given the phase, my current items,
+ * enemy damage types/items, who is fed, and the patch's meta build. Called on
+ * real changes only (start, enemy completes an item, I die/recall, every ~3 min).
+ */
+const SCHEMA = {
+  type: 'object', additionalProperties: false, required: ['phase', 'items'],
+  properties: {
+    phase: { type: 'string', maxLength: 20 },
+    items: { type: 'array', minItems: 1, maxItems: 3, items: { type: 'object', additionalProperties: false, required: ['name'], properties: { name: { type: 'string' } } } },
+  },
+};
+
+const SYSTEM = `Jesteś ekspertem od buildów League of Legends. Dobierz NASTĘPNE 2–3 przedmioty dla gracza (kolejność zakupu), uwzględniając:
+- fazę gry, jego obecne przedmioty i złoto,
+- typ obrażeń wrogów (AD/AP), ich przedmioty, leczenie, tarcze, CC, kto jest nafeedowany (najgroźniejszy),
+- aktualny build z mety z briefu patcha (jeśli podany) — odchodź od niego tylko z konkretnego powodu.
+Nazwy przedmiotów DOKŁADNIE z listy "availableItems" (polskie nazwy z gry). Bez uzasadnień — tylko nazwy.
+"phase": "wczesna gra" / "środek gry" / "późna gra".`;
+
+export function buildContext(intel: GameIntel, items: Map<number, ItemData>, profiles: OpponentProfile[], patchBrief: string | undefined, fed: string[]) {
+  const me = intel.me!;
+  const completed = [...items.values()].filter(i => i.completed && i.total >= 900);
+  return {
+    time: Math.round(intel.gameTime / 60) + ' min',
+    me: { champion: me.champion, role: me.role, level: me.level, goldNow: intel.myStats?.gold, items: me.items.map(i => i.name), stats: intel.myStats },
+    enemies: intel.players.filter(p => !p.isAlly).map(p => ({ champion: p.champion, role: p.role, kda: `${p.kills}/${p.deaths}/${p.assists}`, items: p.items.filter(i => i.price >= 900).map(i => i.name), fed: fed.includes(p.champion), profile: profiles.find(pr => pr.champion === p.champion)?.summary })),
+    allies: intel.players.filter(p => p.isAlly && !p.isMe).map(p => p.champion),
+    goldDiff: intel.goldDiff,
+    patch: patchBrief,
+    availableItems: completed.map(i => i.name),
+  };
+}
+
+export async function adviseBuild(ctx: ReturnType<typeof buildContext>, items: Map<number, ItemData>, iconUrl: (id: number) => string, model = 'claude-sonnet-5-5', effort: Effort = 'low', tools?: string[]): Promise<BuildPanelState> {
+  const r = await callModel<{ phase: string; items: Array<{ name: string }> }>({
+    model, effort, tools, system: SYSTEM, schema: SCHEMA, prompt: JSON.stringify(ctx), timeoutMs: 120000,
+  });
+  const byName = new Map([...items.values()].map(i => [i.name.toLowerCase(), i]));
+  return {
+    phase: r.value.phase,
+    updatedAt: Date.now(),
+    items: r.value.items.slice(0, 3).map(it => {
+      const data = byName.get(it.name.toLowerCase()) ?? [...items.values()].find(i => i.name.toLowerCase().includes(it.name.toLowerCase()));
+      // Only the item: the user asked for no descriptions in the panel.
+      return { name: data?.name ?? it.name, iconUrl: data ? iconUrl(data.id) : '', why: '', cost: data?.total ?? null };
+    }),
+  };
+}
+
+/** Decides when the build should be re-evaluated. */
+export class BuildTrigger {
+  private lastKey = '';
+  private lastAt = 0;
+  shouldRefresh(intel: GameIntel, now: number): boolean {
+    const me = intel.me;
+    if (!me) return false;
+    const enemyItems = intel.players.filter(p => !p.isAlly).reduce((s, p) => s + p.completedItems, 0);
+    const key = `${me.items.map(i => i.id).join(',')}|${enemyItems}|${me.isDead}`;
+    if (key !== this.lastKey || now - this.lastAt > 180000) {
+      this.lastKey = key; this.lastAt = now;
+      return true;
+    }
+    return false;
+  }
+}

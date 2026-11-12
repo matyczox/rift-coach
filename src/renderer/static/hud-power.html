@@ -1,0 +1,13 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https://ddragon.leagueoflegends.com data:; style-src 'self' 'unsafe-inline'; script-src 'self'">
+<title>Rift Coach HUD</title>
+<link rel="stylesheet" href="hud-style.css">
+</head>
+<body>
+<div class="wrap fade" id="root"><div class="card power"><div class="dg hidden" id="danger"><div class="dg-top"><span class="dg-label" id="dgLabel"></span><span class="dg-meter" id="dgMeter"><i></i><i></i><i></i><i></i></span></div><div class="dg-why" id="dgWhy"></div></div><div id="pw"><div class="pw-row"><img id="meIcon" class="pw-icon" alt=""><span class="pw-me">Ty</span><div class="pw-bar"><div class="pw-fill" id="fill"><span id="pct"></span></div></div><img id="enIcon" class="pw-icon" alt=""></div><div class="pw-detail" id="detail"></div><div class="pw-advice" id="advice"></div></div></div></div>
+<script src="hud-power.js"></script>
+</body>
+</html>
