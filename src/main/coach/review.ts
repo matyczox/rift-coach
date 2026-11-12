@@ -68,7 +68,8 @@ const SCHEMA = {
 export async function buildReview(log: MatchLog, opts: { model: string; effort?: Effort; win: boolean | null; dir: string; patchBrief?: string }): Promise<MatchReview | null> {
   const i = log.last;
   if (!i?.me || i.gameTime < 300) return null; // remakes / practice blips
-  if (log.gameMode === 'CHERRY') return null;  // Arena: different game, no Rift review
+  // Summoner's Rift only (no ARAM / ARAM Mayhem / Arena / event modes).
+  if (!['CLASSIC', 'SWIFTPLAY', 'PRACTICETOOL'].includes(log.gameMode)) return null;
   const me = i.me;
   const lane = i.players.find(p => !p.isAlly && p.role === me.role && p.role !== 'UNKNOWN');
   const facts = {
