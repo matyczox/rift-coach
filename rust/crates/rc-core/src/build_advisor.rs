@@ -114,7 +114,7 @@ struct NameOnly {
 
 /// Ask the build model. TS defaults: model "claude-sonnet-5-5", effort low, no tools;
 /// the app passes the profile's build pick.
-pub async fn advise_build(caller: &dyn ModelCaller, ctx: &Value, items: &HashMap<i64, ItemData>, icon_url: &dyn Fn(i64) -> String, model: &str, effort: Effort, tools: &[String], now_ms: f64) -> Result<BuildPanelState> {
+pub async fn advise_build(caller: &dyn ModelCaller, ctx: &Value, items: &HashMap<i64, ItemData>, icon_url: &(dyn Fn(i64) -> String + Sync), model: &str, effort: Effort, tools: &[String], now_ms: f64) -> Result<BuildPanelState> {
     let call = ModelCall { model: model.into(), effort: Some(effort), tools: tools.to_vec(), system: SYSTEM.into(), schema: schema(), prompt: serde_json::to_string(ctx)?, timeout_ms: Some(120_000), ..Default::default() };
     let r = caller.call(&call).await?;
     let a: Answer = serde_json::from_value(r.value).map_err(|e| anyhow::anyhow!("odpowiedź niezgodna ze schematem: {e}"))?;
