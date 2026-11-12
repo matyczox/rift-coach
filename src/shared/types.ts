@@ -27,7 +27,7 @@ export interface Settings {
   autoRecord: boolean;
   overlayVisible: boolean;
   hotkeys: { toggleOverlay: string; toggleRecording: string; enemyFlash: string };
-  coach: { enabled: boolean; liveModel: string; reviewModel: string; periodSec: number; /** Web research once per patch/game: patch brief, lane matchup. */ researchModel: string; /** Fast web research in champion select: runes, draft roles. */ draftModel: string };
+  coach: { enabled: boolean; liveModel: string; reviewModel: string; periodSec: number; /** Web research once per patch/game: patch brief, lane matchup. */ researchModel: string; /** Fast web research in champion select: runes, draft roles. */ draftModel: string; /** Codex fast mode for Terra (faster, uses more of the plan). */ fast?: boolean };
   riot: { apiKey: string; platform: string };
   /** Set a "Rift Coach" rune page automatically in champion select. */
   autoRunes: boolean;

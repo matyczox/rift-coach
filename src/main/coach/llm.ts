@@ -49,6 +49,9 @@ export function resolveCodex(): Promise<string | null> {
  */
 /** Models called in Codex fast mode by default (service_tier="fast"; Terra advertises support for it). */
 export const FAST_TIER_MODELS = ['gpt-6.1-terra'];
+let fastMode = true;
+/** Settings → Coach → Tryb fast. */
+export function setFastMode(on: boolean) { fastMode = on; }
 
 async function callCodex<T>(opts: ModelCall): Promise<ClaudeCallResult<T>> {
   const exe = await resolveCodex();
@@ -63,7 +66,7 @@ async function callCodex<T>(opts: ModelCall): Promise<ClaudeCallResult<T>> {
     // Web research (patch notes, matchup stats): Codex's native web_search tool.
     ...(opts.tools?.some(t => /Web/i.test(t)) ? ['-c', 'tools.web_search=true'] : []),
     // Codex fast mode (service tier) for the in-game model: lower latency, uses more of the plan's quota.
-    ...(FAST_TIER_MODELS.includes(model) ? ['-c', 'service_tier="fast"'] : []),
+    ...(fastMode && FAST_TIER_MODELS.includes(model) ? ['-c', 'service_tier="fast"'] : []),
     '-s', 'read-only', '--skip-git-repo-check', '--ephemeral', '--ignore-user-config', '--color', 'never',
     '-C', dir, '-o', out, '-',
   ];

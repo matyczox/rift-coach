@@ -12,7 +12,7 @@ export const DEFAULT_SETTINGS: Settings = {
   hotkeys: { toggleOverlay: 'Alt+Shift+O', toggleRecording: 'Alt+Shift+R', enemyFlash: 'Alt+Shift+F' },
   // Picked from a 6-model comparison on real match situations: GPT-6.1-Sol = fast, accurate, honest
   // for the in-game call; Opus 5.5 = best reasoning for death reviews and the post-game review.
-  coach: { enabled: true, liveModel: 'gpt-6.1-terra', reviewModel: 'claude-opus-5-5', periodSec: 25, researchModel: 'claude-opus-5-5', draftModel: 'gpt-6.1-terra' },
+  coach: { enabled: true, liveModel: 'gpt-6.1-terra', reviewModel: 'claude-opus-5-5', periodSec: 25, researchModel: 'claude-opus-5-5', draftModel: 'gpt-6.1-terra', fast: true },
   riot: { apiKey: '', platform: 'eun1' },
   autoRunes: true,
   launchAtLogin: false,

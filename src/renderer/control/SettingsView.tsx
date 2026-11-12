@@ -55,7 +55,7 @@ const sameDraft = (a: Draft, b: Draft) =>
   && a.hotkeys.toggleOverlay === b.hotkeys.toggleOverlay && a.hotkeys.toggleRecording === b.hotkeys.toggleRecording
   && a.hotkeys.enemyFlash === b.hotkeys.enemyFlash
   && a.coach.enabled === b.coach.enabled && a.coach.liveModel === b.coach.liveModel
-  && a.coach.reviewModel === b.coach.reviewModel && a.coach.periodSec === b.coach.periodSec
+  && a.coach.reviewModel === b.coach.reviewModel && a.coach.periodSec === b.coach.periodSec && (a.coach.fast !== false) === (b.coach.fast !== false)
   && a.coach.researchModel === b.coach.researchModel && a.coach.draftModel === b.coach.draftModel
   && a.riot.apiKey === b.riot.apiKey && a.riot.platform === b.riot.platform;
 
@@ -121,6 +121,44 @@ const prettyModel = (m: string) => {
   return m.startsWith('gpt') ? name + ' · Codex' : m.startsWith('claude') ? name + ' · Claude' : m;
 };
 
+/** Row of choice buttons (instead of sliders). */
+function Seg<T extends number>({ value, options, onChange }: { value: T; options: Array<{ v: T; label: string }>; onChange: (v: T) => void }) {
+  const near = options.reduce((b, o) => (Math.abs(o.v - value) < Math.abs(b.v - value) ? o : b), options[0]!).v;
+  return (
+    <div className="seg">
+      {options.map(o => <button key={o.v} type="button" className={'seg-btn' + (o.v === near ? ' on' : '')} onClick={() => onChange(o.v)}>{o.label}</button>)}
+    </div>
+  );
+}
+
+/** Click, then press the key combination (Backspace clears). */
+function KeyCapture({ id, value, onChange }: { id: string; value: string; onChange: (v: string) => void }) {
+  const [rec, setRec] = useState(false);
+  return (
+    <button
+      id={id}
+      type="button"
+      className={'key-cap' + (rec ? ' rec' : '')}
+      onClick={() => setRec(true)}
+      onBlur={() => setRec(false)}
+      onKeyDown={(e) => {
+        if (!rec) return;
+        e.preventDefault();
+        if (e.key === 'Escape') { setRec(false); return; }
+        if (e.key === 'Backspace' || e.key === 'Delete') { onChange(''); setRec(false); return; }
+        if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
+        const k = /^F\d{1,2}$/.test(e.key) ? e.key : e.code.startsWith('Key') ? e.code.slice(3) : e.code.startsWith('Digit') ? e.code.slice(5) : e.key.length === 1 ? e.key.toUpperCase() : e.key;
+        const mods = [e.ctrlKey && 'Ctrl', e.altKey && 'Alt', e.shiftKey && 'Shift'].filter(Boolean);
+        if (!mods.length && !/^F\d{1,2}$/.test(k)) return; // need a modifier (except F-keys)
+        onChange([...mods, k].join('+'));
+        setRec(false);
+      }}
+    >
+      {rec ? 'Naciśnij skrót…' : value ? value.split('+').map((p, i) => <kbd key={i}>{p}</kbd>) : <span className="muted">brak</span>}
+    </button>
+  );
+}
+
 export const SettingsView = memo(function SettingsView({ settings }: { settings: Settings }) {
   const incoming = useMemo(() => toDraft(settings), [settings]);
   const [base, setBase] = useState<Draft>(incoming);
@@ -183,6 +221,7 @@ export const SettingsView = memo(function SettingsView({ settings }: { settings:
         periodSec: Math.round(clamp(draft.coach.periodSec, ...PERIOD_LIMITS)),
         researchModel: (draft.coach.researchModel ?? 'claude-opus-5-5').trim() || 'claude-opus-5-5',
         draftModel: (draft.coach.draftModel ?? 'gpt-6.1-terra').trim() || 'gpt-6.1-terra',
+        fast: draft.coach.fast !== false,
       },
       riot: { apiKey: draft.riot.apiKey.trim(), platform: draft.riot.platform },
     };
@@ -240,20 +279,8 @@ export const SettingsView = memo(function SettingsView({ settings }: { settings:
   const hotkey = (k: keyof Settings['hotkeys'], label: string) => (
     <div className="field">
       <label htmlFor={`hk-${k}`}>{label}</label>
-      <div className="field-ctl">
-        <input
-          id={`hk-${k}`}
-          type="text"
-          className={'text-input mono' + (hkErr[k] ? ' invalid' : '')}
-          value={draft.hotkeys[k]}
-          placeholder="np. Alt+Shift+O"
-          spellCheck={false}
-          onChange={(e) => { const v = e.target.value; setDraft((d) => ({ ...d, hotkeys: { ...d.hotkeys, [k]: v } })); }}
-        />
-      </div>
-      <div className={hkErr[k] ? 'field-hint error-text' : 'field-hint'}>
-        {hkErr[k] ?? 'Format Electron, np. Alt+Shift+O. Puste = wyłączony.'}
-      </div>
+      <KeyCapture id={`hk-${k}`} value={draft.hotkeys[k]} onChange={(v) => setDraft((d) => ({ ...d, hotkeys: { ...d.hotkeys, [k]: v } }))} />
+      {hkErr[k] && <div className="field-hint error-text">{hkErr[k]}</div>}
     </div>
   );
 
@@ -302,31 +329,11 @@ export const SettingsView = memo(function SettingsView({ settings }: { settings:
             <label htmlFor="coach-draft">Draft (runy, role)</label>
             <ModelPicker id="coach-draft" value={draft.coach.draftModel ?? 'gpt-6.1-terra'} options={DRAFT_MODELS} onChange={(v) => setCoach({ draftModel: v })} />
           </div>
+          {toggle(draft.coach.fast !== false, (v) => setCoach({ fast: v }), 'Tryb fast (Terra)', 'Szybsze porady w grze; zużywa więcej limitu ChatGPT.')}
           <div className="field">
-            <label htmlFor="coach-period">Porada co ile sekund</label>
-            <div className="field-ctl">
-              <input
-                id="coach-period"
-                type="range"
-                min={pLo}
-                max={pHi}
-                step={5}
-                value={clamp(draft.coach.periodSec, pLo, pHi)}
-                onChange={(e) => setCoach({ periodSec: Number(e.target.value) })}
-              />
-              <input
-                type="number"
-                className="num-input"
-                min={pLo}
-                max={pHi}
-                step={1}
-                value={draft.coach.periodSec}
-                onChange={(e) => { const n = Number(e.target.value); if (e.target.value !== '' && Number.isFinite(n)) setCoach({ periodSec: n }); }}
-                aria-label="Porada co ile sekund"
-              />
-              <span className="unit muted">s</span>
-            </div>
-            <div className="field-hint">({pLo}–{pHi})</div>
+            <label>Porady w grze</label>
+            <Seg value={draft.coach.periodSec} options={[{ v: 15, label: 'Często' }, { v: 25, label: 'Normalnie' }, { v: 45, label: 'Rzadko' }]} onChange={(v) => setCoach({ periodSec: v })} />
+            <div className="field-hint">Co {draft.coach.periodSec} s, plus zawsze po śmierci i przed obiektami.</div>
           </div>
           <div className="help-line">
             Coach korzysta z Twoich subskrypcji: Codex (ChatGPT) i/lub Claude Code. Aplikacja sama wybiera najlepsze modele do tego, co masz zainstalowane. Gdy coach pokazuje „niezalogowany”, uruchom w terminalu <code>claude</code> i zaloguj się.
@@ -368,10 +375,12 @@ export const SettingsView = memo(function SettingsView({ settings }: { settings:
           </div>
         </div>
         <div className="panel">
-          <h2>Przechwytywanie</h2>
-          {numField('minimapFps', 'Minimapa na żywo', 'fps', 'Klatki minimapy na sekundę dla trackera')}
-          {numField('recordFps', 'Minimapa w nagraniu', 'fps', 'Klatki minimapy zapisywane do nagrania')}
-          {numField('sceneEverySec', 'Pełny ekran w nagraniu co', 's', 'Odstęp między zrzutami całego ekranu')}
+          <h2>Wydajność</h2>
+          <div className="field">
+            <label>Śledzenie minimapy</label>
+            <Seg value={draft.minimapFps} options={[{ v: 5, label: 'Oszczędnie' }, { v: 10, label: 'Normalnie' }, { v: 15, label: 'Dokładnie' }]} onChange={(v) => setDraft((d) => ({ ...d, minimapFps: v }))} />
+            <div className="field-hint">Ile razy na sekundę aplikacja patrzy na minimapę ({draft.minimapFps}/s).</div>
+          </div>
         </div>
         <div className="panel">
           <h2>Skróty</h2>

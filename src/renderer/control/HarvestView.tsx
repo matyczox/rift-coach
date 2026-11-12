@@ -126,7 +126,7 @@ export const HarvestView = memo(function HarvestView({ harvest, replayApi }: Pro
         </div>
       </div>
 
-      <div className="field-hint">Zaznacz powtórki i kliknij „Zbierz zaznaczone”. Aplikacja sama je otworzy; między przebiegami poprosi o zmianę „Mgła wojny”.</div>
+      <div className="field-hint">Zaznacz powtórki i kliknij „Zbierz zaznaczone”. Aplikacja sama je otworzy i przełączy „Mgłę wojny”. Nie ruszaj myszką przez sekundę, gdy przełącza.</div>
       {err && <div className="error-text">{err}</div>}
 
       <HarvestCard harvest={harvest} onStop={stop} onContinue={cont} pending={act.busy} />

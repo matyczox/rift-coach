@@ -6,8 +6,21 @@ import type { HarvestStatus } from '../shared/types';
 import type { CropFrame } from './capture';
 import { replayApi, type Playback } from './sources/replayApi';
 import { getJson } from './sources/http';
+import { execFile } from 'node:child_process';
 
 export type FogTeam = 'blue' | 'red' | 'all';
+
+/**
+ * Pick the fog team in the replay HUD (Mgla wojny: Niebieski / Czerwony / Wszystkie) with two clicks in
+ * the replay window, then read the coloured label back to confirm (scripts/replay-fog.ps1).
+ * Replays only: the harvester runs only while the Replay API is up, never in a live game.
+ */
+export function setReplayFog(team: FogTeam): Promise<boolean> {
+  const script = path.join(__dirname, '..', 'scripts', 'replay-fog.ps1');
+  if (!existsSync(script)) return Promise.resolve(false);
+  return new Promise(res => execFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', script, 'fog', team],
+    { windowsHide: true, timeout: 20000 }, (err, out) => res(!err && /^OK fog/m.test(String(out)))));
+}
 
 /** Session sub-folder for each team's view. frames/ stays the default (blue) view for the player. */
 // 'all' = HUD fog 'Wszystkie': union of both teams' vision -> every champion is drawn (full truth).
@@ -89,7 +102,9 @@ export class Harvester extends EventEmitter {
       for (const [k, pass] of passes.entries()) {
         if (this.stopRequested) break;
         await replayApi.setPlayback({ paused: true }).catch(() => undefined);
-        if (k > 0 || !opts.confirmFirst) {
+        // Switch the replay HUD's fog team by itself; ask the user only if that fails.
+        const switched = await setReplayFog(pass);
+        if (!switched && (k > 0 || !opts.confirmFirst)) {
           this.status = { ...this.status, state: 'waiting-fog', pass, needFog: pass };
           this.emit('status', this.status);
           await new Promise<void>(r => { this.resume = r; });

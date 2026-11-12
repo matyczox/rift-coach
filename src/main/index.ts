@@ -1,3 +1,4 @@
+import { setFastMode } from './coach/llm';
 import { app, BrowserWindow, globalShortcut, ipcMain, nativeImage, screen, shell } from 'electron';
 import path from 'node:path';
 import { writeFileSync, readdirSync, statSync, existsSync, readFileSync } from 'node:fs';
@@ -59,6 +60,7 @@ let backends: Backends = { claude: true, codex: true };
 const pick = (configured: string, task: Parameters<typeof usableModel>[1]) => usableModel(configured, task, backends) ?? { model: configured, effort: 'low' as const };
 const pickModel = (configured: string, task: Parameters<typeof usableModel>[1]) => pick(configured, task).model;
 function applyModels() {
+  setFastMode(settings.value.coach.fast !== false);
   const r = pick(settings.value.coach.researchModel, 'research'), d = pick(settings.value.coach.draftModel, 'draft');
   setResearchModel(r.model, r.effort);
   setFastResearchModel(d.model, d.effort);
@@ -904,7 +906,8 @@ app.whenReady().then(() => {
     const out = process.argv.find(a => a.startsWith('--smoke-frame='))?.slice(14);
     if (out && lastCrop) writeFileSync(out, lastCrop.png);
     const shot = process.argv.find(a => a.startsWith('--shot='))?.slice(7);
-    if (shot && control) void control.webContents.capturePage().then(img => writeFileSync(shot, img.toPNG()));
+    const scroll = Number(process.argv.find(a => a.startsWith('--shot-scroll='))?.slice(14) ?? 0);
+    if (shot && control) void control.webContents.executeJavaScript(`document.querySelector('.content').scrollTop = ${scroll}`).then(() => new Promise(r => setTimeout(r, 200))).then(() => control!.webContents.capturePage()).then(img => writeFileSync(shot, img.toPNG()));
     console.log('SMOKE', JSON.stringify(status()));
     app.quit();
   }, 12000);
