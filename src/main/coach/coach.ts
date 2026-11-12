@@ -39,10 +39,11 @@ export const DEFAULT_COACH: CoachConfig = { enabled: true, liveModel: 'claude-so
 export const SYSTEM = `Jesteś coachem League of Legends na poziomie challengera. Gracz gra TERAZ i może tylko zerknąć na ekran.
 Dostajesz stan meczu (JSON): jego postać, itemy, złoto, wszyscy gracze, timery celów, przewidywane pozycje wrogów we mgle (z % pewności) i profile przeciwników.
 Zasady:
-- "call": 2–4 słowa, po polsku, SAMA sugestia — co zrobić w ciągu najbliższych 5–20 sekund, bez uzasadnień i bez myślników (np. "Smok teraz", "Cofnij się", "Back po fali", "Nie pushuj"). Bez emotek.
+- "call": 2–4 słowa, po polsku, SAMA sugestia — co zrobić w ciągu najbliższych 5–20 sekund, bez uzasadnień i bez myślników (np. "Dragon teraz", "Cofnij się", "Back po fali", "Nie pushuj"). Bez emotek.
+- Nazwy z LoL-a ZAWSZE po angielsku, jak w angielskim kliencie: przedmioty ("Rabadon's Deathcap", "Zhonya's Hourglass"), obiekty ("Dragon", "Elder Dragon", "Baron", "Herald", "Voidgrubs"), czary ("Flash", "Ignite"), miejsca ("tri bush", "pixel bush"). Reszta po polsku (np. "Dragon teraz", "Kup Zhonya's Hourglass").
 - NIE opisuj tego, co gracz już widzi na ekranie (jego HP, złoto, timery, że ktoś zniknął) i NIE powtarzaj poprzednich porad (previousCalls) ani ich sensu innymi słowami. Ogólniki typu "farm pod wieżą", "uważaj na ganka" tylko gdy coś się zmieniło.
 - Smoki, baron i herold są ważne — komentuj je (przed pojawieniem się i przy walce o nie).
-- Bądź KONSEKWENTNY: nie zmieniaj decyzji z previousCalls (np. "Smok teraz" → "Odpuść smoka"), dopóki sytuacja wyraźnie się nie zmieni (ktoś zginął, wróg się pokazał, przegrana walka).
+- Bądź KONSEKWENTNY: nie zmieniaj decyzji z previousCalls (np. "Dragon teraz" → "Odpuść Dragona"), dopóki sytuacja wyraźnie się nie zmieni (ktoś zginął, wróg się pokazał, przegrana walka).
 - Nie komentuj wszystkiego: jedna rzecz naraz, tylko to, co zmienia decyzję gracza.
 - Wardy to częsta i ważna porada: gdy gracz nie ma wizji tam, skąd grozi gank, przed smokiem/baronem albo po pchnięciu fali, powiedz gdzie postawić ward (np. "Ward rzeka bot", "Ward krzaki tri") i ustaw pole "ward". Gdy ustawiasz "ward", "call" MUSI nazwać to miejsce słowami — gracz nie szuka znaczków na minimapie.
 - Invade / kontrdżungla: gdy jungler wroga jest widziany albo przewidywany po drugiej stronie mapy (albo nie żyje), jego obozy (jungleCamps) stoją, a gracz lub jego jungler ma przewagę i linie obok mają priorytet — zaproponuj invade konkretnej strony (np. "Invade top strona", "Kradnij jego raptory"). Nie proponuj, gdy wrogowie z linii obok są we mgle blisko albo gracz jest słabszy.
@@ -295,7 +296,8 @@ export class Coach extends EventEmitter {
 /** Same objective and same stance (see Rust same_objective_topic). */
 export function sameObjectiveTopic(a: string, b: string): boolean {
   const n = (x: string) => x.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  const topic = (s: string) => ['smok', 'baron', 'herol', 'larw', 'atakh'].find(t => s.includes(t));
+  const alias: Record<string, string> = { drag: 'smok', elder: 'smok', heral: 'herol', grub: 'larw' };
+  const topic = (s: string) => { const t = ['smok', 'drag', 'elder', 'baron', 'herol', 'heral', 'larw', 'grub', 'atakh'].find(w => s.includes(w)); return t ? alias[t] ?? t : undefined; };
   const neg = (s: string) => ['odpu', 'nie ', 'unik', 'zostaw'].some(w => s.includes(w));
   const A = n(a), B = n(b);
   return !!topic(A) && topic(A) === topic(B) && neg(A) === neg(B);

@@ -55,10 +55,11 @@ impl Default for CoachConfig {
 pub const SYSTEM: &str = r#"Jesteś coachem League of Legends na poziomie challengera. Gracz gra TERAZ i może tylko zerknąć na ekran.
 Dostajesz stan meczu (JSON): jego postać, itemy, złoto, wszyscy gracze, timery celów, przewidywane pozycje wrogów we mgle (z % pewności) i profile przeciwników.
 Zasady:
-- "call": 2–4 słowa, po polsku, SAMA sugestia — co zrobić w ciągu najbliższych 5–20 sekund, bez uzasadnień i bez myślników (np. "Smok teraz", "Cofnij się", "Back po fali", "Nie pushuj"). Bez emotek.
+- "call": 2–4 słowa, po polsku, SAMA sugestia — co zrobić w ciągu najbliższych 5–20 sekund, bez uzasadnień i bez myślników (np. "Dragon teraz", "Cofnij się", "Back po fali", "Nie pushuj"). Bez emotek.
+- Nazwy z LoL-a ZAWSZE po angielsku, jak w angielskim kliencie: przedmioty ("Rabadon's Deathcap", "Zhonya's Hourglass"), obiekty ("Dragon", "Elder Dragon", "Baron", "Herald", "Voidgrubs"), czary ("Flash", "Ignite"), miejsca ("tri bush", "pixel bush"). Reszta po polsku (np. "Dragon teraz", "Kup Zhonya's Hourglass").
 - NIE opisuj tego, co gracz już widzi na ekranie (jego HP, złoto, timery, że ktoś zniknął) i NIE powtarzaj poprzednich porad (previousCalls) ani ich sensu innymi słowami. Ogólniki typu "farm pod wieżą", "uważaj na ganka" tylko gdy coś się zmieniło.
 - Smoki, baron i herold są ważne — komentuj je (przed pojawieniem się i przy walce o nie).
-- Bądź KONSEKWENTNY: nie zmieniaj decyzji z previousCalls (np. "Smok teraz" → "Odpuść smoka"), dopóki sytuacja wyraźnie się nie zmieni (ktoś zginął, wróg się pokazał, przegrana walka).
+- Bądź KONSEKWENTNY: nie zmieniaj decyzji z previousCalls (np. "Dragon teraz" → "Odpuść Dragona"), dopóki sytuacja wyraźnie się nie zmieni (ktoś zginął, wróg się pokazał, przegrana walka).
 - Nie komentuj wszystkiego: jedna rzecz naraz, tylko to, co zmienia decyzję gracza.
 - Wardy to częsta i ważna porada: gdy gracz nie ma wizji tam, skąd grozi gank, przed smokiem/baronem albo po pchnięciu fali, powiedz gdzie postawić ward (np. "Ward rzeka bot", "Ward krzaki tri") i ustaw pole "ward". Gdy ustawiasz "ward", "call" MUSI nazwać to miejsce słowami — gracz nie szuka znaczków na minimapie.
 - Invade / kontrdżungla: gdy jungler wroga jest widziany albo przewidywany po drugiej stronie mapy (albo nie żyje), jego obozy (jungleCamps) stoją, a gracz lub jego jungler ma przewagę i linie obok mają priorytet — zaproponuj invade konkretnej strony (np. "Invade top strona", "Kradnij jego raptory"). Nie proponuj, gdy wrogowie z linii obok są we mgle blisko albo gracz jest słabszy.
@@ -289,7 +290,7 @@ pub fn build_snapshot(ctx: &CoachContext, previous: &[Value]) -> Value {
     if !i.buffs.is_empty() {
         o.insert(
             "buffs".into(),
-            json!(i.buffs.iter().map(|b| format!("{} ({}) do {}", match b.kind { "baron" => "Baron", "herald" => "Oko Herolda", _ => "Starszy smok" }, if b.team == "ally" { "my" } else { "wróg" }, fmt(b.until))).collect::<Vec<_>>()),
+            json!(i.buffs.iter().map(|b| format!("{} ({}) do {}", match b.kind { "baron" => "Baron", "herald" => "Eye of the Herald", _ => "Elder Dragon" }, if b.team == "ally" { "my" } else { "wróg" }, fmt(b.until))).collect::<Vec<_>>()),
         );
     }
     if let Some(a) = &i.ace {
@@ -467,7 +468,7 @@ impl Coach {
         self.last_seen.dead = dead;
 
         let events_now = i.recent.first().map(|r| r.at).unwrap_or(0.0);
-        let re = regex::Regex::new("Smok|Baron|Herald|Atakhan|Wieża|Inhibitor").unwrap();
+        let re = regex::Regex::new("Dragon|Baron|Herald|Atakhan|Wieża|Inhibitor").unwrap();
         if reason.is_none() && events_now > self.last_seen.events && i.recent.first().is_some_and(|r| re.is_match(&r.text)) {
             reason = Some("event");
         }
@@ -675,7 +676,7 @@ fn ward_call(value: &Value) -> Option<String> {
 /// had three of those in a row. "Odpuść smoka" after "Smok teraz" is a change, not a repeat.
 pub fn same_objective_topic(a: &str, b: &str) -> bool {
     let norm = |x: &str| strip_diacritics(&x.to_lowercase());
-    let topic = |s: &str| ["smok", "baron", "herol", "larw", "atakh"].into_iter().find(|t| s.contains(t));
+    let topic = |s: &str| ["smok", "drag", "elder", "baron", "herol", "heral", "larw", "grub", "atakh"].into_iter().find(|t| s.contains(t)).map(|t| match t { "drag" | "elder" => "smok", "heral" => "herol", "grub" => "larw", x => x });
     let neg = |s: &str| ["odpu", "nie ", "unik", "zostaw"].iter().any(|n| s.contains(n));
     let (na, nb) = (norm(a), norm(b));
     matches!((topic(&na), topic(&nb)), (Some(x), Some(y)) if x == y) && neg(&na) == neg(&nb)
@@ -910,14 +911,14 @@ mod tests {
         let mut i = intel();
         let t = i.game_time;
         i.objectives = vec![
-            ObjectiveTimer { kind: "dragon", label: "Smok".into(), spawns_at: Some(t + 80.4), alive: false },
+            ObjectiveTimer { kind: "dragon", label: "Dragon".into(), spawns_at: Some(t + 80.4), alive: false },
             ObjectiveTimer { kind: "baron", label: "Baron".into(), spawns_at: Some(t + 600.0), alive: false },
             ObjectiveTimer { kind: "herald", label: "Herald".into(), spawns_at: None, alive: true },
             ObjectiveTimer { kind: "atakhan", label: "Atakhan".into(), spawns_at: None, alive: false },
         ];
         let mut c = ctx(&i);
         let s = build_snapshot(&c, &[]);
-        assert_eq!(s["objectives"], json!([{ "what": "Smok", "in": 80 }, { "what": "Herald", "status": "żyje" }]));
+        assert_eq!(s["objectives"], json!([{ "what": "Dragon", "in": 80 }, { "what": "Herald", "status": "żyje" }]));
         assert!(s.get("plannedBuild").is_none());
         c.planned_build = vec!["Taniec Śmierci".into(), "Opancerzone Natarcie".into()];
         let s = build_snapshot(&c, &[]);

@@ -75,7 +75,7 @@ pub struct DangerState {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ObjectiveCall {
-    /// "Smok", "Baron", "Herold", "Larwy"
+    /// "Dragon", "Elder Dragon", "Baron", "Herald", "Voidgrubs"
     pub objective: String,
     /// go | contest | skip
     pub verdict: &'static str,
@@ -240,10 +240,10 @@ pub fn objective_call(intel: &GameIntel, tracks: &[FogTrack], allies: &[SeenUnit
         ("contest", "wyrównane, tylko z wizją".into())
     };
     let label = match o.kind {
-        "dragon" => "Smok".to_string(),
+        "dragon" => o.label.clone(),
         "baron" => "Baron".into(),
-        "herald" => "Herold".into(),
-        "grubs" => "Larwy".into(),
+        "herald" => "Herald".into(),
+        "grubs" => "Voidgrubs".into(),
         _ => o.label.clone(),
     };
     Some(ObjectiveCall { objective: label, verdict, reason, in_sec: Some(if o.alive { 0 } else { js_round(o.spawns_at.unwrap_or(gt) - gt) as i64 }), x: pos.x, y: pos.y })
@@ -354,10 +354,10 @@ mod tests {
         let mut i = intel(vec![player("Ahri", true, true, "MIDDLE", 9)]);
         i.objectives = vec![
             ObjectiveTimer { kind: "baron", label: "Baron".into(), spawns_at: Some(1200.0), alive: false },
-            ObjectiveTimer { kind: "dragon", label: "Smok".into(), spawns_at: Some(640.0), alive: false },
+            ObjectiveTimer { kind: "dragon", label: "Dragon".into(), spawns_at: Some(640.0), alive: false },
         ];
         let c = objective_call(&i, &[], &[], &[]).unwrap();
-        assert_eq!((c.objective.as_str(), c.verdict, c.in_sec), ("Smok", "contest", Some(40)));
+        assert_eq!((c.objective.as_str(), c.verdict, c.in_sec), ("Dragon", "contest", Some(40)));
         i.enemy.alive_count = 3;
         let c = objective_call(&i, &[], &[], &[]).unwrap();
         assert_eq!((c.verdict, c.reason.as_str()), ("go", "2 wrogów martwych"));

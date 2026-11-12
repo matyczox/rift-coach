@@ -229,7 +229,7 @@ pub fn spawn_backend_detection(rt: &tokio::runtime::Handle, st: &Arc<AppState>) 
 pub fn spawn_static_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>) {
     let st = st.clone();
     rt.spawn(async move {
-        match rc_core::intel::ddragon::load_static_data(&st.data_dir.join("ddragon"), "pl_PL").await {
+        match rc_core::intel::ddragon::load_static_data(&st.data_dir.join("ddragon"), "en_US").await {
             Ok(sd) => {
                 st.ui.lock().unwrap().ddragon_version = Some(sd.version.clone());
                 st.game.lock().unwrap().static_data = Some(Arc::new(sd));

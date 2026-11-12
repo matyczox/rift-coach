@@ -28,7 +28,7 @@ pub const SYSTEM: &str = "Jesteś ekspertem od buildów League of Legends. Dobie
 - fazę gry, jego obecne przedmioty i złoto,
 - typ obrażeń wrogów (AD/AP), ich przedmioty, leczenie, tarcze, CC, kto jest nafeedowany (najgroźniejszy),
 - aktualny build z mety z briefu patcha (jeśli podany) — odchodź od niego tylko z konkretnego powodu.
-Nazwy przedmiotów DOKŁADNIE z listy \"availableItems\" (polskie nazwy z gry). Bez uzasadnień — tylko nazwy.
+Nazwy przedmiotów DOKŁADNIE z listy \"availableItems\" (angielskie nazwy z gry). Bez uzasadnień — tylko nazwy.
 \"phase\": \"wczesna gra\" / \"środek gry\" / \"późna gra\".";
 
 /// Items in Data Dragon order (JS iterates integer keys ascending).

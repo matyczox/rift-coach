@@ -7,7 +7,7 @@ const chips = $('chips');
 const toasts = $('toasts');
 const live = new Map<number, HTMLElement>();
 
-const BUFF_NAME: Record<string, string> = { baron: 'Baron', elder: 'Starszy smok', herald: 'Oko Herolda' };
+const BUFF_NAME: Record<string, string> = { baron: 'Baron', elder: 'Elder Dragon', herald: 'Eye of the Herald' };
 /** In-game minimap icons (CommunityDragon), bundled with the app. */
 const BUFF_ICON: Record<string, string> = { baron: 'icons/baron.png', elder: 'icons/dragon_elder.png', herald: 'icons/riftherald.png' };
 /** Held Eye duration is not exact (it may be used earlier): show it as an estimate. */

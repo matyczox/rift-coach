@@ -22,13 +22,13 @@ pub mod obj {
 
 fn dragon_pl(t: &str) -> Option<&'static str> {
     Some(match t {
-        "Fire" => "Piekielny",
-        "Earth" => "Górski",
-        "Water" => "Oceaniczny",
-        "Air" => "Chmur",
+        "Fire" => "Infernal",
+        "Earth" => "Mountain",
+        "Water" => "Ocean",
+        "Air" => "Cloud",
         "Chemtech" => "Chemtech",
         "Hextech" => "Hextech",
-        "Elder" => "Starszy",
+        "Elder" => "Elder",
         _ => return None,
     })
 }
@@ -512,7 +512,7 @@ fn events(
                         buffs.push(Buff { kind: "elder", team: rel(&killer_team), until: at + 150.0 });
                     }
                     last_dragon = Some(at);
-                    recent.insert(0, Recent { at, text: format!("Starszy smok: {who}") });
+                    recent.insert(0, Recent { at, text: format!("Elder Dragon: {who}") });
                     continue;
                 }
                 if let Some(x) = sd!() {
@@ -522,7 +522,7 @@ fn events(
                     }
                 }
                 last_dragon = Some(at);
-                recent.insert(0, Recent { at, text: format!("Smok {}: {who}", dragon_pl(&ty).map(String::from).unwrap_or(ty)) });
+                recent.insert(0, Recent { at, text: format!("{} Dragon: {who}", dragon_pl(&ty).map(String::from).unwrap_or(ty)) });
             }
             "BaronKill" => {
                 if let Some(x) = sd!() {
@@ -597,15 +597,15 @@ fn events(
     };
     objectives.push(ObjectiveTimer {
         kind: "dragon",
-        label: if elder_unlocked { "Starszy smok" } else { "Smok" }.into(),
+        label: if elder_unlocked { "Elder Dragon" } else { "Dragon" }.into(),
         spawns_at: (dragon_at > t).then_some(dragon_at),
         alive: dragon_at <= t,
     });
     if t < obj::HERALD_FIRST + 5.0 * 60.0 && grubs_taken < 6 {
-        objectives.push(ObjectiveTimer { kind: "grubs", label: "Larwy".into(), spawns_at: (obj::GRUBS_FIRST > t).then_some(obj::GRUBS_FIRST), alive: obj::GRUBS_FIRST <= t });
+        objectives.push(ObjectiveTimer { kind: "grubs", label: "Voidgrubs".into(), spawns_at: (obj::GRUBS_FIRST > t).then_some(obj::GRUBS_FIRST), alive: obj::GRUBS_FIRST <= t });
     }
     if !herald_taken && t < obj::BARON_FIRST - 10.0 {
-        objectives.push(ObjectiveTimer { kind: "herald", label: "Herold".into(), spawns_at: (obj::HERALD_FIRST > t).then_some(obj::HERALD_FIRST), alive: obj::HERALD_FIRST <= t });
+        objectives.push(ObjectiveTimer { kind: "herald", label: "Herald".into(), spawns_at: (obj::HERALD_FIRST > t).then_some(obj::HERALD_FIRST), alive: obj::HERALD_FIRST <= t });
     }
     if obj::ATAKHAN_FIRST.is_finite() && !atakhan_taken && t < obj::BARON_FIRST + 60.0 {
         objectives.push(ObjectiveTimer { kind: "atakhan", label: "Atakhan".into(), spawns_at: (obj::ATAKHAN_FIRST > t).then_some(obj::ATAKHAN_FIRST), alive: obj::ATAKHAN_FIRST <= t });
