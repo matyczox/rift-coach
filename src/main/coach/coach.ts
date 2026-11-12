@@ -34,26 +34,28 @@ export interface CoachConfig {
   reviewEffort?: Effort;
 }
 
-export const DEFAULT_COACH: CoachConfig = { enabled: true, liveModel: 'claude-sonnet-5-5', reviewModel: 'claude-sonnet-5-5', periodSec: 25, minGapSec: 8 };
+export const DEFAULT_COACH: CoachConfig = { enabled: true, liveModel: 'claude-sonnet-5-5', reviewModel: 'claude-sonnet-5-5', periodSec: 25, minGapSec: 20 };
 
 export const SYSTEM = `Jesteś coachem League of Legends na poziomie challengera. Gracz gra TERAZ i może tylko zerknąć na ekran.
 Dostajesz stan meczu (JSON): jego postać, itemy, złoto, wszyscy gracze, timery celów, przewidywane pozycje wrogów we mgle (z % pewności) i profile przeciwników.
 Zasady:
-- "call": maksymalnie 8 słów, po polsku, konkretna decyzja na najbliższe 30 s (np. "Smok: TAK — 3 wrogów bot martwych", "Nie pushuj — jungler wroga top-side 70%", "Farm bot, back przy 1300 g"). Bez lania wody, bez emotek.
+- "call": MAKSYMALNIE 5 słów, po polsku: co zrobić w ciągu najbliższych 5–20 sekund, ZANIM to się stanie (np. "Smok teraz — 3 martwych", "Nie pushuj — jungler top", "Back po tej fali"). Bez lania wody, bez emotek.
+- NIE opisuj tego, co gracz już widzi na ekranie (jego HP, złoto, timery, że ktoś zniknął) i NIE powtarzaj poprzednich porad (previousCalls) ani ich sensu innymi słowami. Ogólniki typu "farm pod wieżą", "uważaj na ganka" tylko gdy coś się zmieniło.
+- Gdy nie masz NOWEJ, konkretnej decyzji: "call": null (gracz nic nie zobaczy — to lepsze niż szum).
 - "tone": go = zrób to teraz, wait = czekaj/przygotuj się, danger = zagrożenie, farm = spokojnie farm.
 - "mapHint": gdzie iść/co unikać, albo null. target to np. "dragon", "baron", "herald", "top", "mid", "bot", "my-jungle", "enemy-jungle", "base".
 - "item": następny przedmiot do kupienia przy najbliższym powrocie. Jeśli w danych jest "plannedBuild" (plan z panelu buildu, który gracz widzi na ekranie), wybierz z niego pierwszy przedmiot, którego gracz jeszcze nie ma — nie proponuj innego. Odejdź od planu tylko, gdy sytuacja wyraźnie tego wymaga (np. wróg nagle nafeedowany AP), i wtedy w "call" krótko napisz dlaczego. Gdy nie ma sensu nic mówić o przedmiotach: null.
 - "ward": gdzie postawić ward TERAZ (spot z listy wardSpots, nazwy względem strony gracza: my-* = jego dżungla, enemy-* = wroga) i krótki powód, albo null. Wybieraj miejsca o wyższej wartości (więcej wizji); faelight-* to Faelighty (2026): ward postawiony NA nich daje dużo większy zasięg wizji — preferuj je, gdy dostępne (mid-* dopiero po przemianie mapy po 2. smoku); plant-* to rośliny wizji — uderzenie odsłania duży obszar za darmo. Proponuj ward przed objective (60–90 s przed smokiem/baronem), przy pushowaniu linii bez wizji, gdy jungler wroga zniknął.
 - "deathReview": TYLKO gdy me.stan = "NIE ŻYJE" (jeśli "żyje", deathReview = null — także gdy zginął przed chwilą i już się odrodził): 3–5 krótkich punktów: dlaczego zginął (masz myDeath: kto zabił, kto asystował, czy to gank — używaj tego, nie zgaduj), co zrobić po respawnie (back/farm/gdzie iść), czy grać pasywnie czy agresywnie przez najbliższe minuty i dlaczego. Inaczej null.
 - "ttlSec": jak długo porada jest aktualna (10–40).
-Opieraj się na liczbach: przewaga złota, kto martwy i jak długo, timery, power spike'i, gdzie prawdopodobnie są wrogowie. Jeśli nic ważnego się nie dzieje — krótka porada farmienia/wizji. Nie powtarzaj poprzedniej porady słowo w słowo.`;
+Opieraj się na liczbach: przewaga złota, kto martwy i jak długo, timery, power spike'i, gdzie prawdopodobnie są wrogowie. Jeśli nic ważnego się nie dzieje — "call": null.`;
 
 export const SCHEMA = {
   type: 'object',
   additionalProperties: false,
   required: ['call', 'tone', 'mapHint', 'item', 'ward', 'deathReview', 'ttlSec'],
   properties: {
-    call: { type: 'string', maxLength: 70 },
+    call: { anyOf: [{ type: 'null' }, { type: 'string', maxLength: 45 }] },
     tone: { type: 'string', enum: ['go', 'wait', 'danger', 'farm'] },
     mapHint: {
       anyOf: [{ type: 'null' }, {
@@ -187,7 +189,7 @@ export class Coach extends EventEmitter {
     this.lastSeen.dead = dead;
 
     const eventsNow = i.recent.length ? i.recent[0]!.at : 0;
-    if (!reason && eventsNow > this.lastSeen.events && i.recent[0] && /Smok|Baron|Herald|Atakhan|Wieża|zabił/.test(i.recent[0].text)) reason = 'event';
+    if (!reason && eventsNow > this.lastSeen.events && i.recent[0] && /Smok|Baron|Herald|Atakhan|Wieża|Inhibitor/.test(i.recent[0].text)) reason = 'event';
     this.lastSeen.events = Math.max(this.lastSeen.events, eventsNow);
 
     if (!reason && me && me.level >= 6 && this.lastSeen.myLevel < 6 && this.lastSeen.myLevel > 0) reason = 'level6';
@@ -195,7 +197,10 @@ export class Coach extends EventEmitter {
 
     const soon = i.objectives.find(o => o.spawnsAt && o.spawnsAt - i.gameTime < 60 && o.spawnsAt - i.gameTime > 45);
     if (!reason && soon && i.gameTime - this.lastCallGameTime > 15) reason = 'objective-soon';
-    if (!reason && ctx.alerts.some(a => a.confidence > 0.6) && i.gameTime - this.lastCallGameTime > 10) reason = 'alert';
+    const newAlert = ctx.alerts.find(a => a.confidence > 0.6 && !this.seenAlerts.has(a.text));
+    for (const a of ctx.alerts) this.seenAlerts.set(a.text, i.gameTime);
+    for (const [t, at] of this.seenAlerts) if (i.gameTime - at > 60) this.seenAlerts.delete(t);
+    if (!reason && newAlert && i.gameTime - this.lastCallGameTime > 15) reason = 'alert';
     if (!reason && i.gameTime - this.lastCallGameTime > this.config.periodSec) {
       // Quiet game: only ask again if something changed, or after 2× the period at most.
       const sig = this.signature(ctx);
@@ -208,6 +213,8 @@ export class Coach extends EventEmitter {
   }
 
   private lastSignature = '';
+  /** Alert texts already reacted to (game time last seen); an alert triggers a call only when new. */
+  private seenAlerts = new Map<string, number>();
   /** Coarse game state: levels, kills, deaths, items, objective states, fog count, alerts. */
   private signature(ctx: CoachContext): string {
     const i = ctx.intel;
@@ -242,7 +249,10 @@ export class Coach extends EventEmitter {
       });
       this.status.calls++;
       this.status.lastLatencyMs = r.latencyMs;
-      const advice: CoachAdvice = { ...r.value, contextId, createdAt: Date.now(), gameTime: ctx.intel.gameTime, latencyMs: r.latencyMs };
+      const call = (r.value.call ?? '').trim();
+      // Silent (no new decision) or the same idea as a recent call: show nothing new. A death review still counts.
+      if (!isDeath && (!call || this.history.slice(0, 3).some(h => similarCall(h.call, call)))) { this.setState('idle'); return; }
+      const advice: CoachAdvice = { ...r.value, call, contextId, createdAt: Date.now(), gameTime: ctx.intel.gameTime, latencyMs: r.latencyMs };
       this.history.unshift(advice);
       this.history = this.history.slice(0, 10);
       this.emit('advice', advice);
@@ -269,4 +279,14 @@ export class Coach extends EventEmitter {
     this.status = { ...this.status, state, lastError: state === 'error' ? error : state === 'idle' ? null : error };
     if (changed) this.emit('status', this.status);
   }
+}
+
+/** Two calls say the same thing (shared content words), e.g. "Farm pod wieżą" vs "Farmuj pod wieżą — gank". */
+export function similarCall(a: string, b: string): boolean {
+  const words = (x: string) => new Set(x.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 3).map(w => w.slice(0, 5)));
+  const A = words(a), B = words(b);
+  if (!A.size || !B.size) return false;
+  let common = 0;
+  for (const w of A) if (B.has(w)) common++;
+  return common / Math.min(A.size, B.size) >= 0.6;
 }
