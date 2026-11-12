@@ -17,6 +17,7 @@ pub mod pipeline;
 pub mod teamframes;
 pub mod terrain;
 pub mod tracker;
+pub mod waves;
 
 pub use calibration::{Calibration, Rect};
 pub use detect::{Detection, DetectParams, Hint, Team};

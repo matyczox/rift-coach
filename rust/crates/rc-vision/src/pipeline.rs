@@ -12,6 +12,7 @@ use crate::detect::{build_template, detect_prepared, DetectParams, Detection, Hi
 use crate::fog::{sample_mask, FogParams, FogReader};
 use crate::healthbars::{read_health_bars, BarColor, HealthBar, ReadOptions};
 use crate::image::Rgba;
+use crate::waves::{read_waves, WaveParams, WaveReading, WaveSmoother};
 use serde::Serialize;
 use std::sync::mpsc;
 use std::sync::{Arc, Condvar, Mutex};
@@ -95,6 +96,9 @@ pub struct VisionResult {
     /// Ally portraits above the minimap: HP / mana of every ally (team order, me excluded).
     #[serde(skip)]
     pub team_frames: Option<Vec<crate::teamframes::AllyFrame>>,
+    /// Minion waves per lane (smoothed over ~2 s), None without a minimap.
+    #[serde(skip)]
+    pub waves: Option<WaveReading>,
     /// Processing time (ms).
     pub ms: f64,
 }
@@ -117,18 +121,20 @@ pub struct Vision {
     last_hp_at: Option<u64>,
     hints: Vec<Hint>,
     pool: rayon::ThreadPool,
+    waves: WaveSmoother,
 }
 
 impl Vision {
     pub fn new(roster: Roster, calibration: Option<Calibration>, params: VisionParams) -> Vision {
         let pool = rayon::ThreadPoolBuilder::new().num_threads(params.threads.max(1)).thread_name(|i| format!("rc-vision-{i}")).build().expect("vision thread pool");
-        Vision { roster, calibration, params, templates: Vec::new(), templates_for: 0, fog: None, frame_no: 0, last_hp_at: None, hints: Vec::new(), pool }
+        Vision { roster, calibration, params, templates: Vec::new(), templates_for: 0, fog: None, frame_no: 0, last_hp_at: None, hints: Vec::new(), pool, waves: WaveSmoother::new(2000) }
     }
 
     pub fn set_roster(&mut self, roster: Roster) {
         self.roster = roster;
         self.templates_for = 0;
         self.frame_no = 0;
+        self.waves.reset();
     }
 
     pub fn set_calibration(&mut self, c: Option<Calibration>) {
@@ -158,7 +164,7 @@ impl Vision {
         });
         let mut res = match &minimap {
             Some(m) => self.process_minimap(m, at),
-            None => VisionResult { at, width: 0, detections: Vec::new(), fog_mask: None, fog_grid: self.params.fog_grid, camps: Vec::new(), hp: None, hp_allies: None, team_frames: None, ms: 0.0 },
+            None => VisionResult { at, width: 0, detections: Vec::new(), fog_mask: None, fog_grid: self.params.fog_grid, camps: Vec::new(), hp: None, hp_allies: None, team_frames: None, waves: None, ms: 0.0 },
         };
         if let Some(every) = self.params.hp_every_ms {
             if self.last_hp_at.is_none_or(|l| at.saturating_sub(l) >= every || at < l) {
@@ -206,7 +212,13 @@ impl Vision {
             _ => None,
         };
         let camps = read_camps(img, &self.params.camps);
-        VisionResult { at, width: img.width, detections, fog_mask, fog_grid: self.params.fog_grid, camps, hp: None, hp_allies: None, team_frames: None, ms: t0.elapsed().as_secs_f64() * 1e3 }
+        // Minion waves (~0.3 ms at 341 px): portrait rings share the minion colours -> masked.
+        let portraits: Vec<(f64, f64)> = detections.iter().map(|d| (d.x, d.y)).collect();
+        let flip = self.roster.own_team == Team::Chaos;
+        let blue_is_ally = self.roster.red_team() != self.roster.own_team;
+        let raw = read_waves(img, &portraits, flip, blue_is_ally, fog_mask.as_deref().map(|m| (m, self.params.fog_grid)), &WaveParams::default());
+        let waves = Some(self.waves.push(at, raw));
+        VisionResult { at, width: img.width, detections, fog_mask, fog_grid: self.params.fog_grid, camps, hp: None, hp_allies: None, team_frames: None, waves, ms: t0.elapsed().as_secs_f64() * 1e3 }
     }
 }
 
