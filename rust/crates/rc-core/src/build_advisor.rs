@@ -138,6 +138,59 @@ pub async fn advise_build(caller: &dyn ModelCaller, ctx: &Value, items: &HashMap
     })
 }
 
+/// What to buy right now with `gold` towards `target` (item ids, shop order): the whole item if the
+/// rest of its price fits, else the biggest missing components that fit (recursing into a component
+/// that does not fit). Components I already own count towards the target. Boots are added when I have
+/// none and gold is left.
+pub fn buy_now(target: &ItemData, items: &std::collections::HashMap<i64, ItemData>, owned: &[i64], gold: f64, want_boots: bool) -> Vec<i64> {
+    let price = |id: i64| items.get(&id).map_or(0.0, |i| i.total);
+    let by_price_desc = |v: &mut Vec<i64>| v.sort_by(|a, b| price(*b).total_cmp(&price(*a)));
+    // Recipe parts still missing (an owned component counts once).
+    let mut owned = owned.to_vec();
+    let mut missing: Vec<i64> = Vec::new();
+    for &c in &target.from {
+        match owned.iter().position(|&o| o == c) {
+            Some(p) => {
+                owned.remove(p);
+            }
+            None => missing.push(c),
+        }
+    }
+    let have: f64 = target.from.iter().map(|&c| price(c)).sum::<f64>() - missing.iter().map(|&c| price(c)).sum::<f64>();
+    let rest = target.total - have;
+    let mut gold = gold;
+    let mut out = Vec::new();
+    if rest > 0.0 && gold >= rest {
+        out.push(target.id);
+        gold -= rest;
+    } else {
+        let mut todo = missing;
+        by_price_desc(&mut todo);
+        while !todo.is_empty() {
+            let c = todo.remove(0);
+            let p = price(c);
+            if p <= 0.0 {
+                continue;
+            }
+            if gold >= p {
+                out.push(c);
+                gold -= p;
+            } else if let Some(it) = items.get(&c) {
+                // Too expensive as a whole: its own components, biggest first.
+                let mut sub = it.from.clone();
+                by_price_desc(&mut sub);
+                for s in sub.into_iter().rev() {
+                    todo.insert(0, s);
+                }
+            }
+        }
+    }
+    if want_boots && gold >= price(1001) && price(1001) > 0.0 {
+        out.push(1001);
+    }
+    out
+}
+
 /// Decides when the build should be re-evaluated.
 #[derive(Default)]
 pub struct BuildTrigger {
@@ -175,7 +228,7 @@ mod tests {
     use crate::llm::caller::FakeCaller;
 
     fn item(id: i64, name: &str, total: f64, completed: bool) -> ItemData {
-        ItemData { id, name: name.into(), total, completed, tags: vec![], name_en: None, flat_ms: 0.0, pct_ms: 0.0, purchasable: true }
+        ItemData { id, name: name.into(), total, completed, tags: vec![], name_en: None, flat_ms: 0.0, pct_ms: 0.0, purchasable: true, from: vec![] }
     }
 
     fn db() -> HashMap<i64, ItemData> {
@@ -219,6 +272,28 @@ mod tests {
         assert_eq!(call.system, SYSTEM);
         let v = serde_json::to_value(&b).unwrap();
         assert!(v.get("updatedAt").is_some() && v["items"][0].get("iconUrl").is_some());
+    }
+
+    #[test]
+    fn buy_now_whole_item_or_components() {
+        let mut items = std::collections::HashMap::new();
+        let mk = |id: i64, total: f64, from: Vec<i64>| ItemData { id, name: format!("i{id}"), total, completed: from.len() > 1, tags: vec![], name_en: None, flat_ms: 0.0, pct_ms: 0.0, purchasable: true, from };
+        items.insert(1058, mk(1058, 1200.0, vec![]));
+        items.insert(1026, mk(1026, 850.0, vec![]));
+        items.insert(1052, mk(1052, 400.0, vec![]));
+        items.insert(1001, mk(1001, 300.0, vec![]));
+        items.insert(3089, mk(3089, 3500.0, vec![1058, 1026, 1052]));
+        let rab = items[&3089].clone();
+        // 1300 g: the biggest component that fits.
+        assert_eq!(buy_now(&rab, &items, &[], 1300.0, false), vec![1058]);
+        // 900 g: the rod does not fit, the wand does.
+        assert_eq!(buy_now(&rab, &items, &[], 900.0, false), vec![1026]);
+        // Owning the rod and the wand: the rest (3500 - 2050 = 1450) fits -> the whole item.
+        assert_eq!(buy_now(&rab, &items, &[1058, 1026], 1500.0, false), vec![3089]);
+        // Gold left after the biggest part buys the next one too (rod + tome).
+        assert_eq!(buy_now(&rab, &items, &[], 1600.0, true), vec![1058, 1052]);
+        // Boots when gold is left over and I have none.
+        assert_eq!(buy_now(&rab, &items, &[1026, 1052], 1550.0, true), vec![1058, 1001]);
     }
 
     #[test]

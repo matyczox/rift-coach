@@ -25,6 +25,8 @@ pub struct ItemData {
     pub pct_ms: f64,
     /// Bought in the shop (false: items that evolve by themselves, e.g. jungle pets, support quest items).
     pub purchasable: bool,
+    /// Recipe: component item ids (Data Dragon "from").
+    pub from: Vec<i64>,
 }
 
 #[derive(Clone, Debug, Default)]
@@ -80,6 +82,7 @@ pub fn parse_items(j: &Value) -> HashMap<i64, ItemData> {
                 flat_ms: stat("FlatMovementSpeedMod"),
                 pct_ms: stat("PercentMovementSpeedMod"),
                 purchasable,
+                from: it.get("from").and_then(Value::as_array).map(|a| a.iter().filter_map(|v| v.as_str().and_then(|s| s.parse().ok())).collect()).unwrap_or_default(),
             },
         );
     }

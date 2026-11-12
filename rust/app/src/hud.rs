@@ -175,6 +175,34 @@ fn wants(st: &Value, has_minimap: bool, now: f64) -> Value {
     })
 }
 
+/// "Kup teraz" for the build panel: only when I can shop (dead, in my base, or the first 90 s), from my
+/// gold and the next planned item's recipe.
+fn buy_now_json(g: &crate::game::Game) -> Option<Value> {
+    let (intel, sd, build) = (g.intel.as_ref()?, g.static_data.as_ref()?, g.build.as_ref()?);
+    let me = intel.me.as_ref()?;
+    let gold = intel.my_stats.as_ref()?.gold;
+    let base = if me.team == "CHAOS" { (0.96, 0.04) } else { (0.04, 0.96) };
+    let in_base = g.field.my_pos.is_some_and(|(x, y)| (x - base.0).hypot(y - base.1) < 0.12);
+    if !(me.is_dead || in_base || intel.game_time < 90.0) || gold < 300.0 {
+        return None;
+    }
+    let want = build.items.first()?.name.to_lowercase();
+    let target = sd.items.values().find(|i| i.name.to_lowercase() == want || i.name_en.as_ref().is_some_and(|n| n.to_lowercase() == want))?;
+    let owned: Vec<i64> = me.items.iter().map(|i| i.id).collect();
+    let has_boots = me.items.iter().any(|i| sd.items.get(&i.id).is_some_and(|d| d.tags.iter().any(|t| t == "Boots")));
+    let ids = rc_core::build_advisor::buy_now(target, &sd.items, &owned, gold, !has_boots && intel.game_time > 4.0 * 60.0);
+    if ids.is_empty() {
+        return None;
+    }
+    let version = &sd.version;
+    Some(Value::Array(
+        ids.iter()
+            .filter_map(|id| sd.items.get(id))
+            .map(|i| serde_json::json!({ "name": i.name, "iconUrl": format!("https://ddragon.leagueoflegends.com/cdn/{version}/img/item/{}.png", i.id), "cost": i.total }))
+            .collect(),
+    ))
+}
+
 /// Game window moved / calibration changed: re-place and re-push (placeOverlay).
 pub fn place(app: &tauri::AppHandle, st: &Arc<AppState>) {
     push(app, st);
@@ -232,7 +260,12 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
             show_frame,
             recording,
             power,
-            build: g.build.as_ref().and_then(|b| serde_json::to_value(b).ok()),
+            build: g.build.as_ref().and_then(|b| serde_json::to_value(b).ok()).map(|mut v| {
+                if let (Some(list), Some(o)) = (buy_now_json(g), v.as_object_mut()) {
+                    o.insert("buyNow".into(), list);
+                }
+                v
+            }),
             danger,
             objective,
             fed,

@@ -220,6 +220,8 @@ export interface PowerBarState {
 
 /** Next items to buy (AI build advisor), shown next to the minimap. */
 export interface BuildPanelState {
+  /** What to buy right now (dead / in base): the whole next item or its affordable components. */
+  buyNow?: Array<{ name: string; iconUrl: string; cost: number }>;
   items: Array<{ name: string; iconUrl: string; why: string; cost: number | null }>;
   /** e.g. "wczesna gra", "środek gry", "późna gra" */
   phase: string;

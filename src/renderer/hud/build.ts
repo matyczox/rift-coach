@@ -28,12 +28,26 @@ function render(b: BuildPanelState): void {
     row.append(img, main, el('div', 'bd-cost', it.cost != null ? String(it.cost) : ''));
     return row;
   }));
+  // Shopping now (dead / in base): what the gold buys towards it.
+  const buy = b.buyNow ?? [];
+  if (buy.length) {
+    const box = el('div', 'bd-buy');
+    box.append(el('div', 'bd-buy-label', 'Kup teraz'));
+    const icons = el('div', 'bd-buy-icons');
+    for (const it of buy) {
+      const im = el('img', '');
+      im.alt = it.name; im.title = it.name; im.src = it.iconUrl;
+      icons.append(im);
+    }
+    box.append(icons);
+    rows.append(box);
+  }
 }
 
 subscribe(({ state }) => {
   const b = state.visible ? state.build : null;
   setOn(root, !!b && b.items.length > 0);
   if (!b) return;
-  const key = JSON.stringify(b.items[0] ?? null);
+  const key = JSON.stringify([b.items[0] ?? null, b.buyNow ?? null]);
   if (key !== lastKey) { lastKey = key; render(b); }
 });
