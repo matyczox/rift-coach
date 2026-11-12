@@ -520,8 +520,12 @@ interface ChampSelectSession {
 
 const ROLE_NAMES: Record<string, string> = { top: 'TOP', jungle: 'JUNGLE', middle: 'MIDDLE', bottom: 'BOTTOM', utility: 'UTILITY' };
 
+/** Map of the queue in champion select (11 = Summoner's Rift); runes only there, not in ARAM / Arena. */
+let champSelectMap: number | null = null;
+
 function onChampSelect(session: ChampSelectSession) {
   if (!settings.value.autoRunes || !staticData || coach.status.state === 'not-logged-in') return;
+  if (champSelectMap !== 11) return;
   const me = session.myTeam.find(p => p.cellId === session.localPlayerCellId);
   if (!me || !me.championId) return;
   const locked = session.actions.flat().some(a => a.actorCellId === me.cellId && a.type === 'pick' && a.completed);
@@ -847,7 +851,9 @@ app.whenReady().then(() => {
   });
   lcu.on('state', (st: string) => { if (st === 'connected') setTimeout(() => void refreshMe(), 1500); });
   setInterval(() => void refreshMe(), 120000);
-  lcu.on('phase', (p: string) => { recorder.lcuPhase(p); if (p === 'EndOfGame') setTimeout(() => void refreshMe(), 8000); if (p !== 'ChampSelect') runesKey = ''; if (p === 'PreEndOfGame' || p === 'EndOfGame') setTimeout(() => void finishGame(), 3000); });
+  lcu.on('phase', (p: string) => {
+    if (p === 'ChampSelect') { champSelectMap = null; void lcu.get<{ map?: { id?: number }; gameData?: { queue?: { mapId?: number } } }>('/lol-gameflow/v1/session').then(g => { champSelectMap = g?.map?.id ?? g?.gameData?.queue?.mapId ?? null; }, () => undefined); }
+    recorder.lcuPhase(p); if (p === 'EndOfGame') setTimeout(() => void refreshMe(), 8000); if (p !== 'ChampSelect') runesKey = ''; if (p === 'PreEndOfGame' || p === 'EndOfGame') setTimeout(() => void finishGame(), 3000); });
   lcu.on('champSelect', (sess: ChampSelectSession) => onChampSelect(sess));
 
   capture.on('frame', onLiveFrame);
