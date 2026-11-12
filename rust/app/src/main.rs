@@ -14,6 +14,11 @@ use std::time::Duration;
 use tauri::{Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 /// Started by Windows at login: stay in the background until the user opens the window.
+/// `--smoke`: hidden window, coach off, print the status after 12 s and quit (like the Electron app).
+pub fn smoke() -> bool {
+    std::env::args().any(|a| a == "--smoke")
+}
+
 fn background() -> bool {
     std::env::args().any(|a| a == "--background")
 }
@@ -97,7 +102,7 @@ fn main() {
                 .initialization_script(include_str!("../init.js"))
                 .build()?;
             // Do not steal focus from the game when the app starts mid-match (Electron: showInactive).
-            if !background() {
+            if !background() && !smoke() {
                 if let Some(w) = app.get_webview_window("main") {
                     show_inactive(&w);
                 }
@@ -142,6 +147,23 @@ fn main() {
                     tokio::time::sleep(Duration::from_millis(250)).await;
                 }
             });
+            if smoke() {
+                let (app3, st5) = (app.handle().clone(), st.clone());
+                rt.spawn(async move {
+                    tokio::time::sleep(Duration::from_secs(12)).await;
+                    let mut s = serde_json::to_value(st5.status()).unwrap_or_default();
+                    // Never print the Riot API key.
+                    if let Some(k) = s.pointer_mut("/settings/riot/apiKey") {
+                        if k.as_str().is_some_and(|v| !v.is_empty()) {
+                            *k = Value::String("<redacted>".into());
+                        }
+                    }
+                    let intel = st5.game.lock().unwrap().intel.as_ref().map(|i| serde_json::json!({ "me": i.me.as_ref().map(|m| &m.champion), "gameTime": i.game_time, "goldDiff": i.gold_diff, "objectives": i.objectives.len(), "recent": i.recent.first().map(|r| &r.text) }));
+                    println!("SMOKE {s}");
+                    println!("SMOKE-INTEL {}", intel.unwrap_or(Value::Null));
+                    app3.exit(0);
+                });
+            }
             Ok(())
         })
         .on_window_event(|window, event| {

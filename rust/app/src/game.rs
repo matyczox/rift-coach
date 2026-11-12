@@ -51,7 +51,8 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
     let live = pick(&coach_cfg.live_model, Task::Live, b);
     let death = pick(&coach_cfg.review_model, Task::Death, b);
     let c = &mut g.coach.config;
-    c.enabled = coach_cfg.enabled;
+    // --smoke: never spend model calls.
+    c.enabled = coach_cfg.enabled && !crate::smoke();
     c.live_model = live.model;
     c.review_model = death.model;
     c.live_effort = Some(live.effort);
