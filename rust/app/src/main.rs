@@ -11,6 +11,7 @@ mod postgame;
 mod recorder;
 mod playback;
 mod runes;
+mod self_profile;
 mod state;
 mod vision;
 
@@ -116,6 +117,7 @@ fn smoke_knowledge(st: &AppState) -> Value {
         "recording": st.recorder.lock().unwrap().status,
         "harvest": harvest::status(st),
         "learning": learning,
+        "playerProfile": self_profile::smoke_summary(st),
     })
 }
 
@@ -199,6 +201,8 @@ fn main() {
             }
             vision::spawn_threads(app.handle(), &st);
             hud::spawn(app.handle(), &st);
+            // Player profile for the coach (saved file at once; Riot API rebuild every 6 h).
+            self_profile::spawn(&st);
             let st6 = st.clone();
             rt.spawn(async move {
                 loop {
@@ -326,6 +330,10 @@ fn main() {
                         if k.as_str().is_some_and(|v| !v.is_empty()) {
                             *k = Value::String("<redacted>".into());
                         }
+                    }
+                    // Player profile: counts only (SMOKE-KNOWLEDGE), not champions / stats / lessons.
+                    if let Some(p) = s.get_mut("playerProfile").filter(|p| !p.is_null()) {
+                        *p = Value::String("<present>".into());
                     }
                     let intel = st5.game.lock().unwrap().intel.as_ref().map(|i| serde_json::json!({ "me": i.me.as_ref().map(|m| &m.champion), "gameTime": i.game_time, "goldDiff": i.gold_diff, "objectives": i.objectives.len(), "recent": i.recent.first().map(|r| &r.text) }));
                     println!("SMOKE {s}");

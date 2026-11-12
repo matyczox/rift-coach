@@ -74,6 +74,8 @@ pub async fn finish_game(st: Arc<AppState>) {
         game_id = eog.get("gameId").and_then(Value::as_i64);
     }
     st.rt.spawn(self_train(st.clone(), game_id));
+    // New game in the history + a new review: rebuild the player profile once Riot has the match.
+    crate::self_profile::after_game(&st);
 
     let (log, opts) = {
         let mut g = st.game.lock().unwrap();

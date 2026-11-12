@@ -10,8 +10,10 @@ pub mod cache;
 pub mod client;
 pub mod limiter;
 pub mod profiles;
+pub mod self_profile;
 pub mod types;
 
 pub use client::{CallOptions, RequestBudget, RiotClient, RiotClientOptions, RiotError, RiotHttp};
 pub use profiles::{build_profiles, BuildProfilesOptions, ProfilePlayer, ProfileProgress};
+pub use self_profile::PlayerSelfProfile;
 pub use types::OpponentProfile;

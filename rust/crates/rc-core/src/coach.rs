@@ -23,6 +23,8 @@ pub struct CoachContext<'a> {
     pub matchup: Option<Value>,
     pub camps: Vec<String>,
     pub covered_ward_spots: Vec<String>,
+    /// Player profile text (habits, weak spots, lessons) for the per-game system prompt.
+    pub self_profile: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -125,6 +127,9 @@ pub fn game_system_prompt(ctx: &CoachContext) -> String {
         .collect();
     if !prof.is_empty() {
         parts.push(format!("Profile wrogów z historii gier:\n{}", prof.join("\n")));
+    }
+    if let Some(s) = ctx.self_profile.as_deref().filter(|s| !s.is_empty()) {
+        parts.push(s.to_string());
     }
     parts.push(format!(
         "Miejsca na wardy (id: opis, wartość wizji):\n{}",
@@ -581,6 +586,11 @@ mod tests {
         assert!(p.contains("Strona gracza: niebieska (lewy dolny róg)."));
         assert!(p.ends_with("plant-my-jungle-top: roślina wizji (nasza dżungla, top), 3/5"));
         assert_eq!(schema()["properties"]["ward"]["anyOf"][1]["properties"]["spot"]["enum"].as_array().unwrap().len(), 28);
+        assert!(!p.contains("Profil gracza"));
+        // Player profile goes after the enemy profiles, before the ward spot list.
+        let p = game_system_prompt(&CoachContext { intel: Some(&i), self_profile: Some("Profil gracza (Ty): test".into()), ..Default::default() });
+        let at = p.find("\n\nProfil gracza (Ty): test\n\nMiejsca na wardy").expect("self profile block");
+        assert!(at > SYSTEM.len());
     }
 
     #[test]

@@ -146,6 +146,8 @@ pub struct AppStatus {
     pub version: String,
     pub ddragon_version: Option<String>,
     pub me: Option<PlayerProfile>,
+    /// Player profile for the coach (null until built: needs a Riot API key).
+    pub player_profile: Option<crate::riot::self_profile::PlayerSelfProfile>,
     pub live_api: SourceState,
     pub lcu: SourceState,
     pub lcu_phase: Option<String>,

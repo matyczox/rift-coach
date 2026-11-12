@@ -80,6 +80,8 @@ pub struct MatchParticipantDto {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub neutral_minions_killed: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub vision_score: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub game_ended_in_early_surrender: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub riot_id_game_name: Option<String>,
