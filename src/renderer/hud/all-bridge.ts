@@ -83,9 +83,10 @@ function layout(m: HudMessage, s: number): void {
   // Build panel: directly left of the minimap, bottom-aligned (default minimap without calibration).
   const side = H * 0.237;
   const b = mr ?? { x: W - side, y: H - side, width: side, height: side };
-  // Build: slim strip directly ABOVE the minimap (left of it sits the item / ability bar).
-  const bh = 120 * s;
-  place(panels.get('build')!, { x: b.x, y: b.y - bh - 4 * s, width: b.width, height: bh });
+  // Build: left of the minimap, bottom-aligned, narrow (no descriptions) and with a clear gap so it never
+  // covers the minimap's edge.
+  const bw = 190 * s, bh = 150 * s;
+  place(panels.get('build')!, { x: b.x - bw - 14 * s, y: b.y + b.height - bh, width: bw, height: bh });
 }
 
 const hideTimers = new Map<HudWindowKind, number>();

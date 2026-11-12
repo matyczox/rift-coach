@@ -194,9 +194,9 @@ export class Hud {
       const side = g.height * 0.237;
       return { x: g.x + g.width - side, y: g.y + g.height - side, width: side, height: side };
     })();
-    // Build: slim strip directly ABOVE the minimap (left of it sits the item / ability bar).
-    const bh = 120 * s;
-    set('build', { x: mm.x, y: mm.y - bh - 4 * s, width: mm.width, height: bh });
+    // Build: left of the minimap, bottom-aligned, narrow (no descriptions) with a clear gap from its edge.
+    const bw = 190 * s, bh = 150 * s;
+    set('build', { x: mm.x - bw - 14 * s, y: mm.y + mm.height - bh, width: bw, height: bh });
   }
 
   private wants(kind: HudWindowKind, st: HudState): boolean {
