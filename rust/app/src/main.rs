@@ -2,6 +2,7 @@
 
 mod bridge;
 mod game;
+mod runes;
 mod state;
 
 use rc_core::settings::{user_data_dir, SettingsStore};
@@ -121,10 +122,14 @@ fn main() {
                     }
                 }
             });
+            let (st4, rt4) = (st.clone(), rt.clone());
+            let runes_state = Arc::new(Mutex::new(runes::RunesState::default()));
             rt.spawn(async move {
                 while let Some(ev) = lcu_rx.recv().await {
                     match ev {
-                        lcu::LcuEvent::State(_) | lcu::LcuEvent::Phase(_) | lcu::LcuEvent::ChampSelect(_) => {}
+                        lcu::LcuEvent::State(_) => {}
+                        lcu::LcuEvent::Phase(p) => runes::on_phase(&runes_state, &p),
+                        lcu::LcuEvent::ChampSelect(sess) => runes::on_champ_select(&rt4, &st4, &runes_state, &sess),
                     }
                 }
             });

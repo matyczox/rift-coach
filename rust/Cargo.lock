@@ -2978,6 +2978,7 @@ dependencies = [
 name = "rift-coach"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "log",
  "rc-core",
  "serde",
