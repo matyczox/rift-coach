@@ -38,6 +38,11 @@ pub struct HudCtl {
     hide_at: Option<Instant>,
     last_payload: String,
     last_emit: Option<Instant>,
+    /// Draggable panels' visible boxes, CSS px relative to the HUD window (reported by the page).
+    pub rects: Vec<[f64; 4]>,
+    /// The window takes the mouse right now (cursor resting on a panel, or dragging one).
+    capture: bool,
+    hover_since: Option<Instant>,
 }
 
 pub type Hud = Mutex<HudCtl>;
@@ -293,7 +298,8 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
     };
     let wanted = if game.is_some() { wants(&state, minimap.is_some(), now) } else { json!({}) };
     let any = PANELS.iter().any(|k| wanted[*k].as_bool().unwrap_or(false));
-    let payload = json!({ "state": state, "wanted": wanted, "minimap": minimap });
+    let layout = st.settings.lock().unwrap().json().get("hudLayout").cloned().unwrap_or(Value::Null);
+    let payload = json!({ "state": state, "wanted": wanted, "minimap": minimap, "layout": layout });
     let text = payload.to_string();
     // Changed, or a 1 s refresh (the page may have loaded after the last change).
     if text != h.last_payload || h.last_emit.is_none_or(|t| t.elapsed() >= Duration::from_secs(1)) {
@@ -344,6 +350,86 @@ pub fn spawn(app: &tauri::AppHandle, st: &Arc<AppState>) {
         })
         .expect("spawn hud thread");
 }
+
+/// Drag panels by just hovering: the click-through window takes the mouse only while the cursor rests
+/// on a panel for 0.3 s (quick moves and clicks while playing still go to the game) or while the left
+/// button is held after that (dragging). The page reports panel boxes ('hud-rects') and new positions
+/// ('hud-layout', saved in settings.hudLayout as fractions of the game client area).
+pub fn spawn_drag(app: &tauri::AppHandle, st: &Arc<AppState>) {
+    use tauri::Listener;
+    {
+        let st = st.clone();
+        app.listen("hud-rects", move |e| {
+            if let Ok(v) = serde_json::from_str::<Vec<[f64; 4]>>(e.payload()) {
+                st.hud.lock().unwrap().rects = v;
+            }
+        });
+    }
+    {
+        let (st, app2) = (st.clone(), app.clone());
+        app.listen("hud-layout", move |e| {
+            let Ok(v) = serde_json::from_str::<Value>(e.payload()) else { return };
+            let Some(kind) = v.get("kind").and_then(Value::as_str).filter(|k| PANELS.contains(k) && *k != "minimap") else { return };
+            let mut s = st.settings.lock().unwrap();
+            let mut layout = s.json().get("hudLayout").and_then(Value::as_object).cloned().unwrap_or_default();
+            if v.get("reset").and_then(Value::as_bool) == Some(true) {
+                layout.remove(kind);
+            } else if let (Some(x), Some(y)) = (v.get("x").and_then(Value::as_f64), v.get("y").and_then(Value::as_f64)) {
+                layout.insert(kind.to_string(), json!({ "x": x.clamp(0.0, 0.98), "y": y.clamp(0.0, 0.98) }));
+            }
+            if let Err(err) = s.update(&json!({ "hudLayout": layout })) {
+                log::warn!("hud layout {err}");
+            }
+            drop(s);
+            push(&app2, &st);
+        });
+    }
+    let (app, st) = (app.clone(), st.clone());
+    std::thread::Builder::new()
+        .name("rc-hud-drag".into())
+        .spawn(move || loop {
+            std::thread::sleep(Duration::from_millis(40));
+            hover_tick(&app, &st);
+        })
+        .expect("spawn hud drag thread");
+}
+
+#[cfg(windows)]
+fn hover_tick(app: &tauri::AppHandle, st: &Arc<AppState>) {
+    use windows_sys::Win32::Foundation::POINT;
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_LBUTTON};
+    use windows_sys::Win32::UI::WindowsAndMessaging::GetCursorPos;
+    let Some(win) = app.get_webview_window(LABEL) else { return };
+    let mut h = st.hud.lock().unwrap();
+    let over = match (h.placed, h.shown) {
+        (Some(g), true) if !h.rects.is_empty() => {
+            let mut p = POINT { x: 0, y: 0 };
+            // SAFETY: plain Win32 call with a valid out pointer.
+            let ok = unsafe { GetCursorPos(&mut p) } != 0;
+            let scale = win.scale_factor().unwrap_or(1.0).max(0.1);
+            let (cx, cy) = ((p.x - g.x) as f64 / scale, (p.y - g.y) as f64 / scale);
+            ok && h.rects.iter().any(|r| cx >= r[0] && cy >= r[1] && cx <= r[0] + r[2] && cy <= r[1] + r[3])
+        }
+        _ => false,
+    };
+    // SAFETY: plain Win32 call.
+    let lbutton = unsafe { GetAsyncKeyState(VK_LBUTTON as i32) } as u16 & 0x8000 != 0;
+    if over {
+        h.hover_since.get_or_insert_with(Instant::now);
+    } else {
+        h.hover_since = None;
+    }
+    let rested = h.hover_since.is_some_and(|t| t.elapsed() >= Duration::from_millis(300));
+    let want = (over && rested) || (h.capture && lbutton);
+    if want != h.capture {
+        h.capture = want;
+        drop(h);
+        let _ = win.set_ignore_cursor_events(!want);
+    }
+}
+
+#[cfg(not(windows))]
+fn hover_tick(_app: &tauri::AppHandle, _st: &Arc<AppState>) {}
 
 /// One-line state for `--smoke`.
 pub fn smoke_summary(st: &AppState) -> Value {

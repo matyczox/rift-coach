@@ -20,6 +20,8 @@ export interface HudMessage {
   wanted: Partial<Record<HudWindowKind, boolean>>;
   /** Minimap square as fractions of the game client area (null = not calibrated). */
   minimap: { x: number; y: number; width: number; height: number } | null;
+  /** Panels moved by the player: top-left as fractions of the game client area. */
+  layout?: Partial<Record<HudWindowKind, { x: number; y: number }>> | null;
 }
 
 export const panels = new Map<HudWindowKind, HTMLElement>(KINDS.map((k) => [k, document.getElementById(`p-${k}`)!]));
@@ -90,6 +92,77 @@ function layout(m: HudMessage, s: number): void {
   place(panels.get('notify')!, { x: W - nw - W * 0.006, y: H * 0.06, width: nw, height: nh });
   const bw = 190 * s, bh = 150 * s;
   place(panels.get('build')!, { x: b.x - bw - 14 * s, y: b.y + b.height - bh, width: bw, height: bh });
+  // Panels the player dragged somewhere else (the minimap layer stays on the minimap).
+  for (const kind of DRAGGABLE) {
+    const o = dragging === kind ? null : localLayout[kind] ?? m.layout?.[kind];
+    if (!o) continue;
+    const el = panels.get(kind)!;
+    place(el, { x: o.x * W, y: o.y * H, width: el.offsetWidth, height: el.offsetHeight });
+  }
+}
+
+// ---- dragging: hover a panel (the window takes the mouse after 0.3 s) and drag it ----
+const DRAGGABLE: HudWindowKind[] = ['topbar', 'death', 'loading', 'power', 'build', 'notify'];
+const localLayout: Partial<Record<HudWindowKind, { x: number; y: number }>> = {};
+let dragging: HudWindowKind | null = null;
+interface TauriEmit { event: { emit(name: string, payload: unknown): Promise<void> } }
+const tauriEmit = (window as unknown as { __TAURI__?: TauriEmit }).__TAURI__;
+
+/** Visible content box of a panel (cards / pills), in window CSS px. */
+function contentBox(el: HTMLElement): DOMRect | null {
+  let r: DOMRect | null = null;
+  for (const c of el.querySelectorAll<HTMLElement>('.card, .bar, .alert, .chip, .toast')) {
+    if (c.closest('.hidden')) continue;
+    const b = c.getBoundingClientRect();
+    if (b.width < 2 || b.height < 2) continue;
+    r = r ? new DOMRect(Math.min(r.left, b.left), Math.min(r.top, b.top), Math.max(r.right, b.right) - Math.min(r.left, b.left), Math.max(r.bottom, b.bottom) - Math.min(r.top, b.top)) : b;
+  }
+  return r;
+}
+
+let lastRects = '';
+function reportRects(): void {
+  const rects: number[][] = [];
+  for (const kind of DRAGGABLE) {
+    const el = panels.get(kind)!;
+    if (el.style.visibility !== 'visible') continue;
+    const b = contentBox(el);
+    if (b) rects.push([Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)]);
+  }
+  const key = JSON.stringify(rects);
+  if (key !== lastRects) { lastRects = key; void tauriEmit?.event.emit('hud-rects', rects); }
+}
+window.setInterval(reportRects, 300);
+
+for (const kind of DRAGGABLE) {
+  const el = panels.get(kind)!;
+  el.style.pointerEvents = 'auto';
+  el.style.cursor = 'move';
+  el.addEventListener('mousedown', (ev) => {
+    if (ev.button !== 0) return;
+    ev.preventDefault();
+    dragging = kind;
+    const sx = ev.clientX, sy = ev.clientY, ox = el.offsetLeft, oy = el.offsetTop;
+    const move = (e: MouseEvent) => {
+      el.style.left = `${Math.round(ox + e.clientX - sx)}px`;
+      el.style.top = `${Math.round(oy + e.clientY - sy)}px`;
+    };
+    const up = () => {
+      window.removeEventListener('mousemove', move);
+      window.removeEventListener('mouseup', up);
+      dragging = null;
+      const pos = { x: el.offsetLeft / viewW(), y: el.offsetTop / viewH() };
+      localLayout[kind] = pos;
+      void tauriEmit?.event.emit('hud-layout', { kind, ...pos });
+    };
+    window.addEventListener('mousemove', move);
+    window.addEventListener('mouseup', up);
+  });
+  // Double-click: back to the default place.
+  el.addEventListener('dblclick', () => {
+    delete localLayout[kind];
+    void tauriEmit?.event.emit('hud-layout', { kind, reset: true });
+  });
 }
 
 const hideTimers = new Map<HudWindowKind, number>();

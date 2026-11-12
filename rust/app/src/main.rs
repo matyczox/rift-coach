@@ -211,6 +211,7 @@ fn main() {
             }
             vision::spawn_threads(app.handle(), &st);
             hud::spawn(app.handle(), &st);
+            hud::spawn_drag(app.handle(), &st);
             // Player profile for the coach (saved file at once; Riot API rebuild every 6 h).
             self_profile::spawn(&st);
             let st6 = st.clone();

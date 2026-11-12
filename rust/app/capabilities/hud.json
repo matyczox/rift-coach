@@ -1,10 +1,11 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "hud",
-  "description": "In-game HUD window: only receives the 'hud' event (no commands, no window control).",
+  "description": "In-game HUD window: receives the 'hud' event and emits 'hud-rects' / 'hud-layout' (panel positions for dragging); no commands, no window control.",
   "windows": ["hud"],
   "permissions": [
     "core:event:allow-listen",
-    "core:event:allow-unlisten"
+    "core:event:allow-unlisten",
+    "core:event:allow-emit"
   ]
 }
