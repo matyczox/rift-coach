@@ -76,6 +76,40 @@ pub struct SeenUnit {
     pub vy: f64,
 }
 
+/// Bump when the detector / tracker changed so much that what was learned before is wrong.
+/// 2: minimap icons from the game (CommunityDragon circle_0) — before that some champions (Briar)
+///    were not detected and the fog model learned from bad sightings.
+const FOG_MODEL_VERSION: &str = "2";
+
+/// Once per FOG_MODEL_VERSION: move the learned fog model and its observations to
+/// model-old-v<previous>/ and start learning from scratch (also on other people's installs).
+fn reset_old_fog_model(dir: &Path) {
+    let marker = dir.join("version.txt");
+    let current = std::fs::read_to_string(&marker).unwrap_or_default();
+    if current.trim() == FOG_MODEL_VERSION {
+        return;
+    }
+    let _ = std::fs::create_dir_all(dir);
+    let model = dir.join("fog-model.json");
+    let obs = dir.join("observations");
+    let had = model.exists() || std::fs::read_dir(&obs).map(|mut d| d.next().is_some()).unwrap_or(false);
+    if had {
+        let old = dir.with_file_name(format!("model-old-v{}", if current.trim().is_empty() { "1" } else { current.trim() }));
+        let _ = std::fs::create_dir_all(&old);
+        if model.exists() {
+            let _ = std::fs::rename(&model, old.join("fog-model.json"));
+        }
+        if let Ok(rd) = std::fs::read_dir(&obs) {
+            let _ = std::fs::create_dir_all(old.join("observations"));
+            for e in rd.flatten() {
+                let _ = std::fs::rename(e.path(), old.join("observations").join(e.file_name()));
+            }
+        }
+        log::info!("fog model reset (v{} -> v{FOG_MODEL_VERSION}), old one in {}", current.trim(), old.display());
+    }
+    let _ = std::fs::write(&marker, FOG_MODEL_VERSION);
+}
+
 /// Short top-right notification (enemy back, Baron / Elder taken). Flies away when it expires.
 #[derive(Clone, Debug)]
 pub struct Toast {
@@ -122,6 +156,7 @@ pub struct Field {
 
 impl Field {
     pub fn new(data_dir: &Path) -> Field {
+        reset_old_fog_model(&data_dir.join("model"));
         let learner = Learner::new(Some(data_dir.join("model").join("fog-model.json")));
         let tracker = std::panic::catch_unwind(|| EnemyTracker::new(Arc::new(GridTerrain::from_asset(128)), learner, 400)).map_err(|_| log::warn!("terrain: no walkable grid")).ok();
         Field {
@@ -944,5 +979,27 @@ mod push_tests {
         assert!(unguarded_pushes(&[u("Yasuo", 0.3, 0.07)], &[], Team::Order).is_empty());
         // Red side: mirrored (our top lane half is the top edge, right part).
         assert_eq!(unguarded_pushes(&[u("Jhin", 0.6, 0.08)], &[], Team::Chaos), vec![("Jhin".to_string(), "top")]);
+    }
+}
+
+#[cfg(test)]
+mod fog_reset_tests {
+    use super::*;
+    #[test]
+    fn old_model_moved_once() {
+        let root = std::env::temp_dir().join(format!("rc-reset-{}", std::process::id()));
+        let dir = root.join("model");
+        std::fs::create_dir_all(dir.join("observations")).unwrap();
+        std::fs::write(dir.join("fog-model.json"), "{}").unwrap();
+        std::fs::write(dir.join("observations").join("1.json.gz"), "x").unwrap();
+        reset_old_fog_model(&dir);
+        assert!(!dir.join("fog-model.json").exists());
+        assert!(root.join("model-old-v1").join("fog-model.json").exists());
+        assert!(root.join("model-old-v1").join("observations").join("1.json.gz").exists());
+        // Second start: new learning is kept.
+        std::fs::write(dir.join("fog-model.json"), "{\"new\":1}").unwrap();
+        reset_old_fog_model(&dir);
+        assert!(dir.join("fog-model.json").exists());
+        let _ = std::fs::remove_dir_all(&root);
     }
 }
