@@ -144,6 +144,10 @@ pub struct MyStats {
     pub armor: f64,
     pub mr: f64,
     pub move_speed: f64,
+    /// My resource from the Live API: type (MANA, ENERGY, HEAT, RAGE, BATTLEFURY, DRAGONFURY,
+    /// GNARFURY, FEROCITY, WIND, BLOODWELL, SHIELD, NONE...) and fill 0..1.
+    pub resource_type: String,
+    pub resource_pct: Option<f64>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
@@ -340,7 +344,8 @@ impl IntelTracker {
                 flash_in,
                 shield_pct: self.shield.get(&p.champion_name).filter(|s| t - s.1 <= 3.0 && s.0 > 0.01).map(|s| s.0),
                 mana_pct: if is_me {
-                    let mana = ap.champion_stats.get("resourceType").and_then(|v| v.as_str()) == Some("MANA");
+                    // Mana and energy both pay for spells: low = few spells.
+                    let mana = matches!(ap.champion_stats.get("resourceType").and_then(|v| v.as_str()), Some("MANA" | "ENERGY"));
                     match (mana, ap.stat("resourceValue"), ap.stat("resourceMax")) {
                         (true, Some(v), Some(m)) if m > 0.0 => Some((v / m).clamp(0.0, 1.0)),
                         _ => None,
@@ -405,6 +410,11 @@ impl IntelTracker {
                 armor: st("armor"),
                 mr: st("magicResist"),
                 move_speed: st("moveSpeed"),
+                resource_type: ap.champion_stats.get("resourceType").and_then(|v| v.as_str()).unwrap_or("NONE").to_string(),
+                resource_pct: match (ap.stat("resourceValue"), ap.stat("resourceMax")) {
+                    (Some(v), Some(m)) if m > 0.0 => Some((v / m).clamp(0.0, 1.0)),
+                    _ => None,
+                },
             }),
         }
     }

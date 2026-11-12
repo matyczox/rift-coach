@@ -15,7 +15,7 @@ pub struct AllyFrame {
     pub slot: usize,
     /// HP fraction 0..1 (0 = dead or empty).
     pub hp: f64,
-    /// Mana fraction 0..1; None = not a mana champion (grey / other resource bar).
+    /// Spell resource (mana blue / energy yellow) 0..1; None = other resource (grey bar etc.).
     pub mana: Option<f64>,
     /// Shield (white segment after the green), fraction of the bar.
     pub shield: f64,
@@ -32,6 +32,10 @@ fn is_green(r: u8, g: u8, b: u8) -> bool {
 
 fn is_mana(r: u8, g: u8, b: u8) -> bool {
     b > 120 && (b as f64) > r as f64 * 1.6 && (b as f64) > g as f64 * 1.15
+}
+
+fn is_energy(r: u8, g: u8, b: u8) -> bool {
+    r > 170 && g > 130 && b < 90 && (r as f64) > b as f64 * 2.2
 }
 
 fn is_dark(r: u8, g: u8, b: u8) -> bool {
@@ -86,7 +90,7 @@ pub fn read_team_frames(f: &Rgba, mm: (i32, i32, i32, i32)) -> Vec<AllyFrame> {
         let (mut blue, mut dark) = (0.0, 0.0);
         for x in xs {
             let (r, g, b) = px(f, x, res_row);
-            if is_mana(r, g, b) {
+            if is_mana(r, g, b) || is_energy(r, g, b) {
                 blue += 1.0;
             } else if is_dark(r, g, b) {
                 dark += 1.0;

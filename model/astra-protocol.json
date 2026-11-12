@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "date": "2026-11-12",
+  "frozen_before_reading_baseline_results": true,
+  "games": ["replay-4027208890", "replay-unknown-2026-11-12T09-21-59", "replay-unknown-2026-11-12T01-27-38"],
+  "truth": "red",
+  "baseline_variants": ["none", "priors", "zero+train", "priors+train"],
+  "additional_variants": ["astra", "astra+train", "bag-zero-a025", "bag-zero-a050", "bag-zero-a100", "bag-astra-a050", "nested"],
+  "bagging": "Train independent models on each training game, each from the same start. Geometric mean of multipliers, then shrink log-displacement toward the start: exp(log(start)+alpha*mean(log(trained/start))). Missing multiplier=1. Clamp 0.2..5.0. No selection using outer-test results.",
+  "alphas": {"bag-zero-a025": 0.25, "bag-zero-a050": 0.5, "bag-zero-a100": 1.0, "bag-astra-a050": 0.5},
+  "nested_candidates": ["none", "priors", "astra", "bag-zero-a025", "bag-zero-a050", "bag-zero-a100", "bag-astra-a050"],
+  "selection": "Within each outer fold, use only its two training games for inner leave-one-out. Require pooled error <= none for 5-15s and >=1 percentage point lower than none separately in each of 15-30,30-60,60-120s. Require equal sample counts and equal errBase to exclude changed coverage. Among eligible choose smallest 1:2:3 weighted mean of those long-bin errors; stable list-order tie break. If none eligible, choose none. Final recipe chosen by the same rule on all three cross-fitted inner results; final weights trained on all three only after all outer tests.",
+  "aggregation": "Within each age bucket sum(n*errModel)/sum(n); also report equal-game macro averages. Percentage = Euclidean minimap distance / map side * 100, not a relative improvement percentage.",
+  "noise": "Differences below 1 percentage point are noise for claims of superiority. No adaptive alteration of weights or candidates after seeing outer results.",
+  "interpretation": "Candidate comparison alone is exploratory because selection across candidates reuses these three games. Nested row evaluates the selection procedure. Three games do not establish generalization or independence of frame-level samples.",
+  "expert_rationale": "Hypotheses based on existing table: modest stay increase, slightly more early jungle farming, later ADC/support mid allocation, solo-laner side allocation. Do not strongly boost dragon/baron because goal_prior already multiplies by four when available/soon. No patch-specific assertion. Unknown role stays unchanged."
+}

@@ -212,6 +212,11 @@ pub fn build_snapshot(ctx: &CoachContext, previous: &[Value]) -> Value {
                 if let Some(s) = &i.my_stats {
                     m.insert("goldNow".into(), num(s.gold));
                     m.insert("hp".into(), json!(format!("{}/{}", s.hp, s.max_hp)));
+                    if s.resource_type != "NONE" {
+                        if let Some(p) = s.resource_pct {
+                            m.insert("zasob".into(), json!(format!("{} {}%", s.resource_type, js_round(p * 100.0))));
+                        }
+                    }
                     m.insert("ad".into(), num(s.ad));
                     m.insert("ap".into(), num(s.ap));
                     m.insert("armor".into(), num(s.armor));

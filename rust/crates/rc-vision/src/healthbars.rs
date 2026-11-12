@@ -31,8 +31,8 @@ pub struct HealthBar {
     pub shield_compressed: bool,
     pub level: Option<u32>,
     pub confidence: f64,
-    /// Mana fraction from the thin blue strip right under the HP fill (None = no blue strip:
-    /// not a mana champion, or not readable).
+    /// Spell resource fraction from the thin strip right under the HP fill: blue = mana, yellow =
+    /// energy (None = no such strip: fury / no resource, or not readable).
     #[serde(default)]
     pub mana: Option<f64>,
 }
@@ -200,7 +200,10 @@ fn mana_below(frame: &Rgba, b: &HealthBar, fill_h: f64, s: f64) -> Option<f64> {
         for x in b.x.max(0)..(b.x + b.width).min(w) {
             let i = (y as usize * frame.width + x as usize) * 4;
             let (r, g, bl) = (frame.data[i] as f64, frame.data[i + 1] as f64, frame.data[i + 2] as f64);
-            if bl > 110.0 && bl > r * 1.5 && bl > g * 1.1 {
+            let mana = bl > 110.0 && bl > r * 1.5 && bl > g * 1.1;
+            // Energy (Akali, Lee Sin, Zed...): yellow.
+            let energy = r > 170.0 && g > 130.0 && bl < 90.0 && r > bl * 2.2;
+            if mana || energy {
                 n += 1;
             }
         }
@@ -727,7 +730,18 @@ mod mana_tests {
         }
         let m = mana_below(&f, &bar, 12.0, 1.0).unwrap();
         assert!((m - 0.91).abs() < 0.03, "{m}");
-        // No strip (energy / no resource): None, not 0.
+        // Energy strip (yellow, Akali / Lee Sin): read the same way.
+        let mut en = Rgba { width: w, height: h, data: vec![30; w * h * 4] };
+        for y in 77..81 {
+            for x in 100..163 {
+                let i = (y * w + x) * 4;
+                en.data[i] = 225;
+                en.data[i + 1] = 190;
+                en.data[i + 2] = 40;
+            }
+        }
+        assert!((mana_below(&en, &bar, 12.0, 1.0).unwrap() - 0.5).abs() < 0.03);
+        // No strip (fury / no resource): None, not 0.
         let empty = Rgba { width: w, height: h, data: vec![30; w * h * 4] };
         assert_eq!(mana_below(&empty, &bar, 12.0, 1.0), None);
     }

@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "multipliers": {
+    "JUNGLE|early": {"camp": 1.1, "lane-top": 0.9, "lane-mid": 0.9, "lane-bot": 0.9, "stay": 1.15},
+    "JUNGLE|mid": {"camp": 0.85, "lane-mid": 1.1, "river": 1.15, "stay": 1.15},
+    "JUNGLE|late": {"camp": 0.7, "lane-mid": 1.15, "river": 1.2, "dragon": 1.1, "baron": 1.1, "stay": 1.15},
+    "TOP|early": {"stay": 1.15},
+    "TOP|mid": {"lane-top": 1.1, "lane-bot": 1.15, "lane-mid": 0.9, "stay": 1.15},
+    "TOP|late": {"lane-top": 1.1, "lane-bot": 1.2, "lane-mid": 0.9, "stay": 1.15},
+    "MIDDLE|early": {"stay": 1.15},
+    "MIDDLE|mid": {"lane-top": 1.1, "lane-bot": 1.2, "lane-mid": 0.9, "stay": 1.15},
+    "MIDDLE|late": {"lane-top": 1.1, "lane-bot": 1.2, "lane-mid": 0.9, "stay": 1.15},
+    "BOTTOM|early": {"stay": 1.15},
+    "BOTTOM|mid": {"lane-top": 0.8, "lane-mid": 1.5, "lane-bot": 0.75, "stay": 1.15},
+    "BOTTOM|late": {"lane-top": 0.8, "lane-mid": 1.5, "lane-bot": 0.75, "stay": 1.15},
+    "UTILITY|early": {"river": 1.1, "stay": 1.15},
+    "UTILITY|mid": {"lane-top": 0.8, "lane-mid": 1.3, "lane-bot": 0.8, "river": 1.15, "stay": 1.15},
+    "UTILITY|late": {"lane-top": 0.8, "lane-mid": 1.3, "lane-bot": 0.8, "river": 1.15, "stay": 1.15}
+  },
+  "score": {"n": 0, "logModel": 0, "logBaseline": 0, "hits": 0},
+  "recent": []
+}

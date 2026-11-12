@@ -177,6 +177,19 @@ pub fn danger_at(intel: &GameIntel, me: Option<Pos>, tracks: &[FogTrack], visibl
         score += w;
         reasons.push((w, format!("{}% HP", js_round(hp * 100.0) as i64)));
     }
+    // Out of mana / energy, or Rumble overheated: fewer spells (or none) when it matters. Counts only
+    // when something already threatens me.
+    if score > 0.1 {
+        if let Some(m) = mi.mana_pct.filter(|m| *m < 0.25) {
+            let w = (0.25 - m) * 1.2;
+            score += w;
+            reasons.push((w, format!("{}% {}", js_round(m * 100.0) as i64, if intel.my_stats.as_ref().is_some_and(|s| s.resource_type == "ENERGY") { "energii" } else { "many" })));
+        }
+        if intel.my_stats.as_ref().is_some_and(|s| s.resource_type == "HEAT" && s.resource_pct.is_some_and(|p| p >= 0.999)) {
+            score += 0.3;
+            reasons.push((0.3, "przegrzany".into()));
+        }
+    }
     if let Some(p) = p_me {
         if p < 0.4 && score > 0.1 {
             let w = (0.4 - p) * 0.6;

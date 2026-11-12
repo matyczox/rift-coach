@@ -161,6 +161,30 @@ fn hp_fresh(intel: &GameIntel, p: &PlayerIntel) -> Option<f64> {
     }
 }
 
+/// Build-up resources (mana / energy are handled as "mana"): a full bar is a power spike, Rumble's
+/// overheat is a silence.
+pub fn resource_edge(kind: &str, pct: Option<f64>) -> f64 {
+    let Some(p) = pct else { return 0.0 };
+    match kind {
+        // Rumble: 50-99 heat = empowered spells (Danger Zone); 100 = overheated, silenced.
+        "HEAT" => {
+            if p >= 0.999 {
+                -0.6
+            } else if p >= 0.5 {
+                0.3
+            } else {
+                0.0
+            }
+        }
+        // Renekton fury (empowered at 50+), Tryndamere / Shyvana fury, Gnar (Mega at full), Rengar
+        // ferocity (empowered at full), Yasuo flow (shield ready at full).
+        "RAGE" => if p >= 0.5 { 0.3 } else { 0.0 },
+        "BATTLEFURY" | "DRAGONFURY" | "FEROCITY" | "WIND" => 0.3 * p,
+        "GNARFURY" => if p >= 0.95 { 0.4 } else { 0.1 * p },
+        _ => 0.0,
+    }
+}
+
 /// Live all-in chance: matchup curve at the current levels (main term) + level
 /// difference + item gold / completed-item difference + my HP (and enemy HP from
 /// his health bar, remembered with regen) + enemy Flash down + kill-threat spells
@@ -184,7 +208,8 @@ pub fn power_score(intel: &GameIntel, opp: &PlayerIntel, brief: Option<&MatchupB
     let threat = if opp.summoner_spells.iter().any(|s| threat_re.is_match(s)) { -0.15 } else { 0.0 };
     // My mana (mana champions): below ~40% the all-in gets weaker, at 0 about -0.6.
     let my_mana = me.mana_pct.map_or(0.0, |m| -0.6 * (1.0 - (m / 0.4).min(1.0)));
-    let score = my_mana + 1.6 * curve + 0.45 * level_diff + 0.35 * gold_diff + 0.35 * items_diff + 1.5 * (hp - 1.0) - 1.5 * (opp_hp - 1.0) + flash + threat;
+    let my_resource = intel.my_stats.as_ref().map_or(0.0, |s| resource_edge(&s.resource_type, s.resource_pct));
+    let score = my_mana + my_resource + 1.6 * curve + 0.45 * level_diff + 0.35 * gold_diff + 0.35 * items_diff + 1.5 * (hp - 1.0) - 1.5 * (opp_hp - 1.0) + flash + threat;
     (sigmoid(score), score)
 }
 
@@ -413,6 +438,18 @@ pub(crate) mod tests {
     use crate::llm::caller::FakeCaller;
     use std::collections::BTreeMap;
 
+    /// Build-up resources: Rumble overheated is a silence, 50-99 heat empowers; fury / ferocity full helps.
+    #[test]
+    fn resource_edges() {
+        assert_eq!(resource_edge("HEAT", Some(1.0)), -0.6);
+        assert_eq!(resource_edge("HEAT", Some(0.7)), 0.3);
+        assert_eq!(resource_edge("HEAT", Some(0.2)), 0.0);
+        assert_eq!(resource_edge("RAGE", Some(0.6)), 0.3);
+        assert!(resource_edge("FEROCITY", Some(1.0)) > resource_edge("FEROCITY", Some(0.25)));
+        assert_eq!(resource_edge("MANA", Some(0.1)), 0.0); // mana / energy go through mana_pct
+        assert_eq!(resource_edge("HEAT", None), 0.0);
+    }
+
     /// Audit V3 F01: an absent lane opponent must not decide a fight somewhere else.
     #[test]
     fn absent_lane_opponent_does_not_count() {
@@ -519,7 +556,7 @@ pub(crate) mod tests {
             lanes: vec![],
             streaks: BTreeMap::new(),
             ace: None,
-            my_stats: Some(MyStats { gold: 500.0, hp: 1000.0, max_hp: 1000.0, ad: 60.0, ap: 0.0, armor: 30.0, mr: 30.0, move_speed: 345.0 }),
+            my_stats: Some(MyStats { gold: 500.0, hp: 1000.0, max_hp: 1000.0, ad: 60.0, ap: 0.0, armor: 30.0, mr: 30.0, move_speed: 345.0, resource_type: "MANA".into(), resource_pct: Some(1.0) }),
         }
     }
 
