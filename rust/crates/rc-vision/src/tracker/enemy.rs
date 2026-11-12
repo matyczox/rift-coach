@@ -200,6 +200,15 @@ impl EnemyTracker {
         self.all()
     }
 
+    /// Seconds since this enemy left the fountain after a respawn or a proven recall (Homeguard), else None.
+    fn homeguard_since(tr: &Internal, fp: (f64, f64), t: f64) -> Option<f64> {
+        let fs = tr.pub_.fog_since?;
+        let b = tr.baseline_at?;
+        // Game start (fog_since 0) has no Homeguard.
+        if fs <= 0.0 || (b.0 - fp.0).hypot(b.1 - fp.1) >= 0.05 { return None; }
+        Some(t - fs)
+    }
+
     fn update_one(&mut self, idx: usize, e: &EnemyInput, f: &FrameInput, dt: f64) {
         let ctx = self.ctx_for(e, f);
         let mut tr = std::mem::replace(&mut self.tracks[idx], placeholder());
@@ -314,6 +323,7 @@ impl EnemyTracker {
             }
 
             if tr.pub_.state == TrackState::Fog {
+                let hg = Self::homeguard_since(&tr, fp, f.t);
                 if let Some(pf) = tr.pf.as_mut() {
                     if f.t - tr.last_prior_at > 5.0 {
                         let from_base = tr.baseline_at.is_some_and(|b| (b.0 - fp.0).hypot(b.1 - fp.1) < 0.05) && f.t - tr.pub_.fog_since.unwrap_or(f.t) < 25.0;
@@ -321,7 +331,8 @@ impl EnemyTracker {
                         tr.last_prior_at = f.t;
                     }
                     if dt > 0.0 {
-                        pf.step(dt, e.move_speed, &mut self.rng);
+                        let mult = hg.map_or(1.0, |a| homeguard_mult(a - dt * 0.5, f.t));
+                        pf.step(dt, e.move_speed * mult, &mut self.rng);
                     }
                     if let Some(vis) = f.visible {
                         let ok = pf.observe_absent(vis, &mut self.rng);
@@ -337,7 +348,8 @@ impl EnemyTracker {
                     // brings truth-inside to ~70% for the first 15 s in fog.
                     let est = pf.estimate(0.7);
                     let age = f.t - tr.pub_.fog_since.unwrap_or(f.t);
-                    let est = Estimate { radius: est.radius.max((e.move_speed / MAP_UNITS) * age).min(0.45), ..est };
+                    let extra = hg.map_or(0.0, |a| homeguard_extra_secs(a, f.t));
+                    let est = Estimate { radius: est.radius.max((e.move_speed / MAP_UNITS) * (age + extra)).min(0.45), ..est };
                     tr.pub_.estimate = Some(est);
                     tr.frozen = Some(est);
                 }
@@ -400,5 +412,44 @@ fn placeholder() -> Internal {
         pending: None,
         last_item_gold: None,
         frozen: None,
+    }
+}
+
+/// Homeguard: leaving the fountain after a respawn or recall gives a big move speed bonus that
+/// decays once outside (about +80% before 14:00, +150% after). Modelled as full bonus for the
+/// first 3 s (crossing the platform), then a linear decay to nothing over the next 4 s.
+const HG_FULL: f64 = 3.0;
+const HG_DECAY: f64 = 4.0;
+
+fn homeguard_bonus(game_t: f64) -> f64 {
+    if game_t < 14.0 * 60.0 { 0.8 } else { 1.5 }
+}
+
+/// Speed multiplier `since` seconds after leaving the fountain.
+pub fn homeguard_mult(since: f64, game_t: f64) -> f64 {
+    let b = homeguard_bonus(game_t);
+    if since < 0.0 { 1.0 } else if since <= HG_FULL { 1.0 + b } else if since >= HG_FULL + HG_DECAY { 1.0 } else { 1.0 + b * (1.0 - (since - HG_FULL) / HG_DECAY) }
+}
+
+/// Extra distance from Homeguard, in seconds of normal walking, after `since` seconds.
+pub fn homeguard_extra_secs(since: f64, game_t: f64) -> f64 {
+    let b = homeguard_bonus(game_t);
+    let a = since.max(0.0);
+    let full = a.min(HG_FULL);
+    let d = (a - HG_FULL).clamp(0.0, HG_DECAY);
+    b * (full + d - d * d / (2.0 * HG_DECAY))
+}
+
+#[cfg(test)]
+mod homeguard_tests {
+    use super::*;
+    #[test]
+    fn homeguard_decays_and_doubles_late() {
+        assert_eq!(homeguard_mult(1.0, 300.0), 1.8);
+        assert_eq!(homeguard_mult(1.0, 1000.0), 2.5);
+        assert!((homeguard_mult(5.0, 300.0) - 1.4).abs() < 1e-9);
+        assert_eq!(homeguard_mult(8.0, 300.0), 1.0);
+        // 3 s full + 4 s triangle = 0.8 * (3 + 2) = 4 s of extra walking
+        assert!((homeguard_extra_secs(30.0, 300.0) - 4.0).abs() < 1e-9);
     }
 }

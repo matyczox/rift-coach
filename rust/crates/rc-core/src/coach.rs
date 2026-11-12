@@ -55,7 +55,7 @@ Zasady:
 - Smoki, baron i herold są ważne — komentuj je (przed pojawieniem się i przy walce o nie).
 - Bądź KONSEKWENTNY: nie zmieniaj decyzji z previousCalls (np. "Smok teraz" → "Odpuść smoka"), dopóki sytuacja wyraźnie się nie zmieni (ktoś zginął, wróg się pokazał, przegrana walka).
 - Nie komentuj wszystkiego: jedna rzecz naraz, tylko to, co zmienia decyzję gracza.
-- Wardy to częsta i ważna porada: gdy gracz nie ma wizji tam, skąd grozi gank, przed smokiem/baronem albo po pchnięciu fali, powiedz gdzie postawić ward (np. "Ward rzeka bot", "Ward krzaki tri") i ustaw pole "ward".
+- Wardy to częsta i ważna porada: gdy gracz nie ma wizji tam, skąd grozi gank, przed smokiem/baronem albo po pchnięciu fali, powiedz gdzie postawić ward (np. "Ward rzeka bot", "Ward krzaki tri") i ustaw pole "ward". Gdy ustawiasz "ward", "call" MUSI nazwać to miejsce słowami — gracz nie szuka znaczków na minimapie.
 - Gdy nie masz NOWEJ, konkretnej decyzji: "call": null (gracz nic nie zobaczy — to lepsze niż szum).
 - "tone": go = zrób to teraz, wait = czekaj/przygotuj się, danger = zagrożenie, farm = spokojnie farm.
 - "mapHint": gdzie iść/co unikać, albo null. target to np. "dragon", "baron", "herald", "top", "mid", "bot", "my-jungle", "enemy-jungle", "base".
@@ -543,6 +543,8 @@ impl Coach {
                 self.status.calls += 1;
                 self.status.last_latency_ms = Some(latency);
                 let call = value.get("call").and_then(Value::as_str).unwrap_or("").trim().to_string();
+                // A ward spot without words is easy to miss on the minimap: say it on the top bar.
+                let call = if call.is_empty() { ward_call(&value).unwrap_or(call) } else { call };
                 // Silent (no new decision) or the same idea as a recent call: show nothing new. A death review still counts.
                 let is_death = req.reason == "death";
                 if !is_death && (call.is_empty() || self.history.iter().take(3).any(|h| similar_call(h.get("call").and_then(Value::as_str).unwrap_or(""), &call))) {
@@ -624,6 +626,12 @@ fn strip_diacritics(s: &str) -> String {
 }
 
 /// Two calls say the same thing (shared content words), e.g. "Farm pod wieżą" vs "Farmuj pod wieżą — gank".
+/// "Ward: <spot label>" for an advice whose only content is a ward spot.
+fn ward_call(value: &Value) -> Option<String> {
+    let id = value.get("ward")?.get("spot")?.as_str()?;
+    WARD_SPOTS.iter().find(|s| s.id == id).map(|s| format!("Ward: {}", s.label))
+}
+
 pub fn similar_call(a: &str, b: &str) -> bool {
     let words = |x: &str| -> std::collections::HashSet<String> {
         let s: String = strip_diacritics(&x.to_lowercase()).chars().map(|c| if c.is_ascii_lowercase() || c.is_ascii_digit() || c == ' ' { c } else { ' ' }).collect();

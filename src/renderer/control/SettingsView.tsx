@@ -64,7 +64,7 @@ const MODIFIERS = new Set([
 ]);
 const KEY_RE = /^([0-9A-Z]|F([1-9]|1[0-9]|2[0-4])|Plus|Space|Tab|Capslock|Numlock|Scrolllock|Backspace|Delete|Insert|Return|Enter|Up|Down|Left|Right|Home|End|PageUp|PageDown|Escape|Esc|PrintScreen|VolumeUp|VolumeDown|VolumeMute|MediaNextTrack|MediaPreviousTrack|MediaStop|MediaPlayPause|num[0-9]|numdec|numadd|numsub|nummult|numdiv|[)!@#$%^&*(:;=<,_.>?/~`{}|\\"'[\]-])$/i;
 
-/** Light validation of an Electron accelerator string. Empty = disabled. */
+/** Light validation of a hotkey string (e.g. Alt+Shift+O). Empty = disabled. */
 function acceleratorError(v: string): string | null {
   const s = v.trim();
   if (!s) return null;

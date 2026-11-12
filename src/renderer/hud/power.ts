@@ -53,6 +53,7 @@ subscribe(({ state }) => {
   }
 
   pw.classList.toggle('hidden', !p);
+  detail.classList.toggle('hidden', !p?.lane);
   if (!p) return;
   setSrc(meIcon, p.me.iconUrl);
   setSrc(enIcon, p.enemy.iconUrl);
@@ -63,7 +64,7 @@ subscribe(({ state }) => {
   fill.classList.toggle('mid', v >= 0.4 && v < 0.6);
   fill.classList.toggle('low', v < 0.4);
   // Percentage label only when the segment is wide enough to hold it.
-  pct.textContent = '';
+  pct.textContent = v >= 0.16 ? `${Math.round(v * 100)}%` : '';
   const ln = p.lane;
   if (ln) {
     // One line of coloured numbers: +450 g  +12 CS  +1 lvl
@@ -77,11 +78,10 @@ subscribe(({ state }) => {
       d.append(b, sm);
       return d;
     };
-    detail.className = 'pw-stats';
+    detail.className = 'card lead pw-stats';
     detail.replaceChildren(stat(ln.gold, 'g'), stat(ln.cs, 'CS'), stat(ln.level, 'lvl'));
   } else {
-    detail.className = 'pw-detail';
-    detail.textContent = p.detail;
+    detail.replaceChildren();
   }
   advice.textContent = p.advice;
 });

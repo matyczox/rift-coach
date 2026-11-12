@@ -105,10 +105,11 @@ pub fn apply_login_item(launch: bool) {
     let Ok(exe) = std::env::current_exe() else { return };
     let cmd = wide(&format!("\"{}\" --background", exe.display()));
     let (key, name) = (wide(RUN_KEY), wide(RUN_VALUE));
-    // The Electron build uses the same entry name and the same settings file: never take over
-    // (or delete) an entry that starts another executable.
+    // Never take over (or delete) an entry of another rift-coach.exe install (e.g. a dev build vs the
+    // installed app). Stale entries of the old Electron build (electron.exe) are replaced.
     if let Some(cur) = read_run_value() {
-        if !cur.to_lowercase().contains(&exe.display().to_string().to_lowercase()) {
+        let cur = cur.to_lowercase();
+        if cur.contains("rift-coach.exe") && !cur.contains(&exe.display().to_string().to_lowercase()) {
             return;
         }
     }

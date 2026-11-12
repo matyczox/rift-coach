@@ -5,7 +5,7 @@
 //   - scopes document.getElementById to the panel whose module is loading (several panels
 //     use the same ids, e.g. #root), advancing to the next panel on every onState(),
 //   - gives each panel its own state (visible:false when that panel has no content, like a
-//     hidden HUD window in the Electron app),
+//     hidden panel),
 //   - makes window.innerWidth/innerHeight report the minimap panel (minimap.ts sizes its
 //     canvas from them).
 import type { HudState } from '../../shared/intel';

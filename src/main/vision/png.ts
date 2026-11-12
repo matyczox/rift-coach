@@ -6,7 +6,7 @@ export interface Rgba { width: number; height: number; data: Uint8Array }
 /**
  * Minimal PNG decoder (non-interlaced, 8-bit gray/RGB/RGBA/gray+alpha/palette).
  * Enough for canvas-encoded minimap crops and Data Dragon icons; pure JS so
- * vision code and tests run without Electron.
+ * vision code and tests run in plain Node.
  */
 export function decodePng(buf: Uint8Array): Rgba {
   const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);

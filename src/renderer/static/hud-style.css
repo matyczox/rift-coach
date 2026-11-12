@@ -173,13 +173,23 @@ canvas.full { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 
 /* Simplified panel: danger = word + one reason in one line; bar without text; lead = one line of numbers */
 .power .dg-meter, .power .pw-me { display: none; }
+#p-power .wrap { flex-direction: column; gap: 0.375rem; }
 .power .dg { display: flex; align-items: baseline; gap: 0.5rem; }
 .power .dg.hidden { display: none; }
 .power .dg-label { font-size: 1rem; font-weight: 800; }
 .power .dg-why { margin-top: 0; font-size: 0.875rem; font-weight: 600; color: var(--text); }
-.pw-stats { margin-top: 0.4375rem; display: flex; justify-content: space-between; padding: 0 0.125rem; }
+.power-stack { display: flex; flex-direction: column; gap: 0.375rem; }
+.card.lead { width: 18.75rem; padding: 0.4375rem 0.875rem; display: flex; justify-content: space-between; }
 .pw-stat b { font-size: 1.0625rem; font-weight: 800; font-variant-numeric: tabular-nums; color: #9aa5ad; }
 .pw-stat small { margin-left: 0.1875rem; font-size: 0.75rem; font-weight: 600; color: var(--muted); }
 .pw-stat.up b { color: #30d9d3; }
 .pw-stat.down b { color: #ff8f88; }
 .power .pw-advice:empty { display: none; }
+/* Build: one item, larger */
+.build { width: auto; max-width: 15rem; }
+.build .bd-row { padding: 0.125rem 0; }
+.build .bd-row img { width: 2.25rem; height: 2.25rem; }
+.build .bd-row { grid-template-columns: 2.25rem 1fr auto; }
+.build .bd-name { font-size: 0.875rem; }
+.build .bd-name { display: block; -webkit-line-clamp: unset; overflow: visible; }
+.build .bd-row { align-items: start; }

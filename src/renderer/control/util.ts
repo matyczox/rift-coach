@@ -10,7 +10,7 @@ export function rc(): RcApi {
 
 export function errText(e: unknown): string {
   if (e instanceof Error) {
-    // Electron prefixes IPC errors with "Error invoking remote method 'x': Error: ..."
+    // Some IPC layers prefix errors with "Error invoking remote method 'x': Error: ..."
     const m = /Error invoking remote method '[^']+': (?:\w*Error: )?(.*)$/s.exec(e.message);
     return (m?.[1] ?? e.message) || 'Nieznany błąd.';
   }
