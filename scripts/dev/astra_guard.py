@@ -6,6 +6,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 import subprocess
+import shutil
+import hashlib
 import time
 import psutil
 
@@ -102,6 +104,10 @@ if __name__ == "__main__":
                      "rust/app/cargo-gnu.ps1", "build", "--release", "-p", "rc-vision",
                      "--example", "eval_tracker", "--example", "detect_cache"],
                     args.out / "build.log", env)
+        (args.out / "bin").mkdir(exist_ok=True)
+        shutil.copy2(REPO / "rust/target/release/examples/eval_tracker.exe",
+                     args.out / "bin/eval_tracker.exe")
+        print("PINNED SHA256", hashlib.sha256((args.out / "bin/eval_tracker.exe").read_bytes()).hexdigest())
     else:
         for game in GAMES:
             session = Path(env["APPDATA"]) / "Rift Coach" / "recordings" / game
@@ -115,8 +121,18 @@ if __name__ == "__main__":
         removal_target = (scratch / "rc-loo").resolve()
         assert removal_target.is_relative_to(args.out) and not removal_target.exists()
         env["TEMP"] = scratch.as_posix()
+        exe = args.out / "bin/eval_tracker.exe"
+        if not exe.is_file():
+            raise FileNotFoundError("Run the build stage first to pin the evaluator")
+        before = hashlib.sha256(exe.read_bytes()).hexdigest()
+        original = (REPO / "scripts/dev/loo-tracker.sh").read_text(encoding="utf-8")
+        needle = "E=./rust/target/release/examples/eval_tracker.exe"
+        assert original.count(needle) == 1 and " " not in exe.as_posix()
+        pinned_script = args.out / "loo-tracker-pinned.sh"
+        pinned_script.write_text(original.replace(needle, "E=" + exe.as_posix()), encoding="utf-8", newline="\n")
         text = guarded_run([r"C:\Program Files\Git\bin\bash.exe",
-                            "scripts/dev/loo-tracker.sh"], args.out / "baseline.log", env)
+                            pinned_script.as_posix()], args.out / "baseline.log", env)
+        assert hashlib.sha256(exe.read_bytes()).hexdigest() == before
         lines = [line for line in text.splitlines() if line.startswith("TEST ")]
         if len(lines) != 12 or any('"buckets"' not in line for line in lines):
             raise RuntimeError("Incomplete baseline output; inspect baseline.log")

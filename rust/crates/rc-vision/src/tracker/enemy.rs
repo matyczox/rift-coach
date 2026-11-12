@@ -308,6 +308,7 @@ impl EnemyTracker {
             }
 
             // Not seen this frame.
+            let mut caught_up = false;
             if let Some(l) = tr.pub_.last {
                 if tr.pub_.state == TrackState::Visible && tr.hits.iter().all(|&h| h == 0) && f.t - l.t >= 0.35 {
                     tr.pub_.state = TrackState::Fog;
@@ -319,6 +320,7 @@ impl EnemyTracker {
                     // Catch up the time between the last sighting and now.
                     pf.step(f.t - l.t, e.move_speed, &mut self.rng);
                     tr.pf = Some(pf);
+                    caught_up = true;
                 }
             }
 
@@ -330,7 +332,8 @@ impl EnemyTracker {
                         pf.set_prior(&PriorContext { leaving_base: from_base, ..ctx.clone() }, None);
                         tr.last_prior_at = f.t;
                     }
-                    if dt > 0.0 {
+                    // The catch-up step above already moved it up to now.
+                    if dt > 0.0 && !caught_up {
                         let mult = hg.map_or(1.0, |a| homeguard_mult(a - dt * 0.5, f.t));
                         pf.step(dt, e.move_speed * mult, &mut self.rng);
                     }

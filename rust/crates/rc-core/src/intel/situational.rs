@@ -185,7 +185,7 @@ pub fn danger_at(intel: &GameIntel, me: Option<Pos>, tracks: &[FogTrack], visibl
             score += w;
             reasons.push((w, format!("{}% {}", js_round(m * 100.0) as i64, if intel.my_stats.as_ref().is_some_and(|s| s.resource_type == "ENERGY") { "energii" } else { "many" })));
         }
-        if intel.my_stats.as_ref().is_some_and(|s| s.resource_type == "HEAT" && s.resource_pct.is_some_and(|p| p >= 0.999)) {
+        if intel.my_stats.as_ref().is_some_and(|s| s.overheated) {
             score += 0.3;
             reasons.push((0.3, "przegrzany".into()));
         }

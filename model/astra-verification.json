@@ -1,0 +1,11 @@
+{
+  "lineage_checks_passed": 42,
+  "neutral_model_exactly_matches_no_model": {
+    "replay-4027208890": true,
+    "replay-unknown-2026-11-12T09-21-59": true,
+    "replay-unknown-2026-11-12T01-27-38": true
+  },
+  "input_manifest_unchanged": true,
+  "best_sha256": "ac62ef4cd8ee7ee35f9426bf8f5fd51dacfa34b859a544697ae715eca316a931",
+  "exe_sha256": "ef7ea33f62c6448d2192a990c7cceb18fcabd8cccd08ccc69384904e101001ce"
+}

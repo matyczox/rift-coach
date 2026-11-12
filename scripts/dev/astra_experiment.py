@@ -110,7 +110,7 @@ class Experiment:
         self.env = data_env(appdata)
         self.out = out.resolve()
         self.workers = workers
-        self.exe = REPO / "rust/target/release/examples/eval_tracker.exe"
+        self.exe = self.out / "bin/eval_tracker.exe"
         self.exe_sha = sha(self.exe)
         self.protocol = read(REPO / "model/astra-protocol.json")
         self.starts = {"zero": EMPTY, "astra": read(REPO / "model/astra-v1.json")}
@@ -181,7 +181,7 @@ class Experiment:
         for game in GAMES:
             folder = root / "recordings" / game
             # Read-only inventory covers even files not consumed by the evaluator.
-            files = [(p.relative_to(folder).as_posix(), p.stat().st_size, p.stat().st_mtime_ns)
+            files = [[p.relative_to(folder).as_posix(), p.stat().st_size, p.stat().st_mtime_ns]
                      for p in sorted(folder.rglob("*")) if p.is_file()]
             hashes = {name: sha(folder / name) for name in
                       ["api.jsonl.gz", "detections-frames.json", "detections-red.json", "meta.json"]}
@@ -200,12 +200,14 @@ class Experiment:
 
     def baseline(self):
         log = (self.out / "baseline.log").read_text(encoding="utf-8")
+        parsed = set()
         for line in log.splitlines():
             match = re.match(r"TEST (\S+) (\S+) (\{.*\})$", line)
             if match:
                 game, variant, text = match.groups()
                 self.outer[variant, game] = json.loads(text)
-        assert len(self.outer) == 12
+                parsed.add((variant, game))
+        assert len(parsed) == 12
         for v in self.protocol["baseline_variants"]:
             for g in GAMES:
                 assert (v, g) in self.outer
@@ -217,7 +219,6 @@ class Experiment:
             assert read(provenance) == before, "Inputs changed since previous run"
         else:
             write(provenance, before)
-        self.baseline()
         # Per-game fitted models are reused only where that game belongs to TRAIN.
         jobs = [(o, g) for o in ["zero", "astra"] for g in GAMES]
         results = self.parallel([lambda o=o, g=g: self.train(o, [g], f"single-{o}-{GAMES.index(g)}")
@@ -246,6 +247,7 @@ class Experiment:
             f"inner-{v}-train{GAMES.index(t)}-val{GAMES.index(val)}", inner_models[v, t, val],
             lineage=[t]) for v, t, val in jobs])
         self.inner.update(zip(jobs, results))
+        self.baseline()
         decisions = {}
         ordered = self.protocol["nested_candidates"]
         for test in GAMES:

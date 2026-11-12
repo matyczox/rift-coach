@@ -765,6 +765,10 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     if st.replay_blocks() {
         return;
     }
+    // Frame older than 2 s (queue / worker delay): not the game as it is now.
+    if now_ms() - r.at as f64 > 2000.0 {
+        return;
+    }
     let mut guard = st.game.lock().unwrap();
     if guard.intel.is_none() {
         return;

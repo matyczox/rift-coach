@@ -181,6 +181,9 @@ fn player_json(i: &GameIntel, x: &PlayerIntel) -> Map<String, Value> {
     }
     if !x.is_ally {
         m.insert("spells".into(), json!(x.summoner_spells));
+        if let Some(mp) = x.mana_pct {
+            m.insert("mana".into(), json!(format!("{}%", js_round(mp * 100.0))));
+        }
     }
     if let (Some(hp), Some(seen)) = (x.hp_pct, x.hp_seen_at) {
         if i.game_time - seen <= 6.0 {
@@ -353,6 +356,8 @@ pub struct AskRequest {
     pub game_time: f64,
     /// Coach session (one per game): a late answer from a previous game is dropped.
     pub session: u64,
+    /// My deaths when asked: the advice is for that life only.
+    pub deaths: i64,
 }
 
 pub enum TickAction {
@@ -579,6 +584,7 @@ impl Coach {
         let thinking = if model.contains("-5") { None } else if is_death { Some(2000) } else { Some(0) };
         AskRequest {
             session: self.session,
+            deaths: i.me.as_ref().map_or(0, |m| m.deaths),
             call: ModelCall {
                 model,
                 system: game_system_prompt(ctx),
@@ -628,6 +634,7 @@ impl Coach {
                 a.insert("contextId".into(), json!(req.context_id));
                 a.insert("createdAt".into(), num(created_at_ms));
                 a.insert("gameTime".into(), json!(req.game_time));
+                a.insert("lifeDeaths".into(), json!(req.deaths));
                 a.insert("latencyMs".into(), json!(latency));
                 let advice = Value::Object(a);
                 self.history.insert(0, advice.clone());
@@ -652,6 +659,15 @@ impl Coach {
         }
         let dead = intel.me.as_ref().is_some_and(|m| m.is_dead);
         let has_review = a.get("deathReview").is_some_and(|d| !d.is_null());
+        // Asked in an earlier life (I died since): a plan for a fight I already lost.
+        let deaths_now = intel.me.as_ref().map_or(0, |m| m.deaths);
+        if a.get("lifeDeaths").and_then(Value::as_i64).is_some_and(|d| d != deaths_now) && !(has_review && dead) {
+            return false;
+        }
+        // While dead only the death review stays; movement / fight advice goes away at once.
+        if dead && !has_review {
+            return false;
+        }
         !(has_review && !dead)
     }
 }
@@ -720,6 +736,12 @@ pub fn sanitize_advice(v: &mut Value) {
     }
 }
 
+/// "Przygotuj się do Dragona", "Ward przed Baronem": a preparing step (not yet "do it now").
+pub fn preparing(s: &str) -> bool {
+    let n = strip_diacritics(&s.to_lowercase());
+    ["przygot", "zbier", "ward", "wizj", "ustaw", "czekaj"].iter().any(|w| n.contains(w))
+}
+
 /// "Nie rób Dragona", "Odpuść Dragona", "Unikaj walki": a call that says NOT to do something.
 pub fn negated(s: &str) -> bool {
     let n = strip_diacritics(&s.to_lowercase());
@@ -731,13 +753,16 @@ pub fn same_objective_topic(a: &str, b: &str) -> bool {
     let topic = |s: &str| ["smok", "drag", "elder", "baron", "herol", "heral", "larw", "grub", "atakh"].into_iter().find(|t| s.contains(t)).map(|t| match t { "drag" | "elder" => "smok", "heral" => "herol", "grub" => "larw", x => x });
     let (na, nb) = (norm(a), norm(b));
     // Same objective AND the same step of the decision: prepare (vision, group up) -> go now -> give up.
-    let prep = |s: &str| ["przygot", "zbier", "ward", "wizj", "ustaw", "czekaj"].iter().any(|w| s.contains(w));
-    matches!((topic(&na), topic(&nb)), (Some(x), Some(y)) if x == y) && negated(a) == negated(b) && prep(&na) == prep(&nb)
+    matches!((topic(&na), topic(&nb)), (Some(x), Some(y)) if x == y) && negated(a) == negated(b) && preparing(a) == preparing(b)
 }
 
 pub fn similar_call(a: &str, b: &str) -> bool {
     // Changing the stance ("Dragon teraz" -> "Nie rób Dragona") is new information, never a repeat.
     if negated(a) != negated(b) {
+        return false;
+    }
+    // "Przygotuj się do Dragona" -> "Rób Dragona": the next step, not a repeat.
+    if preparing(a) != preparing(b) {
         return false;
     }
     let words = |x: &str| -> std::collections::HashSet<String> {
@@ -777,6 +802,32 @@ mod tests {
         assert!(!text.contains(".0,"), "integers written like JSON.stringify: {text}");
         // me.hp from myStats replaces the per-player hp in place.
         assert!(s["me"]["hp"].as_str().unwrap().contains('/'));
+    }
+
+    /// Audit V4 #2: advice from before a death is not shown after it (nor while dead).
+    #[test]
+    fn advice_is_for_one_life() {
+        let mut i = intel();
+        let gt = i.game_time;
+        let me = i.players.iter_mut().find(|p| p.is_me).unwrap();
+        me.deaths = 2;
+        me.is_dead = false;
+        i.me = Some(me.clone());
+        let adv = json!({ "call": "All-in teraz", "gameTime": gt - 5.0, "ttlSec": 40, "lifeDeaths": 2, "deathReview": null });
+        assert!(Coach::is_fresh(&adv, &i));
+        // Died since the question: dropped.
+        let me = i.players.iter_mut().find(|p| p.is_me).unwrap();
+        me.deaths = 3;
+        i.me = Some(me.clone());
+        assert!(!Coach::is_fresh(&adv, &i));
+        // While dead: only the death review.
+        let me = i.players.iter_mut().find(|p| p.is_me).unwrap();
+        me.is_dead = true;
+        i.me = Some(me.clone());
+        let review = json!({ "call": null, "gameTime": gt - 2.0, "ttlSec": 40, "lifeDeaths": 3, "deathReview": ["x"] });
+        let plain = json!({ "call": "Back", "gameTime": gt - 2.0, "ttlSec": 40, "lifeDeaths": 3, "deathReview": null });
+        assert!(Coach::is_fresh(&review, &i));
+        assert!(!Coach::is_fresh(&plain, &i));
     }
 
     /// Audit #6 + #11: a new game is not blocked by the previous game's clock; a late answer from the
@@ -949,7 +1000,7 @@ mod tests {
         assert_eq!(c.status.state, "idle");
         assert_eq!(c.status.calls, 1);
         let ok = |c: &mut Coach, call: &str| {
-            let req = AskRequest { call: ModelCall::default(), reason: "periodic".into(), context_id: "x".into(), game_time: 0.0, session: c.session };
+            let req = AskRequest { call: ModelCall::default(), reason: "periodic".into(), context_id: "x".into(), game_time: 0.0, session: c.session, deaths: 0 };
             c.in_flight = true;
             c.complete(&req, Ok((json!({ "call": call, "tone": "farm", "ttlSec": 20, "deathReview": null }), 10)), 1.0).0
         };
@@ -1021,6 +1072,8 @@ mod tests {
         assert!(!same_objective_topic("Dragon teraz", "Nie rób Dragona"));
         // Audit V3 F02: prepare -> go is a new decision.
         assert!(!same_objective_topic("Przygotuj się do Dragona", "Dragon teraz"));
+        // Audit V4 #3: also through similar_call (both dedupe paths).
+        assert!(!similar_call("Przygotuj się do Dragona", "Rób Dragona"));
         assert!(same_objective_topic("Przygotuj wizję Dragona", "Ward przed Dragonem"));
         assert!(similar_call("Farmuj pod wieżą", "Farmuj pod wieżą — gank"));
         assert!(similar_call("Nie pushuj — jungler top", "nie PUSHUJ, jungler top!"));

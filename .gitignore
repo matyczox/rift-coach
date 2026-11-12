@@ -6,3 +6,5 @@ out/
 .env.*
 .claude/
 *.rofl
+
+__pycache__/

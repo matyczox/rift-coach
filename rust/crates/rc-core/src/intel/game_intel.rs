@@ -148,6 +148,10 @@ pub struct MyStats {
     /// GNARFURY, FEROCITY, WIND, BLOODWELL, SHIELD, NONE...) and fill 0..1.
     pub resource_type: String,
     pub resource_pct: Option<f64>,
+    /// Raw resource value (Rumble: heat 0..150, Danger Zone from 50).
+    pub resource_value: Option<f64>,
+    /// Rumble overheated right now (silenced): from hitting max heat, for the 4 s of Overheat.
+    pub overheated: bool,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
@@ -225,6 +229,8 @@ pub struct IntelTracker {
     hp: HashMap<String, (f64, f64)>,
     mana: HashMap<String, (Option<f64>, f64)>,
     shield: HashMap<String, (f64, f64)>,
+    /// Game time when my Overheat ends (Rumble).
+    overheat_until: f64,
 }
 
 impl IntelTracker {
@@ -386,6 +392,16 @@ impl IntelTracker {
         ev.ally.alive_count = players.iter().filter(|p| p.is_ally && !p.is_dead).count();
         ev.enemy.alive_count = players.iter().filter(|p| !p.is_ally && !p.is_dead).count();
         let st = |k: &str| js_round(ap.stat(k).unwrap_or(0.0));
+        // Rumble: max heat starts Overheat (4 s, patch 13.12); heat dropping during it is NOT the skills coming back.
+        let res_kind = ap.champion_stats.get("resourceType").and_then(|v| v.as_str()).unwrap_or("NONE").to_string();
+        if res_kind == "HEAT" {
+            if let (Some(v), Some(m)) = (ap.stat("resourceValue"), ap.stat("resourceMax")) {
+                if m > 0.0 && v >= m - 0.5 && t >= self.overheat_until {
+                    self.overheat_until = t + 4.0;
+                }
+            }
+        }
+        let overheated = res_kind == "HEAT" && t < self.overheat_until;
         GameIntel {
             game_time: t,
             game_mode: d.game_data.game_mode.clone(),
@@ -410,7 +426,9 @@ impl IntelTracker {
                 armor: st("armor"),
                 mr: st("magicResist"),
                 move_speed: st("moveSpeed"),
-                resource_type: ap.champion_stats.get("resourceType").and_then(|v| v.as_str()).unwrap_or("NONE").to_string(),
+                resource_type: res_kind.clone(),
+                resource_value: ap.stat("resourceValue"),
+                overheated,
                 resource_pct: match (ap.stat("resourceValue"), ap.stat("resourceMax")) {
                     (Some(v), Some(m)) if m > 0.0 => Some((v / m).clamp(0.0, 1.0)),
                     _ => None,
