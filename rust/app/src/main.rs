@@ -2,8 +2,11 @@
 
 mod bridge;
 mod game;
+mod hud;
+mod hud_state;
 mod runes;
 mod state;
+mod vision;
 
 use rc_core::settings::{user_data_dir, SettingsStore};
 use rc_core::sources::{lcu, live, replay};
@@ -23,9 +26,23 @@ fn background() -> bool {
     std::env::args().any(|a| a == "--background")
 }
 
+/// Testing: treat an open replay like a live game (vision, tracker and HUD run on it).
+pub fn allow_replay() -> bool {
+    static V: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *V.get_or_init(|| std::env::args().any(|a| a == "--allow-replay"))
+}
+
+/// Value of `--name=value`.
+fn arg_value(name: &str) -> Option<String> {
+    let p = format!("--{name}=");
+    std::env::args().find_map(|a| a.strip_prefix(&p).map(String::from))
+}
+
+/// Off the main thread: some calls encode images or wait on locks.
 #[tauri::command]
-fn rc_call(app: tauri::AppHandle, state: tauri::State<'_, Arc<AppState>>, method: String, args: Vec<Value>) -> Result<Value, String> {
-    bridge::call(&app, state.inner(), &method, &args)
+async fn rc_call(app: tauri::AppHandle, state: tauri::State<'_, Arc<AppState>>, method: String, args: Vec<Value>) -> Result<Value, String> {
+    let st = state.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || bridge::call(&app, &st, &method, &args)).await.map_err(|e| e.to_string())?
 }
 
 /// External links (e.g. developer.riotgames.com) open in the default browser; https only.
@@ -37,8 +54,9 @@ fn open_external(url: String) -> Result<(), String> {
     std::process::Command::new("rundll32.exe").args(["url.dll,FileProtocolHandler", &url]).spawn().map(|_| ()).map_err(|e| e.to_string())
 }
 
-pub fn on_settings_changed(_app: &tauri::AppHandle, _st: &Arc<AppState>) {
-    // Hotkeys, login item, overlay placement and capture config follow in later steps.
+pub fn on_settings_changed(app: &tauri::AppHandle, st: &Arc<AppState>) {
+    vision::sync_settings(st);
+    hud::place(app, st);
 }
 
 /// Show the window without activating it (Tauri's `show()` activates it).
@@ -64,30 +82,38 @@ fn emit_status(app: &tauri::AppHandle, st: &Arc<AppState>, last: &mut String) {
 
 fn main() {
     let data_dir = user_data_dir();
-    tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+    let mut builder = tauri::Builder::default();
+    // --smoke runs next to a normal instance (and must never bring that one to the front).
+    if !smoke() {
+        builder = builder.plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             if let Some(w) = app.get_webview_window("main") {
                 let _ = w.show();
                 let _ = w.unminimize();
                 let _ = w.set_focus();
             }
-        }))
+        }));
+    }
+    builder
         .invoke_handler(tauri::generate_handler![rc_call, open_external])
         .setup(move |app| {
             let rt = tauri::async_runtime::block_on(async { tokio::runtime::Handle::current() });
             let (live_shared, mut live_rx) = live::spawn(&rt, live::POLL_MS);
             let (lcu_client, lcu_shared, mut lcu_rx) = lcu::spawn(&rt);
             let replay_api = replay::spawn_state_poller(&rt);
+            let settings = SettingsStore::open(&data_dir);
+            let vision_hub = vision::VisionHub::new(settings.value().minimap_fps.max(1) as f64, vision::calibration_from_settings(settings.value().calibration.as_ref()));
             let st = Arc::new(AppState {
                 version: app.package_info().version.to_string(),
-                settings: Mutex::new(SettingsStore::open(&data_dir)),
+                settings: Mutex::new(settings),
                 data_dir: data_dir.clone(),
                 live: live_shared,
                 lcu: lcu_shared,
                 lcu_client,
                 replay_api,
                 ui: Mutex::new(UiState::default()),
-                game: Mutex::new(game::Game::default()),
+                game: Mutex::new(game::Game::new(&data_dir)),
+                vision: vision_hub,
+                hud: Mutex::new(hud::HudCtl::default()),
             });
             app.manage(st.clone());
 
@@ -108,6 +134,18 @@ fn main() {
                 }
             }
 
+            // In-game HUD (hidden until a panel has content) + capture -> vision -> tracker.
+            hud::create(app.handle())?;
+            vision::spawn_threads(app.handle(), &st);
+            hud::spawn(app.handle(), &st);
+            let st6 = st.clone();
+            rt.spawn(async move {
+                loop {
+                    tokio::time::sleep(Duration::from_secs(60)).await;
+                    st6.game.lock().unwrap().field.save_learner();
+                }
+            });
+
             game::spawn_static_data(&rt, &st);
             game::spawn_backend_detection(&rt, &st);
             // Live API events -> intel -> coach.
@@ -122,7 +160,10 @@ fn main() {
                             if st3.settings.lock().unwrap().value().riot.api_key.is_empty() {
                                 st3.ui.lock().unwrap().profiles = rc_core::types::ProfilesStatus { state: "no-key".into(), count: 0, error: None };
                             }
-                            game::on_game_data(&rt3, &st3, &d);
+                            // An open replay is not a live game (index.ts: replayApiState !== 'connected').
+                            if !st3.replay_blocks() {
+                                game::on_game_data(&rt3, &st3, &d);
+                            }
                         }
                     }
                 }
@@ -150,7 +191,18 @@ fn main() {
             if smoke() {
                 let (app3, st5) = (app.handle().clone(), st.clone());
                 rt.spawn(async move {
-                    tokio::time::sleep(Duration::from_secs(12)).await;
+                    let secs = arg_value("smoke-seconds").and_then(|s| s.parse().ok()).unwrap_or(12u64);
+                    tokio::time::sleep(Duration::from_secs(secs)).await;
+                    // Minimap crop of the newest frame (like --smoke-frame in the Electron app).
+                    if let Some(out) = arg_value("smoke-frame") {
+                        if let (Some((_, f)), Some(c)) = (st5.vision.capture.latest(), st5.vision.calibration()) {
+                            if let Some(crop) = rc_vision::capture::crop_rect(&f.image, c.rect_for(f.image.width as i32, f.image.height as i32)) {
+                                let _ = std::fs::write(out, rc_vision::image::encode_png(&crop));
+                            }
+                        }
+                    }
+                    println!("SMOKE-VISION {}", vision::smoke_summary(&st5));
+                    println!("SMOKE-HUD {}", hud::smoke_summary(&st5));
                     let mut s = serde_json::to_value(st5.status()).unwrap_or_default();
                     // Never print the Riot API key.
                     if let Some(k) = s.pointer_mut("/settings/riot/apiKey") {

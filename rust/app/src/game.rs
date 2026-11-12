@@ -17,11 +17,13 @@ pub struct Game {
     pub coach: Coach,
     /// Which AI backends this PC has; optimistic until detected (like index.ts).
     pub backends: Backends,
+    /// Minimap vision: fog tracker, camps, ghosts, alerts.
+    pub field: crate::vision::Field,
 }
 
-impl Default for Game {
-    fn default() -> Self {
-        Game { static_data: None, tracker: IntelTracker::default(), intel: None, coach: Coach::default(), backends: Backends { claude: true, codex: true } }
+impl Game {
+    pub fn new(data_dir: &std::path::Path) -> Self {
+        Game { static_data: None, tracker: IntelTracker::default(), intel: None, coach: Coach::default(), backends: Backends { claude: true, codex: true }, field: crate::vision::Field::new(data_dir) }
     }
 }
 
@@ -31,7 +33,10 @@ fn now_ms() -> f64 {
 
 /// Live API left (game over / loading): forget per-game state.
 pub fn on_live_lost(st: &Arc<AppState>) {
-    st.game.lock().unwrap().intel = None;
+    let mut g = st.game.lock().unwrap();
+    g.intel = None;
+    g.field.on_live_lost();
+    drop(g);
     st.ui.lock().unwrap().last_advice = None;
 }
 
@@ -45,7 +50,14 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
     };
     let sd = g.static_data.clone();
     let intel = g.tracker.update(&d, sd.as_ref().map(|s| &s.items), sd.as_ref().map(|s| &s.champion_stats));
+    let now = crate::vision::now_ms();
+    for a in crate::hud_state::local_alerts(&intel, now) {
+        if !g.field.alerts.iter().any(|x| x.text == a.text) {
+            g.field.alerts.push(a);
+        }
+    }
     g.intel = Some(intel);
+    crate::vision::on_game_data(rt, st, &mut g, &d.game_data.game_mode, d.game_data.map_number);
 
     let b = g.backends;
     let live = pick(&coach_cfg.live_model, Task::Live, b);
@@ -60,8 +72,19 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
     c.period_sec = coach_cfg.period_sec as f64;
 
     let action = {
-        let Game { intel, coach, .. } = &mut *g;
-        let ctx = CoachContext { intel: intel.as_ref(), ..Default::default() };
+        let Game { intel, coach, field, .. } = &mut *g;
+        let (camps, covered) = match intel.as_ref() {
+            Some(i) => (crate::vision::camp_summary(i, field), crate::vision::covered_spots(i, field)),
+            None => (Vec::new(), Vec::new()),
+        };
+        let ctx = CoachContext {
+            intel: intel.as_ref(),
+            ghosts: field.ghosts.iter().filter_map(|x| serde_json::to_value(x).ok()).collect(),
+            alerts: field.alerts.iter().filter_map(|x| serde_json::to_value(x).ok()).collect(),
+            camps,
+            covered_ward_spots: covered,
+            ..Default::default()
+        };
         coach.tick(&ctx, Instant::now())
     };
     drop(g);
