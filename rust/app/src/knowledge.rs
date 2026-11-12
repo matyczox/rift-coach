@@ -310,15 +310,26 @@ pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
     // ~1/7 of the map: a whole dragon / baron pit fight with the bushes around it.
     const R: f64 = 0.15;
     let mut n = rc_core::intel::matchup::Nearby::default();
+    // Health bar on my screen in the last 1.5 s = right next to me, whatever the minimap shows (portraits
+    // hide under mine when we run together).
+    if let Some(i) = g.intel.as_ref() {
+        for p in i.players.iter().filter(|p| !p.is_me && !p.is_dead && p.onscreen_at.is_some_and(|t| i.game_time - t <= 1.5)) {
+            if p.is_ally {
+                n.allies.push(p.champion.clone());
+            } else {
+                n.enemies.push((p.champion.clone(), true));
+            }
+        }
+    }
     let Some((mx, my)) = g.field.my_pos else { return n };
     let me = g.intel.as_ref().and_then(|i| i.me.as_ref()).map(|m| m.champion.clone()).unwrap_or_default();
     for a in &g.field.allies {
-        if a.champion != me && (a.x - mx).hypot(a.y - my) < R {
+        if a.champion != me && (a.x - mx).hypot(a.y - my) < R && !n.allies.contains(&a.champion) {
             n.allies.push(a.champion.clone());
         }
     }
     for e in &g.field.visible_enemies {
-        if (e.x - mx).hypot(e.y - my) < R {
+        if (e.x - mx).hypot(e.y - my) < R && !n.enemies.iter().any(|(c, _)| *c == e.champion) {
             n.enemies.push((e.champion.clone(), true));
         }
     }

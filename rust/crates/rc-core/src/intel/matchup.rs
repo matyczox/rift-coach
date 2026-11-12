@@ -539,6 +539,7 @@ pub(crate) mod tests {
             flash_in: None,
             mana_pct: None,
             shield_pct: None,
+            onscreen_at: None,
         }
     }
 

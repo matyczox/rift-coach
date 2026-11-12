@@ -24,12 +24,13 @@ pub struct AlertState {
 }
 
 /// `me` = my champion's minimap position (from the detector); `now` = wall-clock ms.
-/// A gank warning needs the enemy to be out of sight for a while: 4 s for anyone, 10 s for my lane
-/// opponent (stepping behind his tower or into a bush for a second is lane play, not a gank).
+/// A gank warning: someone from elsewhere (jungler, roamer) out of sight for at least 4 s. Never my lane
+/// opponent: him in a bush or behind his tower is lane play (his threat is in the fight bar), and
+/// "Sion gank" about my own laner only confused.
 pub fn gank_ready(t: &EnemyTrack, my_role: Option<Role>, game_time: f64) -> bool {
     let age = game_time - t.fog_since.unwrap_or(game_time);
     let lane_opp = my_role.is_some_and(|r| r != Role::Unknown && r == t.role);
-    age >= if lane_opp { 10.0 } else { 4.0 }
+    !lane_opp && age >= 4.0
 }
 
 pub fn tracker_alerts(tracks: &[EnemyTrack], me: Option<(f64, f64)>, my_team: Team, my_role: Option<Role>, game_time: f64, now: f64) -> Vec<AlertState> {

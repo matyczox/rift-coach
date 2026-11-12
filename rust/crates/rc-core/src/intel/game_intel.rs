@@ -80,6 +80,8 @@ pub struct PlayerIntel {
     pub mana_pct: Option<f64>,
     /// Shield as a fraction of max HP, seen in the last 3 s (shields are short-lived).
     pub shield_pct: Option<f64>,
+    /// Game time his health bar was last on MY screen (= he is near me), not the portraits above the minimap.
+    pub onscreen_at: Option<f64>,
 }
 
 #[derive(Clone, Debug, Serialize, PartialEq)]
@@ -231,12 +233,18 @@ pub struct IntelTracker {
     shield: HashMap<String, (f64, f64)>,
     /// Game time when my Overheat ends (Rumble).
     overheat_until: f64,
+    onscreen: HashMap<String, f64>,
 }
 
 impl IntelTracker {
     /// HP fraction of a champion read from the screen, at game time t.
     pub fn set_hp(&mut self, champion: &str, pct: f64, t: f64) {
         self.hp.insert(champion.into(), (pct, t));
+    }
+
+    /// His health bar was on my screen at game time t (he is near me).
+    pub fn set_onscreen(&mut self, champion: &str, t: f64) {
+        self.onscreen.insert(champion.into(), t);
     }
 
     /// Shield (fraction of max HP) from a health bar / ally portrait.
@@ -348,6 +356,7 @@ impl IntelTracker {
                 hp_seen_at: if is_me { Some(t) } else { self.hp.get(&p.champion_name).map(|h| h.1) },
                 move_speed,
                 flash_in,
+                onscreen_at: self.onscreen.get(&p.champion_name).copied(),
                 shield_pct: self.shield.get(&p.champion_name).filter(|s| t - s.1 <= 3.0 && s.0 > 0.01).map(|s| s.0),
                 mana_pct: if is_me {
                     // Mana and energy both pay for spells: low = few spells.

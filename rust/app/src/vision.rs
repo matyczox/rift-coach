@@ -150,6 +150,8 @@ pub struct Field {
     /// Recalls already announced: (champion, recalled_at game time). Vision runs faster than the Live
     /// API, so the same recall shows up on several frames.
     pub recall_seen: Vec<(String, f64)>,
+    /// Enemies hidden under another portrait (teamfight): champion -> game time it started.
+    pub occluded_since: std::collections::HashMap<String, f64>,
     pub allies: Vec<SeenUnit>,
     pub visible_enemies: Vec<SeenUnit>,
     /// Fog mask (P(visible) per cell, `mask_grid`², row-major).
@@ -187,6 +189,7 @@ impl Field {
             last_vision_at: 0.0,
             icon_retry_at: 0.0,
             recall_seen: Vec::new(),
+            occluded_since: std::collections::HashMap::new(),
             allies: Vec::new(),
             visible_enemies: Vec::new(),
             mask: None,
@@ -774,6 +777,7 @@ fn apply_ally_hp(g: &mut Game, bars: &[HealthBar]) {
     for (bar, c) in bars.iter().zip(match_bars_to_champions(bars, &cands, &MatchOptions::default())) {
         if let Some(c) = c {
             tracker.set_hp(&c, bar.pct, intel.game_time);
+            tracker.set_onscreen(&c, intel.game_time);
             tracker.set_shield(&c, bar.shield_pct, intel.game_time);
         }
     }
@@ -786,6 +790,7 @@ fn apply_hp(g: &mut Game, bars: &[HealthBar]) {
     for (bar, c) in bars.iter().zip(match_bars_to_champions(bars, &cands, &MatchOptions::default())) {
         if let Some(c) = c {
             tracker.set_hp(&c, bar.pct, intel.game_time);
+            tracker.set_onscreen(&c, intel.game_time);
             tracker.set_shield(&c, bar.shield_pct, intel.game_time);
             if bar.mana.is_some() {
                 tracker.set_mana(&c, bar.mana, intel.game_time);
@@ -852,7 +857,26 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             f.my_pos = None;
         }
     }
-    f.allies = r.detections.iter().filter(|d| d.team == my_team_t).map(|d| with_vel(&f.allies, d)).collect();
+    let prev_allies = std::mem::take(&mut f.allies);
+    f.allies = r.detections.iter().filter(|d| d.team == my_team_t).map(|d| with_vel(&prev_allies, d)).collect();
+    // An ally right next to me hides under my portrait (or another one): still there, not gone. Keep him
+    // at his last spot for up to 5 s so the fight bar counts him ("Sejuani was with me, not counted").
+    let tnow = intel.game_time;
+    let mut kept = std::collections::HashSet::new();
+    for u in &prev_allies {
+        if f.allies.iter().any(|a| a.champion == u.champion) {
+            continue;
+        }
+        if !r.detections.iter().any(|d| d.champion != u.champion && (d.x - u.x).hypot(d.y - u.y) < 0.035) {
+            continue;
+        }
+        let since = *f.occluded_since.entry(format!("ally:{}", u.champion)).or_insert(tnow);
+        kept.insert(format!("ally:{}", u.champion));
+        if tnow - since <= 5.0 {
+            f.allies.push(SeenUnit { vx: 0.0, vy: 0.0, ..u.clone() });
+        }
+    }
+    f.occluded_since.retain(|k, _| !k.starts_with("ally:") || kept.contains(k));
     f.visible_enemies = r.detections.iter().filter(|d| d.team != my_team_t).map(|d| with_vel(&f.visible_enemies, d)).collect();
     // Enemy pushing a lane on our half with none of us near -> toast (once per champion+lane / 60 s).
     for (champ, lane) in unguarded_pushes(&f.visible_enemies, &f.allies, my_team_t) {
@@ -930,7 +954,30 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             }
         }
     }
-    let dets: Vec<Detection> = r.detections.iter().filter(|d| d.team != my_team_t).cloned().collect();
+    let mut dets: Vec<Detection> = r.detections.iter().filter(|d| d.team != my_team_t).cloned().collect();
+    // Hidden under another portrait (portraits overlap in a fight): not gone. Keep him where he was for up
+    // to 5 s instead of letting the fog mask wipe every hypothesis near the fight (which left only
+    // "recalled" ones and put the ghost in base). Only while still Visible: no fog episode, nothing learned.
+    if let Some(tr) = f.tracker.as_ref() {
+        let mut still = std::collections::HashSet::new();
+        for e in tr.all() {
+            if e.state != rc_vision::tracker::TrackState::Visible || dets.iter().any(|d| d.champion == e.champion) {
+                continue;
+            }
+            let Some(l) = e.last else { continue };
+            let covered = r.detections.iter().any(|d| d.champion != e.champion && (d.x - l.x).hypot(d.y - l.y) < 0.035);
+            if !covered {
+                continue;
+            }
+            let since = *f.occluded_since.entry(e.champion.clone()).or_insert(t);
+            // Remember the start while he stays covered, so the 5 s limit really ends.
+            still.insert(e.champion.clone());
+            if t - since <= 5.0 {
+                dets.push(Detection { champion: e.champion.clone(), team: e.team, x: l.x, y: l.y, score: 0.5, margin: 0.0, votes: 0.0 });
+            }
+        }
+        f.occluded_since.retain(|c, _| c.starts_with("ally:") || still.contains(c));
+    }
     let tracker = f.tracker.as_mut().unwrap();
     for (c, q) in &camp_hints {
         tracker.soft_hint(c, *q);
