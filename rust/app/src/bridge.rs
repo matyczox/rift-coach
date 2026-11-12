@@ -4,7 +4,6 @@ use crate::state::AppState;
 use serde_json::{json, Value};
 use std::sync::Arc;
 
-const NO_CAPTURE: &str = "Przechwytywanie obrazu gry nie jest jeszcze dostępne w wersji Rust.";
 const NO_RECORDING: &str = "Nagrywanie meczów nie jest jeszcze dostępne w wersji Rust.";
 const NO_REPLAY: &str = "Odtwarzanie nagrań nie jest jeszcze dostępne w wersji Rust.";
 const NO_HARVEST: &str = "Zbieranie danych z powtórek nie jest jeszcze dostępne w wersji Rust.";
@@ -42,7 +41,9 @@ pub fn call(app: &tauri::AppHandle, st: &Arc<AppState>, method: &str, args: &[Va
             let recs = rc_core::files::list_recordings(&st.recordings_dir());
             Ok(Value::Array(rc_core::files::list_replay_files(&rc_core::files::replay_dirs(), &recs)))
         }
-        "grabScene" | "autoCalibrate" | "setCalibration" => Err(NO_CAPTURE.into()),
+        "grabScene" => Ok(crate::vision::grab_scene(st)),
+        "autoCalibrate" => crate::vision::auto_calibrate(app, st),
+        "setCalibration" => crate::vision::apply_calibration(app, st, &arg(args, 0)).map(|_| Value::Null),
         // Nothing can be open or running yet: the "stop/close" calls are no-ops like in TS when idle.
         "stopRecording" | "replayClose" | "replayPause" | "harvestStop" => Ok(Value::Null),
         "startRecording" => Err(NO_RECORDING.into()),

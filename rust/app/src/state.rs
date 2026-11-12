@@ -18,6 +18,8 @@ pub struct AppState {
     pub replay_api: Arc<Mutex<SourceState>>,
     pub ui: Mutex<UiState>,
     pub game: Mutex<crate::game::Game>,
+    pub vision: crate::vision::VisionHub,
+    pub hud: crate::hud::Hud,
 }
 
 /// Parts of AppStatus owned by the coach / intel / runes side.
@@ -43,6 +45,12 @@ impl Default for UiState {
 }
 
 impl AppState {
+    /// Replays are not live games: no vision, no HUD, no coach (index.ts checks replayApiState).
+    /// `--allow-replay` (testing) treats an open replay like a live game.
+    pub fn replay_blocks(&self) -> bool {
+        *self.replay_api.lock().unwrap() == SourceState::Connected && !crate::allow_replay()
+    }
+
     pub fn recordings_dir(&self) -> PathBuf {
         self.data_dir.join("recordings")
     }
@@ -77,7 +85,7 @@ impl AppState {
             lcu: lcu_state,
             lcu_phase: phase,
             game,
-            capture: CaptureStatus::default(),
+            capture: self.vision.status(),
             recording: RecordingStatus::default(),
             replay: None,
             replay_api: *self.replay_api.lock().unwrap(),

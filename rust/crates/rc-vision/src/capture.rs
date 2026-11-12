@@ -15,13 +15,13 @@
 
 use crate::calibration::{Calibration, Rect};
 use crate::image::Rgba;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use windows::core::{factory, Interface, HSTRING, PCWSTR};
 use windows::Foundation::TypedEventHandler;
-use windows::Graphics::Capture::{Direct3D11CaptureFramePool, GraphicsCaptureItem, GraphicsCaptureSession};
+use windows::Graphics::Capture::{Direct3D11CaptureFramePool, GraphicsCaptureAccess, GraphicsCaptureAccessKind, GraphicsCaptureItem, GraphicsCaptureSession};
 use windows::Graphics::DirectX::Direct3D11::IDirect3DDevice;
 use windows::Graphics::DirectX::DirectXPixelFormat;
 use windows::Graphics::SizeInt32;
@@ -60,7 +60,8 @@ impl From<windows::core::Error> for CaptureError {
 pub struct CapturedFrame {
     /// Wall-clock ms (UNIX epoch) when the frame was read.
     pub at_ms: u64,
-    pub image: Rgba,
+    /// Shared so the newest frame can go to several consumers without copying.
+    pub image: Arc<Rgba>,
 }
 
 impl CapturedFrame {
@@ -142,6 +143,13 @@ impl WindowCapture {
         }))?;
         let session = pool.CreateCaptureSession(&item)?;
         // Windows 11: no yellow capture border, no cursor (both optional; older builds lack them).
+        // Borderless capture has to be requested once per process before it is honoured.
+        static BORDERLESS: std::sync::Once = std::sync::Once::new();
+        BORDERLESS.call_once(|| {
+            if let Ok(op) = GraphicsCaptureAccess::RequestAccessAsync(GraphicsCaptureAccessKind::Borderless) {
+                let _ = op.get();
+            }
+        });
         let _ = session.SetIsBorderRequired(false);
         let _ = session.SetIsCursorCaptureEnabled(false);
         session.StartCapture()?;
@@ -188,7 +196,7 @@ impl WindowCapture {
                 let access: IDirect3DDxgiInterfaceAccess = frame.Surface()?.cast()?;
                 let tex: ID3D11Texture2D = unsafe { access.GetInterface()? };
                 let img = self.read_texture(&tex, size)?;
-                let f = CapturedFrame { at_ms: now_ms(), image: img };
+                let f = CapturedFrame { at_ms: now_ms(), image: Arc::new(img) };
                 self.last = Some(f.clone());
                 return Ok(f);
             }
@@ -284,6 +292,8 @@ struct Shared {
 pub struct CaptureThread {
     shared: Arc<Mutex<Shared>>,
     stop: Arc<AtomicBool>,
+    /// Frame period in microseconds (can change while running).
+    period_us: Arc<AtomicU64>,
     handle: Option<std::thread::JoinHandle<()>>,
 }
 
@@ -291,8 +301,8 @@ impl CaptureThread {
     pub fn spawn(title: &str, fps: f64) -> CaptureThread {
         let shared = Arc::new(Mutex::new(Shared { latest: None, status: CaptureStatus { state: CaptureState::Waiting, window_width: None, window_height: None, fps: 0.0, last_frame_at: None, error: None }, seq: 0 }));
         let stop = Arc::new(AtomicBool::new(false));
-        let (sh, st, title) = (shared.clone(), stop.clone(), title.to_string());
-        let period = Duration::from_secs_f64(1.0 / fps.clamp(0.5, 60.0));
+        let period_us = Arc::new(AtomicU64::new(period_for(fps)));
+        let (sh, st, title, pu) = (shared.clone(), stop.clone(), title.to_string(), period_us.clone());
         let handle = std::thread::Builder::new()
             .name("rc-capture".into())
             .spawn(move || {
@@ -335,13 +345,19 @@ impl CaptureThread {
                         }
                     }
                     let el = tick.elapsed();
+                    let period = Duration::from_micros(pu.load(Ordering::Relaxed));
                     if el < period {
                         sleep_unless(&st, period - el);
                     }
                 }
             })
             .expect("spawn capture thread");
-        CaptureThread { shared, stop, handle: Some(handle) }
+        CaptureThread { shared, stop, period_us, handle: Some(handle) }
+    }
+
+    /// Change the capture rate (from the next frame on).
+    pub fn set_fps(&self, fps: f64) {
+        self.period_us.store(period_for(fps), Ordering::Relaxed);
     }
 
     pub fn status(&self) -> CaptureStatus {
@@ -353,6 +369,10 @@ impl CaptureThread {
         let s = self.shared.lock().unwrap();
         s.latest.clone().map(|f| (s.seq, f))
     }
+}
+
+fn period_for(fps: f64) -> u64 {
+    (1e6 / fps.clamp(0.5, 60.0)) as u64
 }
 
 fn sleep_unless(stop: &AtomicBool, d: Duration) {

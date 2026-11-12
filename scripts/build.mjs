@@ -18,6 +18,8 @@ await Promise.all([
       'hud-minimap': 'src/renderer/hud/minimap.ts', 'hud-topbar': 'src/renderer/hud/topbar.ts',
       'hud-death': 'src/renderer/hud/death.ts', 'hud-loading': 'src/renderer/hud/loading.ts',
       'hud-power': 'src/renderer/hud/power.ts', 'hud-build': 'src/renderer/hud/build.ts',
+      // Tauri: every HUD panel in one window.
+      'hud-all': 'src/renderer/hud/all.ts',
     }, outdir: 'dist/renderer', jsx: 'automatic' }),
 ]);
 if (watch) console.log('watch not implemented; rerun build');

@@ -48,7 +48,7 @@
 
   // ---------- title bar ----------
   const win = () => tauri().window.getCurrentWindow();
-  const DRAG = '.topbar, .brand, [data-rc-drag]';
+  const DRAG = '.titlebar, [data-rc-drag]';
   const NO_DRAG = 'button, a, input, select, textarea, label, [role="button"], .sys, .coach-badge, #rc-wincontrols';
   document.addEventListener('mousedown', (e) => {
     if (e.button !== 0 || !(e.target instanceof Element)) return;
@@ -72,24 +72,40 @@
   }, true);
 
   // Native min/max/close are drawn by Electron's titleBarOverlay; here we draw them ourselves
-  // in the 152 px the UI keeps free on the right of the 44 px title bar.
+  // in the ~146 px the UI keeps free on the right of its title bar (.titlebar), same height as the bar.
   const ICONS = {
     min: '<svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5h10" stroke="currentColor" stroke-width="1"/></svg>',
     max: '<svg width="10" height="10" viewBox="0 0 10 10"><rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke="currentColor" stroke-width="1"/></svg>',
     close: '<svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1.1"/></svg>',
   };
+  // Height of the UI's title bar (40 px by design; follow the rendered bar if CSS changes it).
+  const barH = () => {
+    const bar = document.querySelector('.titlebar');
+    const h = bar ? Math.round(bar.getBoundingClientRect().height) : 0;
+    return `${h > 0 ? h : 40}px`;
+  };
+  // React renders the bar after this script: re-fit once it exists and when it resizes.
+  const fit = () => { const box = document.getElementById('rc-wincontrols'); if (box) box.style.height = barH(); };
+  const watch = new MutationObserver(() => {
+    const bar = document.querySelector('.titlebar');
+    if (!bar) return;
+    watch.disconnect();
+    fit();
+    new ResizeObserver(fit).observe(bar);
+  });
+  watch.observe(document.documentElement, { childList: true, subtree: true });
   function addControls() {
     if (!document.body || document.getElementById('rc-wincontrols')) return;
     const box = document.createElement('div');
     box.id = 'rc-wincontrols';
-    Object.assign(box.style, { position: 'fixed', top: '0', right: '0', height: '44px', display: 'flex', zIndex: '2147483647' });
+    Object.assign(box.style, { position: 'fixed', top: '0', right: '0', height: barH(), display: 'flex', zIndex: '2147483647' });
     const mk = (kind, title, action, hoverBg) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.title = title;
       b.innerHTML = ICONS[kind];
       Object.assign(b.style, {
-        width: '46px', height: '44px', border: '0', margin: '0', padding: '0', display: 'flex',
+        width: '46px', height: '100%', border: '0', margin: '0', padding: '0', display: 'flex',
         alignItems: 'center', justifyContent: 'center', background: 'transparent', color: '#9aa3b2', cursor: 'default',
       });
       b.addEventListener('mouseenter', () => { b.style.background = hoverBg; b.style.color = '#ffffff'; });
