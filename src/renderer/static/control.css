@@ -590,3 +590,15 @@ body { font-feature-settings: "tnum" 0, "cv11" 1; letter-spacing: -0.005em; }
 .tabs { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); }
 .tab-badge.live { background: rgba(255, 70, 85, .14); color: #ff7a85; }
 .live-pill { white-space: nowrap; }
+/* Tabs truly centred in the window; status pinned right */
+.tabs { position: relative; display: flex; justify-content: flex-end; align-items: stretch; }
+.tabs-left { display: none; }
+.tabs-center { position: absolute; left: 50%; top: 0; bottom: 0; transform: translateX(-50%); }
+@media (max-width: 1100px) { .coach-badge .coach-label { display: none; } }
+/* Final: status in the title bar next to the window buttons; tabs alone and centred */
+.titlebar { height: 40px; padding: 0 146px 0 16px; }
+.titlebar .tb-status { margin-left: auto; }
+.titlebar .coach-badge, .titlebar .sys-pill { height: 26px; }
+.tabs { display: flex; justify-content: center; position: static; padding: 0; }
+.tabs-center { position: static; transform: none; }
+.tab-badge { white-space: nowrap; }

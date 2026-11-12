@@ -74,13 +74,12 @@ export function App() {
     <div className="app">
       <header className="titlebar">
         <div className="brand"><img src="icon.png" alt="" /><span className="brand-name">RIFT COACH</span><span className="brand-ver">{status ? `v${status.version}` : ''}</span></div>
+        <StatusBar status={status} error={loadError} />
       </header>
       <nav className="tabs">
-        <div className="tabs-left" />
         <div className="tabs-center">
           {TABS.map(t => <Tab key={t.id} id={t.id} label={t.label} active={section === t.id} badge={badge(t.id)} onClick={() => setSection(t.id)} />)}
         </div>
-        <StatusBar status={status} error={loadError} />
       </nav>
       <main className="content">
         <div className="page">
