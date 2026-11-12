@@ -154,6 +154,8 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
             camps,
             covered_ward_spots: covered,
             self_profile,
+            // Item plan from the HUD build panel: the coach's "item" must match it.
+            planned_build: g.build.as_ref().map(|b| b.items.iter().map(|it| it.name.clone()).collect()).unwrap_or_default(),
         };
         g.coach.tick(&ctx, Instant::now())
     };

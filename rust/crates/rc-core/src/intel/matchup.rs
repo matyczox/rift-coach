@@ -284,6 +284,7 @@ pub(crate) mod tests {
             is_dead: false,
             respawn_in: 0.0,
             item_gold: 0.0,
+            shop_gold: 0.0,
             est_gold: 0.0,
             items: vec![],
             completed_items: 0,

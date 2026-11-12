@@ -221,8 +221,13 @@ struct Answer {
 
 /// Ask the review model and save the review to `dir`. `Ok(None)` when the game
 /// does not qualify (remake / practice blip < 5 min, Arena).
+/// Also Ok(None) when dir already holds a review of this game (see [existing_review]).
 pub async fn build_review(caller: &dyn ModelCaller, log: &MatchLog, opts: &ReviewOptions, dir: &Path, now_ms: f64) -> Result<Option<MatchReview>> {
     let Some(facts) = review_facts(log, opts.win) else { return Ok(None) };
+    if let Some(id) = existing_review(dir, log, now_ms) {
+        log::info!("review of this game already saved as {id}");
+        return Ok(None);
+    }
     let i = log.last.as_ref().expect("facts imply last");
     let me = i.me.as_ref().expect("facts imply me");
     let call = ModelCall { model: opts.model.clone(), effort: opts.effort, schema: schema(), timeout_ms: Some(180_000), system: system_prompt(opts.patch_brief.as_deref()), prompt: serde_json::to_string(&facts)?, ..Default::default() };
@@ -244,9 +249,29 @@ pub async fn build_review(caller: &dyn ModelCaller, log: &MatchLog, opts: &Revie
         gold_curve: log.gold_curve.clone(),
         model: opts.model.clone(),
     };
+    // The model call takes a while: the other app may have saved its review meanwhile.
+    if let Some(id) = existing_review(dir, log, crate::jsutil::now_ms().max(now_ms)) {
+        log::info!("review of this game already saved as {id}");
+        return Ok(None);
+    }
     std::fs::create_dir_all(dir)?;
     std::fs::write(dir.join(format!("{}.json", review.id)), json_pretty(&review))?;
     Ok(Some(review))
+}
+
+/// Id of a review of the same game already in `dir`: same champion, KDA and length (±15 s), written
+/// in the last 2 h. The Electron app and this one share the reviews folder; with both running, each
+/// wrote its own review of the game (ids a few seconds apart, from each app's first sight of it).
+pub fn existing_review(dir: &Path, log: &MatchLog, now_ms: f64) -> Option<String> {
+    let i = log.last.as_ref()?;
+    let me = i.me.as_ref()?;
+    let kda = format!("{}/{}/{}", me.kills, me.deaths, me.assists);
+    let dur = rnd(i.game_time) as f64;
+    crate::files::list_reviews(dir).into_iter().find_map(|r| {
+        let s = |k: &str| r.get(k).and_then(Value::as_str).unwrap_or("").to_string();
+        let n = |k: &str| r.get(k).and_then(Value::as_f64).unwrap_or(f64::NAN);
+        (s("champion") == me.champion && s("kda") == kda && (n("durationSec") - dur).abs() <= 15.0 && (now_ms - n("createdAt")).abs() <= 2.0 * 3600.0 * 1000.0).then(|| s("id"))
+    })
 }
 
 #[cfg(test)]
@@ -313,6 +338,33 @@ mod tests {
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0]["csPerMin"], 9);
         assert_eq!(serde_json::from_value::<MatchReview>(listed[0].clone()).unwrap(), r);
+    }
+
+    /// Electron + Rust app running together wrote two reviews of one game (ids 2 s apart): a review
+    /// of the same game already in the folder means no second model call and no second file.
+    #[tokio::test]
+    async fn skips_game_already_reviewed_by_the_other_app() {
+        let d = tempfile::tempdir().unwrap();
+        let mut log = MatchLog::new();
+        let mut i = game();
+        i.game_time = 1653.0;
+        i.me.as_mut().unwrap().kills = 7;
+        log.update(&i, 1_794_454_200_000.0);
+        let now = 1_794_456_000_000.0;
+        // Other app's review: started 2 s earlier, game length 2 s different, written a minute ago.
+        std::fs::write(
+            d.path().join("2026-11-12T03-29-58.json"),
+            json!({ "id": "2026-11-12T03-29-58", "createdAt": now - 60_000.0, "champion": "Ahri", "kda": "7/0/0", "durationSec": 1651 }).to_string(),
+        )
+        .unwrap();
+        let fake = FakeCaller::new(json!({ "summary": "x", "good": ["a"], "improve": ["b", "c"] }));
+        assert!(build_review(&fake, &log, &ReviewOptions::default(), d.path(), now).await.unwrap().is_none());
+        assert!(fake.calls().is_empty());
+        assert_eq!(std::fs::read_dir(d.path()).unwrap().count(), 1);
+        // A different game (other KDA) is reviewed.
+        i.me.as_mut().unwrap().kills = 8;
+        log.update(&i, 0.0);
+        assert!(build_review(&fake, &log, &ReviewOptions::default(), d.path(), now).await.unwrap().is_some());
     }
 
     #[tokio::test]

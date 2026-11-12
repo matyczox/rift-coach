@@ -65,6 +65,8 @@ pub struct PlayerIntel {
     pub is_dead: bool,
     pub respawn_in: f64,
     pub item_gold: f64,
+    /// Gold of shop-only items (recall proof); evolving items excluded.
+    pub shop_gold: f64,
     pub est_gold: f64,
     pub items: Vec<PlayerItem>,
     pub completed_items: usize,
@@ -230,7 +232,7 @@ impl IntelTracker {
         let mut players = Vec::new();
         for (pi, p) in d.all_players.iter().enumerate() {
             let is_me = Some(pi) == me_idx;
-            let items: Vec<(PlayerItem, bool)> = p
+            let items: Vec<(PlayerItem, bool, bool)> = p
                 .items
                 .iter()
                 .map(|i| {
@@ -238,10 +240,14 @@ impl IntelTracker {
                     (
                         PlayerItem { id: i.item_id, name: db.map(|x| x.name.clone()).unwrap_or_else(|| i.display_name.clone()), price: db.map(|x| x.total).unwrap_or(i.price) },
                         db.map(|x| x.completed).unwrap_or(false),
+                        db.is_some_and(|x| x.purchasable),
                     )
                 })
                 .collect();
             let item_gold: f64 = items.iter().map(|i| i.0.price).sum();
+            // Gold of items that can only come from the shop: proof of a base visit. Items that evolve on
+            // their own (jungle pet, support quest, transforms) are not in the shop and must not count.
+            let shop_gold: f64 = items.iter().filter(|i| i.2).map(|i| i.0.price).sum();
             let completed = items.iter().filter(|i| i.1).count();
             let sc = &p.scores;
             let mut spikes = self.spikes.get(&p.champion_name).cloned().unwrap_or_default();
@@ -291,6 +297,7 @@ impl IntelTracker {
                 is_dead: p.is_dead,
                 respawn_in: if p.is_dead { js_round(p.respawn_timer).max(0.0) } else { 0.0 },
                 item_gold,
+                shop_gold,
                 est_gold: js_round(item_gold.max(estimate_gold_earned(t, sc.creep_score as f64, sc.kills as f64, sc.assists as f64, sc.ward_score))),
                 items: items.into_iter().map(|i| i.0).collect(),
                 completed_items: completed,
@@ -594,6 +601,24 @@ mod tests {
         assert_eq!(intel.recent.len(), 10);
         let js = serde_json::to_value(&intel).unwrap();
         assert!(js.get("goldDiff").is_some() && js["players"][0].get("isAlly").is_some());
+    }
+
+    /// d07ffee: recall proof counts only shop-purchasable items (an evolving jungle pet / support
+    /// quest item is not bought in the shop); items unknown to Data Dragon do not count either.
+    #[test]
+    fn shop_gold_counts_purchasable_items_only() {
+        let mut items = test_items();
+        let base = IntelTracker::default().update(&load(), Some(&items), None);
+        let me = base.me.as_ref().unwrap();
+        let known: f64 = me.items.iter().filter(|i| items.contains_key(&i.id)).map(|i| i.price).sum();
+        assert_eq!(me.shop_gold, known);
+        assert!(me.shop_gold <= me.item_gold);
+        items.get_mut(&6333).unwrap().purchasable = false;
+        let i = IntelTracker::default().update(&load(), Some(&items), None);
+        let me2 = i.me.as_ref().unwrap();
+        assert_eq!(me2.item_gold, me.item_gold);
+        assert_eq!(me2.shop_gold, me.shop_gold - 3300.0);
+        assert!(serde_json::to_value(&i).unwrap()["players"][0].get("shopGold").is_some());
     }
 
     #[test]
