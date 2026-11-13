@@ -45,7 +45,8 @@ function alertColor(a: AlertState): 'red' | 'amber' | 'green' {
 
 subscribe(({ state }) => {
   // Mini fight bar right above the call (the full panel stays on the right).
-  const p = state.visible && !state.deathCard ? state.power : null;
+  // Only for a fight here: far from everyone it was a faded bar with two empty-looking circles.
+  const p = state.visible && !state.deathCard && state.power?.local ? state.power : null;
   if (!p) {
     mini.classList.add('hidden');
   } else {

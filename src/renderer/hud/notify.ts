@@ -15,6 +15,8 @@ const BUFF_ICON: Record<string, string> = { baron: 'icons/baron.png', elder: 'ic
 const OBJ_ICON: Record<string, string> = { baron: 'icons/baron.png', elder: 'icons/dragon_elder.png', dragon: 'icons/dragon_elder.png', herald: 'icons/riftherald.png', grubs: 'icons/riftherald.png', atakhan: 'icons/baron.png' };
 const trinket = document.querySelector<HTMLElement>('#trinket-glow');
 const firstSeen = new Map<string, number>();
+let trinketWas = false;
+let trinketAt = 0;
 /** Held Eye duration is not exact (it may be used earlier): show it as an estimate. */
 const APPROX = new Set(['herald']);
 
@@ -61,7 +63,7 @@ subscribe(({ state }, clock) => {
   const visibleNow = entries.filter((e) => {
     const left = e.left - dt0;
     if (e.key.startsWith('o:')) return (left > 55 && left <= 60) || (left > 25 && left <= 30) || left <= 10;
-    if (e.ret) return nowMs - (firstSeen.get(e.key) ?? nowMs) < 5000 || left <= 5;
+    if (e.ret) return true; // the rival's return stays until he is back (it vanished after 5 s)
     return true;
   });
   entries.length = 0;
@@ -89,7 +91,11 @@ subscribe(({ state }, clock) => {
     (c.lastChild as HTMLElement).textContent = (e.approx ? '~' : '') + (e.ret && shown <= 0 ? 'już' : e.ret ? fmtClock(shown) : `${Math.ceil(shown)}s`);
   });
   // Trinket ready: glow on the HUD slot (like Blitz's trinket reminder).
-  trinket?.classList.toggle('hidden', !(on && state.trinketReady));
+  // Flash 5 s when the ward comes back, then off (a ring sitting there all game was noise).
+  const ready = !!(on && state.trinketReady);
+  if (ready && !trinketWas) trinketAt = nowMs;
+  trinketWas = ready;
+  trinket?.classList.toggle('hidden', !(ready && nowMs - trinketAt < 5000));
 
   // Toasts: add new ones, fly out the ones that left the state.
   const want = on ? state.toasts ?? [] : [];
