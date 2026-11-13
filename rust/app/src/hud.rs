@@ -240,7 +240,9 @@ fn buy_now_json(g: &crate::game::Game) -> Option<Value> {
     // Standing still for 2+ s (recall channel): what to buy shows already while backing, not in base.
     let tr = &g.field.my_trail;
     let recalling = tr.len() >= 3 && tr[tr.len() - 3..].iter().all(|(t, x, y)| intel.game_time - t <= 4.0 && (x - tr[tr.len() - 1].1).hypot(y - tr[tr.len() - 1].2) < 0.008);
-    if !(me.is_dead || in_base || recalling || intel.game_time < 90.0) || gold < 300.0 {
+    // Not while "recalling": standing still on lane (waiting for the wave) flashed it for a second.
+    let _ = recalling;
+    if !(me.is_dead || in_base || intel.game_time < 90.0) || gold < 300.0 {
         return None;
     }
     // No free slot and nothing to finish: nothing to "buy now" (it listed an item there was no room for).

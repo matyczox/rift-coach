@@ -1435,7 +1435,11 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         }
         // Back already: seen on the minimap, or his health bar on my screen (minimap can miss him).
         let on_screen = opp.onscreen_at.is_some_and(|s| t - s < 2.0);
-        if !opp.is_dead && (on_screen || f.visible_enemies.iter().any(|e| e.champion == opp.champion)) {
+        // ...or an enemy health bar on my screen in the last 10 s of the count (his name not matched: "10 s"
+        // while Fizz already stood there).
+        let bar_now = f.enemy_bars.0 > 0 && t - f.enemy_bars.1 < 1.0;
+        let almost = f.returns.iter().any(|(c, until)| *c == opp.champion && until - now < 10_000.0);
+        if !opp.is_dead && (on_screen || (bar_now && almost) || f.visible_enemies.iter().any(|e| e.champion == opp.champion)) {
             f.returns.retain(|(c, _)| *c != opp.champion);
         }
     }

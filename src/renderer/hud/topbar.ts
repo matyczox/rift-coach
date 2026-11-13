@@ -73,7 +73,8 @@ subscribe(({ state }) => {
     miTip.textContent = showTip ? p.advice : '';
     miTip.className = 'mini-tip' + (showTip ? '' : ' hidden');
   }
-  const tb = state.visible && state.topBar && isLive(state.topBar.expiresAt, state.gameTime) ? state.topBar : null;
+  // An answer without words (only a map hint) drew an empty bubble.
+  const tb = state.visible && state.topBar && (state.topBar.call ?? '').trim() && isLive(state.topBar.expiresAt, state.gameTime) ? state.topBar : null;
   if (!tb) {
     bar.classList.add('hidden');
     lastCall = '';
