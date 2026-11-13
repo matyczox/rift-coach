@@ -382,7 +382,10 @@ pub fn power_bar_near(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dy
     // Towers: fighting in range of his tower (or him running under it) costs a lot; mine helps me.
     let dive = local && (near.me_under_enemy_tower || near.enemies_under_tower.contains(&primary.champion));
     let tower = if !local { 0.0 } else if dive { -1.3 } else if near.me_under_my_tower { 0.8 } else { 0.0 };
-    let p_me = sigmoid(base + tower + if local { nearby_delta(intel, primary, near) } else { 0.0 });
+    // Almost dead = one spell from anyone kills me: allies / gold must not lift it ("2% HP, 57%").
+    let my_hp = intel.my_stats.as_ref().filter(|s| s.max_hp > 0.0).map_or(1.0, |s| s.hp / s.max_hp);
+    let hp_cap = if my_hp < 0.25 { 0.2 + 1.6 * my_hp } else { 1.0 };
+    let p_me = sigmoid(base + tower + if local { nearby_delta(intel, primary, near) } else { 0.0 }).min(hp_cap);
     let side = |c: &str, sure: bool| intel.players.iter().find(|p| p.champion == c && !p.is_dead).map(|p| NearSide { champion: p.champion.clone(), icon_url: icon(&p.champion), level: p.level, sure });
     // Allies next to me only matter in a fight (an enemy near): in base / on the way it just confused.
     let allies: Vec<NearSide> = if !local { Vec::new() } else { near.allies.iter().filter(|c| intel.players.iter().any(|p| &p.champion == *c && p.is_ally && !p.is_me)).filter_map(|c| side(c, true)).collect() };
@@ -390,7 +393,9 @@ pub fn power_bar_near(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dy
     let gold = (js_round((me.item_gold - opp.item_gold) / 50.0) * 50.0) as i64;
     let cs = me.cs - opp.cs;
     let detail = format!("lvl {} vs {} · {} g · CS {}", me.level, opp.level, signed(gold), signed(cs));
-    let advice = if dive && p_me < 0.75 {
+    let advice = if my_hp < 0.2 {
+        format!("Masz {}% HP → wycofaj się / back", js_round(my_hp * 100.0) as i64)
+    } else if dive && p_me < 0.75 {
         format!("{} pod wieżą → nie nurkuj", primary.champion)
     } else if local && primary.champion != opp.champion {
         // A fight with someone else (roam, gank, objective): no lane wording.
@@ -472,6 +477,16 @@ pub(crate) mod tests {
         let pb = power_bar_near(&i, None, &icon, &Nearby { enemies: vec![("Volibear".into(), true)], ..Default::default() }).unwrap();
         assert!(pb.p_me > 0.65, "{}", pb.p_me);
         assert!(!pb.advice.contains("ostrożnie"), "{}", pb.advice);
+        // Me at 2% HP: whatever else, no fight.
+        let mut low = i.clone();
+        if let Some(s) = low.my_stats.as_mut() {
+            s.hp = s.max_hp * 0.02;
+        } else {
+            low.my_stats = Some(MyStats { gold: 0.0, hp: 2.0, max_hp: 100.0, ad: 60.0, ap: 0.0, armor: 30.0, mr: 30.0, move_speed: 345.0, resource_type: "ENERGY".into(), resource_pct: Some(1.0), resource_value: Some(200.0), overheated: false });
+        }
+        let lp = power_bar_near(&low, None, &icon, &Nearby { allies: vec!["Sion".into()], enemies: vec![("Volibear".into(), true)], ..Default::default() }).unwrap();
+        assert!(lp.p_me < 0.3, "{}", lp.p_me);
+        assert!(lp.advice.contains("wycofaj"), "{}", lp.advice);
         // Same fight with Volibear under his tower: much worse, don't dive.
         let dive = power_bar_near(&i, None, &icon, &Nearby { enemies: vec![("Volibear".into(), true)], enemies_under_tower: vec!["Volibear".into()], ..Default::default() }).unwrap();
         assert!(dive.p_me < pb.p_me - 0.15, "{} vs {}", dive.p_me, pb.p_me);

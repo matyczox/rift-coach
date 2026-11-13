@@ -62,7 +62,7 @@ export function dangerAt(intel: GameIntel, me: Pos | null, tracks: EnemyTrack[],
     if (w > 0.03) { score += w; reasons.push({ w, text: `${t.champion} we mgle blisko` }); }
   }
   const hp = intel.myStats && intel.myStats.maxHp ? intel.myStats.hp / intel.myStats.maxHp : 1;
-  if (hp < 0.5) { const w = (0.5 - hp) * 0.8; score += w; reasons.push({ w, text: `${Math.round(hp * 100)}% HP` }); }
+  if (hp < 0.5) { const w = (0.5 - hp) * 0.8; score += w; reasons.push({ w, text: `Mało HP (${Math.round(hp * 100)}%) → back` }); }
   if (pMe !== null && pMe < 0.4 && score > 0.1) { const w = (0.4 - pMe) * 0.6; score += w; reasons.push({ w, text: 'słabszy w matchupie' }); }
   const missing = tracks.filter(t => t.state === 'fog').length;
   if (missing >= 3) { const w = 0.05 * missing; score += w; reasons.push({ w, text: `${missing} wrogów niewidocznych` }); }

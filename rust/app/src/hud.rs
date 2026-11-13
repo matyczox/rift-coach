@@ -38,6 +38,9 @@ pub struct HudCtl {
     hide_at: Option<Instant>,
     last_payload: String,
     last_emit: Option<Instant>,
+    /// Last HUD state written to the log file (logged again only when it changes).
+    log_hud: String,
+    log_field_at: Option<Instant>,
     /// Draggable panels' visible boxes (kind, [x, y, w, h] in CSS px of the HUD window), from the page.
     pub rects: Vec<(String, [f64; 4])>,
     hover_kind: Option<String>,
@@ -227,6 +230,8 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
     let visible = visible_setting && rift && !st.replay_blocks() && !crate::playback::is_open(st);
     let show_frame = st.vision.show_frame();
     let advice = st.ui.lock().unwrap().last_advice.clone();
+    let mut field_line: Option<String> = None;
+    let mut log_t = 0.0;
     let state = {
         let mut g = st.game.lock().unwrap();
         g.field.alerts.retain(|a| a.expires_at > now);
@@ -293,6 +298,24 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
             me: g.field.my_pos,
             now,
         });
+        // Positions for the log file (tracker debugging): me, allies, seen enemies, fog guesses.
+        field_line = g.intel.as_ref().filter(|_| g.field.map11).map(|i| {
+            let r3 = |v: f64| (v * 1000.0).round() / 1000.0;
+            let pos = |u: &crate::vision::SeenUnit| json!([u.champion, r3(u.x), r3(u.y)]);
+            let n = k::nearby(g);
+            let near = json!({ "allies": n.allies, "enemies": n.enemies, "underEnemyTower": n.me_under_enemy_tower, "underMyTower": n.me_under_my_tower });
+            json!({
+                "t": i.game_time.round(),
+                "me": g.field.my_pos.map(|(x, y)| [r3(x), r3(y)]),
+                "hp": i.my_stats.as_ref().filter(|s| s.max_hp > 0.0).map(|s| (s.hp / s.max_hp * 100.0).round()),
+                "allies": g.field.allies.iter().map(pos).collect::<Vec<_>>(),
+                "enemies": g.field.visible_enemies.iter().map(pos).collect::<Vec<_>>(),
+                "ghosts": serde_json::to_value(&g.field.ghosts).map(|v| crate::applog::strip(&v)).unwrap_or(Value::Null),
+                "near": near,
+            })
+            .to_string()
+        });
+        log_t = g.intel.as_ref().map(|i| i.game_time).unwrap_or(0.0);
         if let Some(o) = s.as_object_mut() {
             let gt = g.intel.as_ref().map(|i| i.game_time).unwrap_or(0.0);
             o.insert("toasts".into(), Value::Array(g.field.toasts.iter().map(|t| serde_json::json!({ "id": t.id, "kind": t.kind, "team": t.team, "text": t.text, "iconUrl": t.champion.as_deref().map(&icon), "expiresAt": t.expires_at })).collect()));
@@ -302,6 +325,18 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
         s
     };
     let mut h = st.hud.lock().unwrap();
+    // Log file: what the overlay shows (on change) and where everyone is (every 2 s), in game only.
+    if field_line.is_some() {
+        let shown = crate::applog::strip(&state).to_string();
+        if shown != h.log_hud {
+            log::info!(target: "hud", "t={log_t:.0} {shown}");
+            h.log_hud = shown;
+        }
+        if h.log_field_at.is_none_or(|t| t.elapsed() >= Duration::from_secs(2)) {
+            h.log_field_at = Some(Instant::now());
+            log::info!(target: "field", "{}", field_line.as_deref().unwrap_or(""));
+        }
+    }
     let game = h.game;
     // Minimap square as fractions of the game client area (the page works in its own CSS px).
     let minimap = match (game, st.vision.calibration()) {

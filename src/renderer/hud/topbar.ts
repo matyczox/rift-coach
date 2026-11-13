@@ -58,13 +58,15 @@ subscribe(({ state }) => {
     : dg && (dg.label === 'niebezpiecznie' || dg.label === 'uciekaj') && dg.reasons[0]
       ? { kind: 'gank', text: dg.reasons[0], confidence: dg.level, expiresAt: Date.now() + 1000 }
       : null;
+  // A % only means something for a gank / invade guess; on a danger reason ("Mało HP (2%)") it confused.
+  const showConf = !!live && al === live;
   if (!al) {
     alert.classList.add('hidden');
     lastAlertKey = '';
   } else {
     const key = `${al.kind}|${al.text}`;
     alertTxt.textContent = al.text;
-    alertConf.textContent = `${Math.round(Math.max(0, Math.min(1, al.confidence)) * 100)}%`;
+    alertConf.textContent = showConf ? `${Math.round(Math.max(0, Math.min(1, al.confidence)) * 100)}%` : '';
     alert.classList.remove('hidden', 'red', 'amber', 'green');
     alert.classList.add(alertColor(al));
     if (key !== lastAlertKey) {

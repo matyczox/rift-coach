@@ -72,7 +72,8 @@ function place(el: HTMLElement, r: Box): boolean {
 function layout(m: HudMessage, s: number): void {
   const W = viewW(), H = viewH();
   const tw = 600 * s, th = 150 * s;
-  place(panels.get('topbar')!, { x: (W - tw) / 2, y: H * 0.085, width: tw, height: th });
+  // AI calls + gank warning: bottom centre, right above the game's HUD (eyes stay near the champion).
+  place(panels.get('topbar')!, { x: (W - tw) / 2, y: H * 0.845 - th, width: tw, height: th });
   const dw = 380 * s, dh = 380 * s;
   place(panels.get('death')!, { x: W - dw - W * 0.02, y: H * 0.42 - dh / 2, width: dw, height: dh });
   // Power/danger: compact, mid-height, left of the enemy portraits column on the right edge.
@@ -117,7 +118,7 @@ const bus = (window as unknown as { __TAURI__?: TauriBus }).__TAURI__;
 /** Visible content box of a panel (cards / pills), in window CSS px. */
 function contentBox(el: HTMLElement): DOMRect | null {
   let r: DOMRect | null = null;
-  for (const c of el.querySelectorAll<HTMLElement>('.card, .bar, .alert, .chip, .toast')) {
+  for (const c of el.querySelectorAll<HTMLElement>('.card, .bar, .alert, .chip')) {
     if (c.closest('.hidden')) continue;
     const b = c.getBoundingClientRect();
     if (b.width < 2 || b.height < 2) continue;

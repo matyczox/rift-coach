@@ -234,3 +234,12 @@ canvas.full { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .bd-buy-icons img { width: 1.75rem; height: 1.75rem; border-radius: 0.25rem; box-shadow: 0 0 0 1px rgba(255, 210, 122, 0.6); }
 /* Panel you can grab now (cursor rested on it) */
 .panel.grab .card, .panel.grab .bar, .panel.grab .notify { outline: 2px dashed rgba(255, 210, 122, 0.85); outline-offset: 2px; border-radius: 0.625rem; }
+/* Alerts (toasts): centre of the screen, between my champion and the bottom HUD, so the eyes stay on the game. */
+.toasts { position: fixed; left: 50%; top: 60%; transform: translateX(-50%); align-items: center; z-index: 5; }
+.toast { font-size: 1rem; transform: translateY(60%); }
+.toast.in { transform: none; }
+.toast.out { transform: translateY(-80%) scale(0.92); }
+.toast.fight { box-shadow: inset 0 0 0 1px rgba(60, 207, 142, 0.75); }
+.toast.fight-bad { box-shadow: inset 0 0 0 1px rgba(255, 90, 90, 0.8); color: #ffd0d0; }
+/* Calls sit at the bottom of their panel (panel is right above the game HUD); the gank warning goes above the call. */
+#p-topbar .top { height: 100%; justify-content: flex-start; flex-direction: column-reverse; }

@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod applog;
 mod bridge;
 mod game;
 mod game_icons;
@@ -141,6 +142,7 @@ fn emit_status(app: &tauri::AppHandle, st: &Arc<AppState>, last: &mut String) {
 }
 
 fn main() {
+    applog::init();
     let data_dir = user_data_dir();
     let mut builder = tauri::Builder::default();
     // --smoke runs next to a normal instance (and must never bring that one to the front).

@@ -28,7 +28,7 @@ pub const SYSTEM: &str = "Jesteś ekspertem od buildów League of Legends. Dobie
 - fazę gry, jego obecne przedmioty i złoto,
 - typ obrażeń wrogów (AD/AP), ich przedmioty, leczenie, tarcze, CC, kto jest nafeedowany (najgroźniejszy),
 - aktualny build z mety z briefu patcha (jeśli podany) — odchodź od niego tylko z konkretnego powodu.
-Nazwy przedmiotów DOKŁADNIE z listy \"availableItems\" (angielskie nazwy z gry). Bez uzasadnień — tylko nazwy.
+Nazwy przedmiotów DOKŁADNIE z listy \"availableItems\" (angielskie nazwy z gry). Jeśli jest \"finishFirst\" (zaczęty przedmiot z planu — gracz ma już jego składniki), zwykle daj go jako pierwszy; inny tylko, gdy wyraźnie bardziej się opłaca (np. te składniki lepiej pasują do innego przedmiotu, który teraz bardziej się przyda). Bez uzasadnień — tylko nazwy.
 \"phase\": \"wczesna gra\" / \"środek gry\" / \"późna gra\".";
 
 /// Items in Data Dragon order (JS iterates integer keys ascending).
@@ -136,6 +136,34 @@ pub async fn advise_build(caller: &dyn ModelCaller, ctx: &Value, items: &HashMap
             })
             .collect(),
     })
+}
+
+/// A planned item I already started (its own components I hold cover >= 35% of its price) and do not
+/// own yet: finish it before anything else ("kupiłem składniki Shadowflame, a każe składać Stormsurge").
+pub fn in_progress<'a>(names: &[String], items: &'a HashMap<i64, ItemData>, owned: &[i64]) -> Option<&'a ItemData> {
+    names
+        .iter()
+        .filter_map(|n| {
+            let lc = n.to_lowercase();
+            items.values().find(|i| i.completed && (i.name.to_lowercase() == lc || i.name_en.as_ref().is_some_and(|e| e.to_lowercase() == lc)))
+        })
+        .filter(|t| !owned.contains(&t.id))
+        .find(|t| {
+            let mut own = owned.to_vec();
+            let have: f64 = t
+                .from
+                .iter()
+                .filter(|c| match own.iter().position(|o| o == *c) {
+                    Some(p) => {
+                        own.remove(p);
+                        true
+                    }
+                    None => false,
+                })
+                .map(|c| items.get(c).map_or(0.0, |i| i.total))
+                .sum();
+            have >= 0.35 * t.total
+        })
 }
 
 /// What to buy right now with `gold` towards `target` (item ids, shop order): the whole item if the

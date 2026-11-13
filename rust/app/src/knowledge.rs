@@ -232,7 +232,13 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
         return;
     }
     let brief = brief_text(g, intel);
-    let Some(ctx) = build_context(intel, &sd.items, &g.profiles, brief.as_deref(), &fed_names(intel)) else { return };
+    let Some(mut ctx) = build_context(intel, &sd.items, &g.profiles, brief.as_deref(), &fed_names(intel)) else { return };
+    // Plan before this answer: an item from it I already started stays first until finished.
+    let prev: Vec<String> = g.build.as_ref().map(|b| b.items.iter().map(|i| i.name.clone()).collect()).unwrap_or_default();
+    let owned_ids: Vec<i64> = intel.me.as_ref().map(|m| m.items.iter().map(|i| i.id).collect()).unwrap_or_default();
+    if let (Some(t), Some(o)) = (rc_core::build_advisor::in_progress(&prev, &sd.items, &owned_ids), ctx.as_object_mut()) {
+        o.insert("finishFirst".into(), serde_json::json!(t.name));
+    }
     g.build_busy = true;
     // Who asked: same game + same champion when the answer comes back, or it is dropped.
     let asked_for = build_session(intel);
@@ -255,9 +261,10 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
                 let owned: Vec<String> = intel.me.as_ref().map(|m| m.items.iter().map(|i| i.name.to_lowercase()).collect()).unwrap_or_default();
                 b.items.retain(|it| !owned.contains(&it.name.to_lowercase()));
                 // An answer with nothing left replaces the old plan too (it may hold bought items).
+                log::info!(target: "build", "plan {:?} (prev {:?})", b.items.iter().map(|i| &i.name).collect::<Vec<_>>(), prev);
                 g.build = if b.items.is_empty() { None } else { Some(b) };
             }
-            Err(e) => log::warn!("build {e}"),
+            Err(e) => log::warn!(target: "build", "error {e}"),
         }
     });
 }

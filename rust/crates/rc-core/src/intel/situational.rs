@@ -185,7 +185,7 @@ pub fn danger_at(intel: &GameIntel, me: Option<Pos>, tracks: &[FogTrack], visibl
     if hp < 0.5 {
         let w = (0.5 - hp) * 0.8;
         score += w;
-        reasons.push((w, format!("{}% HP", js_round(hp * 100.0) as i64)));
+        reasons.push((w, format!("Mało HP ({}%) → back", js_round(hp * 100.0) as i64)));
     }
     // Out of mana / energy, or Rumble overheated: fewer spells (or none) when it matters. Counts only
     // when something already threatens me.

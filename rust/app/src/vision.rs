@@ -920,8 +920,22 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             }
             f.fight_seen.retain(|(k, _)| *k != a.champion);
             f.fight_seen.push((a.champion.clone(), now));
-            let more = if foes.len() > 1 { format!(" +{}", foes.len() - 1) } else { String::new() };
-            f.toasts.push(Toast { id: now as u64 + 13 + f.toasts.len() as u64, kind: "fight".into(), team: "ally".into(), champion: Some(a.champion.clone()), text: format!("{} bije się z {}{more} → pomóż", a.champion, foe.champion), expires_at: now + 6000.0 });
+            // Worth going? Count both sides around the fight: visible ones plus fogged enemies the tracker
+            // most likely puts there ("bił się z Kayle, a za nią cała zgraja"). Me arriving counts for us.
+            const AREA: f64 = 0.09;
+            let ours = 1 + f.allies.iter().filter(|b| b.champion != me_c && (b.x - a.x).hypot(b.y - a.y) < AREA).count();
+            let seen_foes = f.visible_enemies.iter().filter(|e| (e.x - a.x).hypot(e.y - a.y) < AREA).count();
+            let fog_foes = intel
+                .players
+                .iter()
+                .filter(|p| !p.is_ally && !p.is_dead && !f.visible_enemies.iter().any(|e| e.champion == p.champion))
+                .filter(|p| f.tracker.as_ref().and_then(|tr| tr.mass_near(&p.champion, (a.x, a.y), AREA)).is_some_and(|m| m > 0.4))
+                .count();
+            let theirs = seen_foes + fog_foes;
+            let more = if theirs > 1 { format!(" +{}", theirs - 1) } else { String::new() };
+            let fog = if fog_foes > 0 { format!(" ({fog_foes} we mgle)") } else { String::new() };
+            let (kind, team, call) = if theirs > ours { ("fight-bad", "enemy", "nie idź, za dużo ich") } else if theirs == ours { ("fight", "ally", "pomóż, wyrównane") } else { ("fight", "ally", "pomóż") };
+            f.toasts.push(Toast { id: now as u64 + 13 + f.toasts.len() as u64, kind: kind.into(), team: team.into(), champion: Some(a.champion.clone()), text: format!("{} vs {}{more}{fog} → {call}", a.champion, foe.champion), expires_at: now + 6000.0 });
             break;
         }
     }

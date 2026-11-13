@@ -211,8 +211,13 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
         TickAction::Ask(req) => {
             let st = st.clone();
             let rt2 = rt.clone();
+            log::info!(target: "coach", "ask model={} prompt={}", req.call.model, req.call.prompt);
             rt.spawn(async move {
                 let r = rc_core::llm::call_model::<Value>(&req.call).await.map(|r| (r.value, r.latency_ms));
+                match &r {
+                    Ok((v, ms)) => log::info!(target: "coach", "answer {ms:.0} ms {v}"),
+                    Err(e) => log::warn!(target: "coach", "error {e}"),
+                }
                 let (advice, reauth) = {
                     let mut g = st.game.lock().unwrap();
                     let (mut advice, reauth) = g.coach.complete(&req, r, now_ms());
