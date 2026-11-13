@@ -10,7 +10,7 @@ use tokio::sync::mpsc;
 
 pub const URL_ALL: &str = "https://127.0.0.1:2999/liveclientdata/allgamedata";
 /// `new LiveApi()` default interval.
-pub const POLL_MS: u64 = 500;
+pub const POLL_MS: u64 = 250;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

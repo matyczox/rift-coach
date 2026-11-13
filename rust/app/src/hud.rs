@@ -189,6 +189,28 @@ fn wants(st: &Value, has_minimap: bool, now: f64) -> Value {
 
 /// "Kup teraz" for the build panel: only when I can shop (dead, in my base, or the first 90 s), from my
 /// gold and the next planned item's recipe.
+/// Point on a lane at wave front `front` (0 = our inhibitor tower, 1 = theirs), minimap fractions.
+fn wave_point(lane: &str, front: f64, red: bool) -> (f64, f64) {
+    // ORDER view: our inhibitor tower -> ... -> their inhibitor tower.
+    let path: &[(f64, f64)] = match lane {
+        "top" => &[(0.079, 0.712), (0.066, 0.298), (0.07, 0.07), (0.29, 0.067), (0.705, 0.082)],
+        "bot" => &[(0.288, 0.916), (0.706, 0.931), (0.93, 0.93), (0.932, 0.697), (0.916, 0.289)],
+        _ => &[(0.246, 0.751), (0.749, 0.246)],
+    };
+    let seg: Vec<f64> = path.windows(2).map(|w| (w[1].0 - w[0].0).hypot(w[1].1 - w[0].1)).collect();
+    let mut left = front.clamp(0.0, 1.0) * seg.iter().sum::<f64>();
+    let mut p = path[path.len() - 1];
+    for (i, l) in seg.iter().enumerate() {
+        if left <= *l {
+            let t = if *l > 0.0 { left / l } else { 0.0 };
+            p = (path[i].0 + (path[i + 1].0 - path[i].0) * t, path[i].1 + (path[i + 1].1 - path[i].1) * t);
+            break;
+        }
+        left -= l;
+    }
+    if red { (1.0 - p.0, 1.0 - p.1) } else { p }
+}
+
 fn buy_now_json(g: &crate::game::Game) -> Option<Value> {
     let (intel, sd) = (g.intel.as_ref()?, g.static_data.as_ref()?);
     let me = intel.me.as_ref()?;
@@ -337,6 +359,20 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
             .to_string()
         });
         log_t = g.intel.as_ref().map(|i| i.game_time).unwrap_or(0.0);
+        // Coach sends me to a lane ("Wyczyść falę top"): mark the wave itself (front of the minion dots).
+        let lane_hint = advice.as_ref().and_then(|a| a.get("mapHint")).and_then(|m| m.get("target")).and_then(Value::as_str).filter(|t| matches!(*t, "top" | "mid" | "bot"));
+        if let (Some(lane), Some(w)) = (lane_hint, g.field.waves.as_ref()) {
+            let red = g.intel.as_ref().and_then(|i| i.me.as_ref()).is_some_and(|m| m.team == "CHAOS");
+            if let Some(front) = w.lanes.iter().find(|l| l.lane == lane).and_then(|l| l.front) {
+                let (x, y) = wave_point(lane, front, red);
+                if let Some(h) = s.get_mut("hints").and_then(Value::as_array_mut).and_then(|hs| hs.iter_mut().find(|h| h["kind"] == "move" || h["kind"] == "objective")) {
+                    h["kind"] = json!("objective");
+                    h["x"] = json!(x);
+                    h["y"] = json!(y);
+                    h["label"] = json!("Fala");
+                }
+            }
+        }
         // Ward the coach asked for stays pinned (minimap marker + chip) until it is placed (or 2 min).
         if let Some(spot) = g.intent.as_ref().and_then(|it| it.ward_spot.clone()) {
             let red = g.intel.as_ref().and_then(|i| i.me.as_ref()).is_some_and(|m| m.team == "CHAOS");

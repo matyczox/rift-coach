@@ -201,7 +201,10 @@ pub fn power_score(intel: &GameIntel, opp: &PlayerIntel, brief: Option<&MatchupB
     let curve_at = |l: i64| brief.and_then(|b| b.curve.get(l as usize - 1).copied()).unwrap_or(0.0);
     let curve = (curve_at(lvl_me) + curve_at(lvl_opp)) / 2.0;
     let level_diff = (lvl_me - lvl_opp) as f64;
-    let gold_diff = (me.item_gold - opp.item_gold) / 1000.0;
+    // Gold lead buys less and less once both are near full build (6 items): +1000 g at 5 vs 5 items
+    // is not +1000 g at 1 vs 1.
+    let built = (me.completed_items.min(opp.completed_items) as f64 / 6.0).clamp(0.0, 1.0);
+    let gold_diff = (me.item_gold - opp.item_gold) / 1000.0 * (1.0 - 0.8 * built);
     let items_diff = me.completed_items as f64 - opp.completed_items as f64;
     let hp = match &intel.my_stats {
         Some(s) if s.max_hp > 0.0 => s.hp / s.max_hp,

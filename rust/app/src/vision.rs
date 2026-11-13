@@ -135,6 +135,10 @@ pub struct Field {
     pub near_seen: std::collections::HashMap<String, f64>,
     /// Enemy health bars on my screen in the last read: (count, game time). Unnamed ones count too.
     pub enemy_bars: (usize, f64),
+    /// Lane pushes warned: "champion@lane" -> stage (1 coming, 2 near our tower, 3 hitting it).
+    pub push_stage: std::collections::HashMap<String, u8>,
+    /// Fog "X invade" guess: (shown since, quiet until) in Date.now() ms.
+    pub invade_guess: (f64, f64),
     /// Ally fights announced: (ally, Date.now() ms).
     pub fight_seen: Vec<(String, f64)>,
     /// Go help this ally (fight worth joining): (ally, until Date.now() ms) -> arrow on the minimap.
@@ -189,6 +193,8 @@ impl Field {
             returns: Vec::new(),
             push_seen: Vec::new(),
             fight_seen: Vec::new(),
+            invade_guess: (0.0, 0.0),
+            push_stage: Default::default(),
             enemy_bars: (0, 0.0),
             near_seen: Default::default(),
             help: None,
@@ -246,6 +252,8 @@ impl Field {
         self.returns.clear();
         self.push_seen.clear();
         self.fight_seen.clear();
+        self.invade_guess = (0.0, 0.0);
+        self.push_stage.clear();
         self.enemy_bars = (0, 0.0);
         self.near_seen.clear();
         self.help = None;
@@ -720,7 +728,10 @@ pub fn unguarded_pushes(enemies: &[SeenUnit], allies: &[SeenUnit], my_team: Team
     let mut out = Vec::new();
     for e in enemies {
         let (x, y) = if flip { (e.y, e.x) } else { (e.x, e.y) };
-        let lane = if x < 0.18 && y > 0.45 && y < 0.88 {
+        // Inside our base (nexus area): that is the nexus, not a lane ("Sona pcha top" from our base).
+        let lane = if x.hypot(1.0 - y) < 0.24 {
+            "nexus"
+        } else if x < 0.18 && y > 0.45 && y < 0.88 {
             "top"
         } else if y > 0.82 && x > 0.12 && x < 0.55 {
             "bot"
@@ -729,7 +740,7 @@ pub fn unguarded_pushes(enemies: &[SeenUnit], allies: &[SeenUnit], my_team: Team
         } else {
             continue;
         };
-        if allies.iter().any(|a| (a.x - e.x).hypot(a.y - e.y) < 0.25) {
+        if allies.iter().any(|a| (a.x - e.x).hypot(a.y - e.y) < 0.12) {
             continue;
         }
         out.push((e.champion.clone(), lane));
@@ -756,12 +767,12 @@ fn side_str(s: CampSide) -> &'static str {
 pub fn camp_label(id: &str) -> String {
     let base = id.strip_prefix("blue_").or_else(|| id.strip_prefix("red_")).unwrap_or(id);
     match base {
-        "gromp" => "gromp",
-        "blue" => "niebieskim buffie",
-        "wolves" => "wilkach",
-        "raptors" => "raptorach",
-        "red" => "czerwonym buffie",
-        "krugs" => "krugach",
+        "gromp" => "Gromp",
+        "blue" => "Blue",
+        "wolves" => "Wolves",
+        "raptors" => "Raptors",
+        "red" => "Red",
+        "krugs" => "Krugs",
         _ => return id.to_string(),
     }
     .to_string()
@@ -926,13 +937,18 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         guards.push(SeenUnit { champion: String::new(), x, y, vx: 0.0, vy: 0.0 });
     }
     for (champ, lane) in unguarded_pushes(&f.visible_enemies, &guards, my_team_t) {
+        let role = match lane { "top" => "TOP", "bot" => "BOTTOM", "mid" => "MIDDLE", _ => "" };
+        if !role.is_empty() && intel.players.iter().any(|p| p.champion == champ && p.role == role) {
+            continue;
+        }
         let key = format!("{champ}@{lane}");
         if f.push_seen.iter().any(|(k, at)| *k == key && now - at < 60000.0) {
             continue;
         }
         f.push_seen.retain(|(k, _)| *k != key);
         f.push_seen.push((key, now));
-        f.toasts.push(Toast { id: now as u64 + 7 + f.toasts.len() as u64, kind: "push".into(), team: "enemy".into(), champion: Some(champ.clone()), text: format!("{champ} pcha {lane} — nikt nie pilnuje"), expires_at: now + 5000.0 });
+        let text = if lane == "nexus" { format!("{champ} w naszej bazie — broń nexusa") } else { format!("{champ} pcha {lane} — nikt nie pilnuje") };
+        f.toasts.push(Toast { id: now as u64 + 7 + f.toasts.len() as u64, kind: "push".into(), team: "enemy".into(), champion: Some(champ.clone()), text, expires_at: now + 5000.0 });
     }
     // An ally fighting somewhere I can reach (jungler vs invader, skirmish): "go help" right away,
     // locally. Not plain laning: a jungler involved, or 3+ champions in the scrap.
@@ -994,23 +1010,40 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             "bot" => if my_team_t == Team::Order { v.x > 0.8 || v.y > 0.8 } else { v.x < 0.2 || v.y < 0.2 },
             _ => (v.x - (1.0 - v.y)).abs() < 0.08,
         };
-        if !on_lane || d > 0.35 {
+        let our_base = if my_team_t == Team::Order { (0.04, 0.96) } else { (0.96, 0.04) };
+        if (v.x - our_base.0).hypot(v.y - our_base.1) < 0.24 {
+            continue; // in our base: the nexus warning above covers it
+        }
+        let base_key = format!("{}@{lane}", e.champion);
+        if !on_lane || d > 0.4 {
+            // Back on his side: the next push warns from the start again.
+            f.push_stage.remove(&base_key);
+            continue;
+        }
+        if d > 0.35 {
             continue;
         }
         let speed = v.vx.hypot(v.vy);
         let heading = speed > 0.0008 && ((tower.0 - v.x) * v.vx + (tower.1 - v.y) * v.vy) / (d.max(1e-6) * speed) > 0.6;
         let wave_ours = f.waves.as_ref().and_then(|w| w.lanes.iter().find(|l| l.lane == lane)).is_some_and(|l| matches!(l.state.as_str(), "our_side" | "under_our_tower"));
-        let guarded = f.allies.iter().any(|a| (a.x - v.x).hypot(a.y - v.y) < 0.25) || f.my_pos.is_some_and(|(x, y)| (x - v.x).hypot(y - v.y) < 0.25);
+        let guarded = f.allies.iter().any(|a| (a.x - v.x).hypot(a.y - v.y) < 0.12) || f.my_pos.is_some_and(|(x, y)| (x - v.x).hypot(y - v.y) < 0.12);
         if guarded || !(wave_ours || heading) {
             continue;
         }
-        let key = format!("{}@{lane}", e.champion);
-        if f.push_seen.iter().any(|(k, at)| *k == key && now - at < 60000.0) {
+        // Warn again only when he gets closer (coming -> near our tower -> hitting it), not on a timer.
+        let stage: u8 = if d < 0.08 { 3 } else if d < 0.2 { 2 } else { 1 };
+        if f.push_stage.get(&base_key).is_some_and(|s| *s >= stage) {
             continue;
         }
-        f.push_seen.retain(|(k, _)| *k != key);
-        f.push_seen.push((key, now));
-        f.toasts.push(Toast { id: now as u64 + 17 + f.toasts.len() as u64, kind: "push".into(), team: "enemy".into(), champion: Some(e.champion.clone()), text: format!("{} pcha {lane} pod naszą wieżę — nikt nie pilnuje", e.champion), expires_at: now + 6000.0 });
+        f.push_stage.insert(base_key.clone(), stage);
+        f.push_seen.retain(|(k, _)| *k != base_key);
+        f.push_seen.push((base_key, now));
+        let text = match stage {
+            3 => format!("{} bije naszą wieżę {lane} — nikt nie pilnuje", e.champion),
+            2 => format!("{} blisko naszej wieży {lane}", e.champion),
+            _ => format!("{} pcha {lane} w stronę naszej wieży", e.champion),
+        };
+        f.toasts.push(Toast { id: now as u64 + 17 + f.toasts.len() as u64, kind: "push".into(), team: "enemy".into(), champion: Some(e.champion.clone()), text, expires_at: now + 6000.0 });
     }
     // Fight over (all its enemies dead): the "X vs Y" toast and the help arrow go now, not after 6 s.
     if let Some((id, foes)) = f.fight_toast.clone() {
@@ -1229,6 +1262,18 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     }
     for a in new_alerts {
         let kind = serde_json::to_value(a.kind).ok().and_then(|v| v.as_str().map(String::from)).unwrap_or_default();
+        if kind == "invade" {
+            let (since, quiet) = f.invade_guess;
+            if now < quiet {
+                continue;
+            }
+            if since == 0.0 || now - since > 6000.0 {
+                f.invade_guess = (now, 0.0);
+            } else if now - since > 5000.0 {
+                f.invade_guess = (0.0, now + 40000.0);
+                continue;
+            }
+        }
         let al = Alert { kind, text: a.text, confidence: a.confidence, expires_at: a.expires_at };
         match f.alerts.iter().position(|x| x.kind == al.kind) {
             Some(i) => f.alerts[i] = al,
