@@ -236,6 +236,9 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
     // Plan before this answer: an item from it I already started stays first until finished.
     let prev: Vec<String> = g.build.as_ref().map(|b| b.items.iter().map(|i| i.name.clone()).collect()).unwrap_or_default();
     let owned_ids: Vec<i64> = intel.me.as_ref().map(|m| m.items.iter().map(|i| i.id).collect()).unwrap_or_default();
+    if let (false, Some(o)) = (prev.is_empty(), ctx.as_object_mut()) {
+        o.insert("currentPlan".into(), serde_json::json!(prev));
+    }
     if let (Some(t), Some(o)) = (rc_core::build_advisor::in_progress(&prev, &sd.items, &owned_ids), ctx.as_object_mut()) {
         o.insert("finishFirst".into(), serde_json::json!(t.name));
     }

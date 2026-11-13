@@ -28,7 +28,7 @@ pub const SYSTEM: &str = "Jesteś ekspertem od buildów League of Legends. Dobie
 - fazę gry, jego obecne przedmioty i złoto,
 - typ obrażeń wrogów (AD/AP), ich przedmioty, leczenie, tarcze, CC, kto jest nafeedowany (najgroźniejszy),
 - aktualny build z mety z briefu patcha (jeśli podany) — odchodź od niego tylko z konkretnego powodu.
-Nazwy przedmiotów DOKŁADNIE z listy \"availableItems\" (angielskie nazwy z gry). Jeśli jest \"finishFirst\" (zaczęty przedmiot z planu — gracz ma już jego składniki), zwykle daj go jako pierwszy; inny tylko, gdy wyraźnie bardziej się opłaca (np. te składniki lepiej pasują do innego przedmiotu, który teraz bardziej się przyda). Gdy \"me.boots\" to \"brak\" albo zwykłe Boots, a minęło ~8 min, w planie MUSZĄ być buty tier 2 (np. Plated Steelcaps na AD i auto ataki, Mercury's Treads na AP i CC) jako pierwszy albo drugi przedmiot. Bez uzasadnień — tylko nazwy.
+Nazwy przedmiotów DOKŁADNIE z listy \"availableItems\" (angielskie nazwy z gry). Jeśli jest \"finishFirst\" (zaczęty przedmiot z planu — gracz ma już jego składniki), zwykle daj go jako pierwszy; inny tylko, gdy wyraźnie bardziej się opłaca (np. te składniki lepiej pasują do innego przedmiotu, który teraz bardziej się przyda). Gdy \"me.boots\" to \"brak\" albo zwykłe Boots, a minęło ~8 min, w planie MUSZĄ być buty tier 2 (np. Plated Steelcaps na AD i auto ataki, Mercury's Treads na AP i CC) jako pierwszy albo drugi przedmiot. Jeśli jest \"currentPlan\" (plan, który gracz już widzi), zostaw jego pierwszy przedmiot, chyba że jest konkretny nowy powód (przedmioty lub feed wrogów) — nie zmieniaj planu w tę i z powrotem. Bez uzasadnień — tylko nazwy.
 \"phase\": \"wczesna gra\" / \"środek gry\" / \"późna gra\".";
 
 /// Items in Data Dragon order (JS iterates integer keys ascending).
@@ -256,8 +256,11 @@ impl BuildTrigger {
             .filter(|p| !p.is_ally)
             .map(|p| format!("{}:{}:{}", p.champion, p.items.iter().filter(|i| i.price >= 400.0).map(|i| i.id.to_string()).collect::<Vec<_>>().join("."), p.kills / 3))
             .collect();
-        let key = format!("{}|{}|{}", me.items.iter().map(|i| i.id.to_string()).collect::<Vec<_>>().join(","), enemies.join(","), me.is_dead);
-        if key != self.last_key || now - self.last_at > 180_000.0 {
+        // My items >= 400 g only: potions / wards / starter changes asked again 3 times in 15 s at game
+        // start (Malignance -> Luden's -> Malignance). And at most once per 45 s.
+        let key = format!("{}|{}|{}", me.items.iter().filter(|i| i.price >= 400.0).map(|i| i.id.to_string()).collect::<Vec<_>>().join(","), enemies.join(","), me.is_dead);
+        let changed = key != self.last_key && (self.last_key.is_empty() || now - self.last_at > 45_000.0);
+        if changed || now - self.last_at > 180_000.0 {
             self.last_key = key;
             self.last_at = now;
             return true;
@@ -361,12 +364,14 @@ mod tests {
         assert!(!t.should_refresh(&i, 1000.0));
         // Audit V3 F05: a cheap resist component counts, and so does a sudden kill streak.
         i.players[1].items.push(crate::intel::game_intel::PlayerItem { id: 1033, name: "Null-Magic Mantle".into(), price: 400.0 });
-        assert!(t.should_refresh(&i, 2000.0));
-        assert!(!t.should_refresh(&i, 3000.0));
+        // ...but not within 45 s of the last ask (no flip-flop at game start).
+        assert!(!t.should_refresh(&i, 2000.0));
+        assert!(t.should_refresh(&i, 50_000.0));
+        assert!(!t.should_refresh(&i, 51_000.0));
         i.players[1].kills = 6;
-        assert!(t.should_refresh(&i, 4000.0));
-        assert!(!t.should_refresh(&i, 184_000.0));
-        assert!(t.should_refresh(&i, 184_001.0));
+        assert!(t.should_refresh(&i, 100_000.0));
+        assert!(!t.should_refresh(&i, 279_000.0));
+        assert!(t.should_refresh(&i, 280_001.0));
         assert!(!t.should_refresh(&intel(vec![]), 0.0));
     }
 }
