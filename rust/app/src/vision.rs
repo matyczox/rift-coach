@@ -683,18 +683,21 @@ fn frame_loop(app: &tauri::AppHandle, st: &Arc<AppState>) {
 /// Seconds for an enemy leaving their fountain to reach the lane: to me if I am on the map (not in
 /// my base), else to their lane's middle; straight line x1.15 for pathing, at their move speed,
 /// minus the Homeguard head start.
-pub fn return_eta(p: &PlayerIntel, my_pos: Option<(f64, f64)>, game_t: f64) -> f64 {
+/// `lost` = towers his team already lost in that lane (he meets the wave at the first one standing).
+pub fn return_eta(p: &PlayerIntel, my_pos: Option<(f64, f64)>, game_t: f64, lost: u8) -> f64 {
     use rc_vision::tracker::{enemy::homeguard_extra_secs, predictor::fountain_of, MAP_UNITS};
     let team = Team::parse(&p.team).unwrap_or(Team::Chaos);
     let (fx, fy) = fountain_of(team);
     let _ = my_pos;
     // "Na linii" = at his own outer tower of that lane (where he meets the wave), ORDER side; CHAOS
     // is the point mirror. (Was my position: from my side of the lane it came out far too long.)
-    let order_outer = match p.role.as_str() {
-        "TOP" => (0.066, 0.298),
-        "BOTTOM" | "UTILITY" => (0.706, 0.931),
-        _ => (0.393, 0.570),
+    // ORDER towers of the lane: outer, inner, inhibitor.
+    let towers = match p.role.as_str() {
+        "TOP" => [(0.066, 0.298), (0.102, 0.549), (0.079, 0.712)],
+        "BOTTOM" | "UTILITY" => [(0.706, 0.931), (0.465, 0.900), (0.288, 0.916)],
+        _ => [(0.393, 0.570), (0.339, 0.676), (0.246, 0.751)],
     };
+    let order_outer = towers[(lost as usize).min(2)];
     let target = if team == Team::Order { order_outer } else { (1.0 - order_outer.0, 1.0 - order_outer.1) };
     let dist = (target.0 - fx).hypot(target.1 - fy) * MAP_UNITS * 1.15;
     let speed = if p.move_speed > 0.0 { p.move_speed } else { 345.0 };
@@ -958,6 +961,30 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             break;
         }
     }
+    // Their laner pushing a lane nobody holds: our laner of that lane is dead (respawn > 10 s) and theirs
+    // is alive and not seen in his base -> warn now, not once he already hits our tower.
+    for (role, lane) in [("TOP", "top"), ("MIDDLE", "mid"), ("BOTTOM", "bot")] {
+        if intel.me.as_ref().is_some_and(|m| m.role == role) {
+            continue;
+        }
+        let ours = intel.players.iter().find(|p| p.is_ally && p.role == role);
+        let theirs = intel.players.iter().find(|p| !p.is_ally && p.role == role && !p.is_dead);
+        let (Some(o), Some(e)) = (ours, theirs) else { continue };
+        if !(o.is_dead && o.respawn_in > 10.0) {
+            continue;
+        }
+        let enemy_base = if my_team_t == Team::Order { (0.96, 0.04) } else { (0.04, 0.96) };
+        if f.visible_enemies.iter().any(|v| v.champion == e.champion && (v.x - enemy_base.0).hypot(v.y - enemy_base.1) < 0.2) {
+            continue;
+        }
+        let key = format!("{}@{lane}", e.champion);
+        if f.push_seen.iter().any(|(k, at)| *k == key && now - at < 60000.0) {
+            continue;
+        }
+        f.push_seen.retain(|(k, _)| *k != key);
+        f.push_seen.push((key, now));
+        f.toasts.push(Toast { id: now as u64 + 17 + f.toasts.len() as u64, kind: "push".into(), team: "enemy".into(), champion: Some(e.champion.clone()), text: format!("{} pewnie pcha {lane} — {} nie żyje {} s", e.champion, o.champion, o.respawn_in.round()), expires_at: now + 6000.0 });
+    }
     // Teamplay prompts (gank ask, follow-up, ...).
     let (allies_s, enemies_s) = (crate::knowledge::seen(&f.allies), crate::knowledge::seen(&f.visible_enemies));
     for a in team_watcher.update(intel, crate::knowledge::pos(f.my_pos), &allies_s, &enemies_s, p_me, now) {
@@ -1073,14 +1100,16 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         let backed = new_recalls.contains(&opp.champion);
         let respawned = !opp.is_dead && f.prev_dead.contains(&opp.champion);
         let counting = f.returns.iter().any(|(c, _)| *c == opp.champion);
+        let lane_name = match opp.role.as_str() { "TOP" => "top", "BOTTOM" | "UTILITY" => "bot", _ => "mid" };
+        let their_lost = intel.lanes.iter().find(|l| l.lane == lane_name).map_or(0, |l| l.theirs_lost);
         if opp.is_dead && opp.respawn_in > 0.0 {
             // Dead: respawn timer + walk, refreshed every frame from the game's own timer (it was set
             // only once he respawned, seconds late, and then counted too long).
-            let eta = opp.respawn_in + return_eta(opp, f.my_pos, t);
+            let eta = opp.respawn_in + return_eta(opp, f.my_pos, t, their_lost);
             f.returns.retain(|(c, _)| *c != opp.champion);
             f.returns.push((opp.champion.clone(), now + eta * 1000.0));
         } else if backed || (respawned && !counting) {
-            let eta = return_eta(opp, f.my_pos, t);
+            let eta = return_eta(opp, f.my_pos, t, their_lost);
             f.returns.retain(|(c, _)| *c != opp.champion);
             f.returns.push((opp.champion.clone(), now + eta * 1000.0));
         }
