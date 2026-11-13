@@ -38,6 +38,9 @@ pub struct HudCtl {
     hide_at: Option<Instant>,
     last_payload: String,
     last_emit: Option<Instant>,
+    /// Last fight bar / shopping list shown, to bridge a missing frame or two (no flicker).
+    last_power: Option<(Value, Instant)>,
+    last_buy: Option<(Value, Instant)>,
     /// Last HUD state written to the log file (logged again only when it changes).
     log_hud: String,
     log_field_at: Option<Instant>,
@@ -282,7 +285,7 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
     let advice = st.ui.lock().unwrap().last_advice.clone();
     let mut field_line: Option<String> = None;
     let mut log_t = 0.0;
-    let state = {
+    let mut state = {
         let mut g = st.game.lock().unwrap();
         g.field.alerts.retain(|a| a.expires_at > now);
         g.field.toasts.retain(|t| t.expires_at > now);
@@ -421,6 +424,22 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
         s
     };
     let mut h = st.hud.lock().unwrap();
+    // One frame without data (icon / bar read missed) must not blink the panels: keep the last value 2.5 s.
+    if state["deathCard"].is_null() {
+        let hold = Duration::from_millis(2500);
+        if state["power"].is_object() {
+            h.last_power = Some((state["power"].clone(), Instant::now()));
+        } else if let Some((v, _)) = h.last_power.as_ref().filter(|(_, at)| at.elapsed() < hold) {
+            state["power"] = v.clone();
+        }
+        if state["build"]["buyNow"].is_array() {
+            h.last_buy = Some((state["build"]["buyNow"].clone(), Instant::now()));
+        } else if let (Some((v, _)), true) = (h.last_buy.as_ref().filter(|(_, at)| at.elapsed() < hold), state["build"].is_object()) {
+            state["build"]["buyNow"] = v.clone();
+        }
+    } else {
+        h.last_power = None;
+    }
     // Log file: what the overlay shows (on change) and where everyone is (every 2 s), in game only.
     if field_line.is_some() {
         let shown = crate::applog::strip(&state).to_string();

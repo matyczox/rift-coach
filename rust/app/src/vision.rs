@@ -1069,7 +1069,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         let al = crate::game::alert_of(a);
         // Team prompts ("Teemo obok → pinguj, wchodźcie", "MF idzie do ciebie"): shown as a green alert
         // under my champion (the top bar never showed these kinds). Same text at most every 20 s.
-        if matches!(al.kind.as_str(), "gank-ask" | "ally") {
+        if intel.game_time > 150.0 && matches!(al.kind.as_str(), "gank-ask" | "ally") {
             let key = format!("team:{}", al.text);
             if !f.push_seen.iter().any(|(k, at)| *k == key && now - at < 20000.0) {
                 f.push_seen.retain(|(k, _)| *k != key);
