@@ -30,7 +30,7 @@ pub struct AlertState {
 pub fn gank_ready(t: &EnemyTrack, my_role: Option<Role>, game_time: f64) -> bool {
     let age = game_time - t.fog_since.unwrap_or(game_time);
     let lane_opp = my_role.is_some_and(|r| r != Role::Unknown && r == t.role);
-    !lane_opp && age >= 4.0
+    !lane_opp && age >= if t.role == Role::Jungle { 1.5 } else { 4.0 }
 }
 
 /// `near_me(champion)` = probability (all hypotheses) that the fogged enemy is within reach of me; when

@@ -1429,8 +1429,36 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     let new_alerts = {
         let my_lane: Option<&'static str> = intel.me.as_ref().and_then(|m| match m.role.as_str() { "TOP" => Some("top"), "MIDDLE" => Some("mid"), "BOTTOM" | "UTILITY" => Some("bot"), _ => None });
         let habit_boost = |c: &str| my_lane.and_then(|l| f.habits.get(c).and_then(|h| h.ganks.get(l))).map_or(1.0, |n| (1.0 + 0.15 * *n as f64).min(1.5));
-        let near_me = |c: &str| f.my_pos.and_then(|p| f.tracker.as_ref().and_then(|tr| tr.mass_near(c, p, 0.11))).map(|m| (m * habit_boost(c)).min(1.0));
-        tracker_alerts(&tracks, f.my_pos, my_team_t, my_role, t, now, &near_me)
+        let near_me = |c: &str| f.my_pos.and_then(|p| f.tracker.as_ref().and_then(|tr| tr.mass_near(c, p, 0.13))).map(|m| (m * habit_boost(c)).min(1.0));
+        let mut a = tracker_alerts(&tracks, f.my_pos, my_team_t, my_role, t, now, &near_me);
+        // C. Risk without a precise ghost (logs: deaths deep in their jungle with the jungler unseen 45 s,
+        // and at 16% HP with Wukong walking in from the fog): warn on the situation, not on the guess.
+        let gank_shown = a.iter().any(|x| matches!(x.kind, rc_vision::tracker::alerts::AlertKind::Gank | rc_vision::tracker::alerts::AlertKind::Invade));
+        if let (Some(me), false) = (f.my_pos, gank_shown) {
+            let red = my_team_t != Team::Order;
+            let their_half = if red { me.1 > me.0 + 0.04 } else { me.0 > me.1 + 0.04 };
+            let off_lanes = me.0.min(me.1) > 0.13 && (1.0 - me.0).min(1.0 - me.1) > 0.13 && (me.0 + me.1 - 1.0).abs() > 0.09;
+            let in_base = me.0.hypot(1.0 - me.1) < 0.25 || (1.0 - me.0).hypot(me.1) < 0.25;
+            let ally_near = f.allies.iter().any(|u| (u.x - me.0).hypot(u.y - me.1) < 0.15 && intel.me.as_ref().is_none_or(|m| m.champion != u.champion));
+            let hp = intel.my_stats.as_ref().filter(|s| s.max_hp > 0.0).map(|s| s.hp / s.max_hp);
+            let alive = |c: &str| intel.players.iter().any(|p| p.champion == c && !p.is_dead);
+            let unseen = |tr: &&rc_vision::tracker::EnemyTrack| tr.state == TrackState::Fog && alive(&tr.champion);
+            if let Some(j) = tracks.iter().filter(unseen).find(|tr| tr.role == Role::Jungle && t - tr.fog_since.unwrap_or(t) >= 20.0) {
+                // Deep = past their outer mid tower (the mid line itself counts there too).
+                let deep = (me.0 - me.1).abs() > 0.3;
+                if their_half && (off_lanes || deep) && !in_base && !ally_near && t > 150.0 {
+                    a.push(rc_vision::tracker::alerts::AlertState { kind: rc_vision::tracker::alerts::AlertKind::Gank, text: format!("{} nieznany — ich dżungla", j.champion), confidence: 0.6, expires_at: now + 4000.0 });
+                }
+            }
+            if hp.is_some_and(|h| h < 0.35) && !in_base && a.is_empty() {
+                // An enemy from elsewhere in fog within ~0.35 and seen recently: low HP is a free kill for him.
+                let close = tracks.iter().filter(unseen).filter(|tr| t - tr.fog_since.unwrap_or(t) < 30.0 && my_role.is_none_or(|r| r == Role::Unknown || r != tr.role)).filter_map(|tr| tr.estimate.map(|e| ((e.x - me.0).hypot(e.y - me.1), tr))).filter(|(d, _)| *d < 0.35).min_by(|x, y| x.0.total_cmp(&y.0));
+                if let Some((_, tr)) = close {
+                    a.push(rc_vision::tracker::alerts::AlertState { kind: rc_vision::tracker::alerts::AlertKind::Gank, text: format!("Mało HP — {} blisko", tr.champion), confidence: 0.7, expires_at: now + 4000.0 });
+                }
+            }
+        }
+        a
     };
     // Can the enemies be taking an objective right now? Seen at the pit, or likely there in the fog (all
     // tracker hypotheses): P(at least one there). Shown with a % like a gank warning.
