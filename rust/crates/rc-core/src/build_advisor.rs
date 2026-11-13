@@ -182,6 +182,35 @@ pub fn in_progress<'a>(names: &[String], items: &'a HashMap<i64, ItemData>, owne
         })
 }
 
+/// Gold of `t`'s own components that I hold (each owned item counted once).
+fn owned_share(t: &ItemData, items: &HashMap<i64, ItemData>, owned: &[i64]) -> f64 {
+    let mut own = owned.to_vec();
+    t.from
+        .iter()
+        .filter(|c| match own.iter().position(|o| o == *c) {
+            Some(p) => {
+                own.remove(p);
+                true
+            }
+            None => false,
+        })
+        .map(|c| items.get(c).map_or(0.0, |i| i.total))
+        .sum::<f64>()
+        / t.total.max(1.0)
+}
+
+/// The finished item I am clearly building (half of its price or more already in my components, e.g. two
+/// Needlessly Large Rods -> Rabadon's Deathcap): it stays first in the plan whatever the model says.
+pub fn committed<'a>(items: &'a HashMap<i64, ItemData>, owned: &[i64]) -> Option<&'a ItemData> {
+    items
+        .values()
+        .filter(|t| t.completed && t.purchasable && !owned.contains(&t.id) && !t.from.is_empty())
+        .map(|t| (owned_share(t, items, owned), t))
+        .filter(|(s, _)| *s >= 0.5)
+        .max_by(|a, b| a.0.total_cmp(&b.0).then(a.1.total.total_cmp(&b.1.total)))
+        .map(|(_, t)| t)
+}
+
 /// What to buy right now with `gold` towards `target` (item ids, shop order): the whole item if the
 /// rest of its price fits, else the biggest missing components that fit (recursing into a component
 /// that does not fit). Components I already own count towards the target. Boots are added when I have

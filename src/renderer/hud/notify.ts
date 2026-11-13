@@ -11,6 +11,9 @@ const live = new Map<number, HTMLElement>();
 const BUFF_NAME: Record<string, string> = { baron: 'Baron', elder: 'Elder Dragon', herald: 'Eye of the Herald' };
 /** In-game minimap icons (CommunityDragon), bundled with the app. */
 const BUFF_ICON: Record<string, string> = { baron: 'icons/baron.png', elder: 'icons/dragon_elder.png', herald: 'icons/riftherald.png' };
+/** Spawn chips: bundled icons (Dragon / Atakhan tinted in CSS). */
+const OBJ_ICON: Record<string, string> = { baron: 'icons/baron.png', elder: 'icons/dragon_elder.png', dragon: 'icons/dragon_elder.png', herald: 'icons/riftherald.png', grubs: 'icons/riftherald.png', atakhan: 'icons/baron.png' };
+const trinket = document.querySelector<HTMLElement>('#trinket-glow');
 /** Held Eye duration is not exact (it may be used earlier): show it as an estimate. */
 const APPROX = new Set(['herald']);
 
@@ -40,48 +43,37 @@ subscribe(({ state }, clock) => {
       guideLabel?.classList.add('hidden');
     }
   }
-  // Chips: one per active buff, counting down between pushes.
-  const buffs = on ? state.buffs ?? [] : [];
-  const rets = on ? state.returns ?? [] : [];
-  const pin = on ? state.pin ?? null : null;
-  const key = buffs.map((b) => `${b.kind}:${b.team}`).concat(rets.map((r) => `r:${r.champion}`)).join(',') + `|${pin ?? ''}`;
+  // Chips: objectives spawning soon (icon + countdown), buffs, rival back on lane. One entry list.
+  type Entry = { key: string; cls: string; icon: string; iconCls?: string; name: string; left: number; approx?: boolean; ret?: boolean };
+  const entries: Entry[] = on ? [
+    ...(state.objTimers ?? []).map((o): Entry => ({ key: 'o:' + o.kind, cls: 'chip obj ' + o.kind, icon: OBJ_ICON[o.kind] ?? '', iconCls: 'obj-' + o.kind, name: o.label, left: o.secondsLeft })),
+    ...(state.buffs ?? []).map((b): Entry => ({ key: 'b:' + b.kind + b.team, cls: `chip ${b.kind} ${b.team}`, icon: BUFF_ICON[b.kind] ?? '', name: BUFF_NAME[b.kind] ?? b.kind, left: b.secondsLeft, approx: APPROX.has(b.kind) })),
+    ...(state.returns ?? []).map((r): Entry => ({ key: 'r:' + r.champion, cls: 'chip return enemy', icon: r.iconUrl, iconCls: 'champ', name: 'na linii za', left: r.secondsLeft, ret: true })),
+  ] : [];
+  const key = entries.map((e) => e.key).join(',');
   if (chips.dataset.k !== key) {
     chips.dataset.k = key;
-    const pinChip = pin ? [(() => { const c = document.createElement('div'); c.className = 'chip pin ally'; const n = document.createElement('span'); n.textContent = pin; c.append(n); return c; })()] : [];
-    chips.replaceChildren(...pinChip, ...buffs.map((b) => {
+    chips.replaceChildren(...entries.map((e) => {
       const c = document.createElement('div');
-      c.className = `chip ${b.kind} ${b.team}`;
+      c.className = e.cls;
       const ic = document.createElement('img');
-      ic.src = BUFF_ICON[b.kind] ?? ''; ic.alt = '';
-      const n = document.createElement('span');
-      n.textContent = BUFF_NAME[b.kind] ?? b.kind;
-      const t = document.createElement('b');
-      c.append(ic, n, t);
-      return c;
-    }), ...rets.map((r) => {
-      const c = document.createElement('div');
-      c.className = 'chip return enemy';
-      const ic = document.createElement('img');
-      ic.src = r.iconUrl; ic.alt = ''; ic.className = 'champ';
-      const n = document.createElement('span');
-      n.textContent = 'na linii za';
-      c.append(ic, n, document.createElement('b'));
+      ic.src = e.icon; ic.alt = '';
+      if (e.iconCls) ic.className = e.iconCls;
+      const nm = document.createElement('span');
+      nm.textContent = e.name;
+      c.append(ic, nm, document.createElement('b'));
       return c;
     }));
   }
   const dt = clock.gameTime() - state.gameTime;
-  const off = pin ? 1 : 0;
-  [...chips.children].forEach((c0, i0) => {
-    const i = i0 - off;
-    const c = c0;
-    if (i < 0) return;
-    const b = buffs[i];
-    const r = rets[i - buffs.length];
-    const left = b ? b.secondsLeft : r ? r.secondsLeft : null;
-    if (left == null) return;
-    const shown = Math.max(0, left - dt);
-    (c.lastChild as HTMLElement).textContent = (b && APPROX.has(b.kind) ? '~' : '') + (r && shown <= 0 ? 'już' : fmtClock(shown));
+  [...chips.children].forEach((c, i) => {
+    const e = entries[i];
+    if (!e) return;
+    const shown = Math.max(0, e.left - dt);
+    (c.lastChild as HTMLElement).textContent = (e.approx ? '~' : '') + (e.ret && shown <= 0 ? 'już' : e.ret ? fmtClock(shown) : `${Math.ceil(shown)}s`);
   });
+  // Trinket ready: glow on the HUD slot (like Blitz's trinket reminder).
+  trinket?.classList.toggle('hidden', !(on && state.trinketReady));
 
   // Toasts: add new ones, fly out the ones that left the state.
   const want = on ? state.toasts ?? [] : [];

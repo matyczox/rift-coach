@@ -326,3 +326,36 @@ canvas.full { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .alert.red.live .txt, .alert.red.live .conf { color: #fff; font-weight: 700; }
 .alert.red.live .dot { background: #fff; }
 
+
+/* Right panel: Blitz-like benchmark card */
+.card.bench { width: 16.5rem; padding: 0.5rem 0.625rem 0.5625rem; border-radius: 0.875rem; display: flex; flex-direction: column; gap: 0.4375rem;
+  background: linear-gradient(180deg, rgba(16, 24, 33, 0.9), rgba(8, 13, 19, 0.9)); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07), 0 0.375rem 1rem rgba(0, 0, 0, 0.4); text-shadow: none; }
+.bm-top { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.3125rem; }
+.bm-cell { display: flex; flex-direction: column; align-items: center; padding: 0.25rem 0 0.3125rem; border-radius: 0.5625rem; background: rgba(255, 255, 255, 0.04); }
+.bm-cell b { font-size: 1.25rem; line-height: 1.15; font-weight: 800; font-variant-numeric: tabular-nums; color: #b8c3ca; }
+.bm-cell small { font-size: 0.625rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #7f909c; }
+.bm-cell.up b { color: #34e0c8; }
+.bm-cell.down b { color: #ff7f77; }
+.bm-row, .bm-items { display: flex; align-items: center; gap: 0.375rem; padding: 0 0.125rem; font-variant-numeric: tabular-nums; }
+.bm-row small, .bm-items small { width: 4.75rem; font-size: 0.625rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: #7f909c; }
+.bm-row b { font-size: 1rem; font-weight: 800; color: #e6edf1; }
+.bm-row i { font-style: normal; font-size: 0.75rem; color: #9fb0bb; }
+.bm-row.up i { color: #34e0c8; }
+.bm-row.down i { color: #ff7f77; }
+.bm-row span { font-size: 0.9375rem; font-weight: 600; color: #9fb0bb; }
+.bm-items b { font-size: 0.875rem; font-weight: 800; }
+.bm-items b.us { color: #5fb8ff; }
+.bm-items b.them { color: #ff7f77; }
+.bm-split { flex: 1; height: 0.375rem; border-radius: 999px; background: rgba(255, 110, 100, 0.75); overflow: hidden; }
+.bm-split i { display: block; height: 100%; background: #5fb8ff; border-radius: 999px 0 0 999px; }
+/* Objective spawn chips: Dragon / Atakhan icons tinted from the bundled ones */
+.chip.obj img.obj-dragon { filter: hue-rotate(150deg) saturate(1.4); }
+.chip.obj img.obj-atakhan { filter: hue-rotate(320deg) saturate(1.6); }
+/* Trinket reminder: glow ring on the HUD trinket slot (top-left 0.6145 W, 0.916 H, side 0.0236 H) */
+.trinket-glow { position: fixed; left: calc(61.45vw - 0.35vh); top: calc(91.6vh - 0.35vh); width: 3.06vh; height: 3.06vh; border-radius: 0.45vh; pointer-events: none; z-index: 6;
+  box-shadow: 0 0 0 0.22vh rgba(255, 214, 90, 0.95), 0 0 1.4vh 0.3vh rgba(255, 200, 60, 0.75); animation: trinket-pulse 1.4s ease-in-out infinite; }
+.trinket-glow.hidden { display: none; }
+@keyframes trinket-pulse { 50% { box-shadow: 0 0 0 0.16vh rgba(255, 214, 90, 0.6), 0 0 0.6vh 0.1vh rgba(255, 200, 60, 0.35); } }
+.chip.obj { --tc: 240, 200, 96; animation: none; }
+.chip.obj.dragon { --kc: #ffb25a; }
+.chip.obj.grubs, .chip.obj.atakhan { --kc: #c88cff; }

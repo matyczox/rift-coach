@@ -348,7 +348,18 @@ function frame(now: number): void {
         pillSegs([base], t.x * W, t.y * H);
       }
     }
-    if (obj && !merged) pillSegs(objectiveSegs(obj, false), obj.x * W, obj.y * H + Math.max(14, 0.07 * W));
+    // Camp / inhibitor respawn countdowns (like Blitz's minimap timers), counting down between pushes.
+    const mdt = gt - st.gameTime;
+    for (const t of st.mapTimers ?? []) {
+      const left = t.secondsLeft - mdt;
+      if (left <= 0) continue;
+      const color = t.kind === 'inhib' ? (t.ours ? '#ff8f88' : '#3ccf8e') : '#eef3f6';
+      pillSegs([{ text: fmtClock(left), color }], t.x * W, t.y * H);
+    }
+    // An alive objective's standing verdict ('WALCZ' at Herald while the fight was at Dragon) was noise:
+    // only a 'go' and only when no fight / help arrow points elsewhere.
+    const fightElsewhere = st.hints.some((h) => h.kind === 'move' && isLive(h.expiresAt, gt));
+    if (obj && !merged && obj.verdict === 'go' && !fightElsewhere) pillSegs(objectiveSegs(obj, false), obj.x * W, obj.y * H + Math.max(14, 0.07 * W));
     for (const h of st.hints) if (isLive(h.expiresAt, gt)) drawHint(h, gt, now);
   }
 

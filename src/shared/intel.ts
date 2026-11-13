@@ -210,6 +210,10 @@ export interface PowerBarState {
   /** My lane's wave in words, and when the rival is back on lane. */
   wave?: string;
   rivalBack?: string;
+  /** CS per minute: me vs my lane rival. */
+  csMin?: { me: number; opp: number | null };
+  /** Item value (gold) of both teams. */
+  itemValue?: { ours: number; theirs: number };
   /** Small line under the bar, e.g. "lvl 5 vs 6 · +450 g". */
   detail: string;
   /** Advice line, e.g. "Silniejszy od 6 lvl → wchodź po ulcie". */
@@ -279,6 +283,12 @@ export interface HudState {
   toasts?: Array<{ id: number; kind: 'recall' | 'push' | 'done' | 'fight' | 'fight-bad'; team: 'ally' | 'enemy'; text: string; iconUrl: string | null; expiresAt: number }>;
   /** Active Baron / Elder buffs with seconds left. */
   buffs?: Array<{ kind: 'baron' | 'elder' | 'herald'; team: 'ally' | 'enemy'; secondsLeft: number }>;
+  /** Objectives spawning within 90 s. */
+  objTimers?: Array<{ kind: string; label: string; secondsLeft: number }>;
+  /** Trinket has a charge (read from the HUD slot). */
+  trinketReady?: boolean;
+  /** Camp / inhibitor respawn countdowns on the minimap. */
+  mapTimers?: Array<{ kind: 'camp' | 'inhib'; x: number; y: number; secondsLeft: number; ours?: boolean }>;
   /** Lane opponent walking back to lane after a back / respawn: ETA in seconds. */
   returns?: Array<{ champion: string; iconUrl: string; secondsLeft: number }>;
 }

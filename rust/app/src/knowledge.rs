@@ -283,8 +283,9 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
     if let (false, Some(o)) = (prev.is_empty(), ctx.as_object_mut()) {
         o.insert("currentPlan".into(), serde_json::json!(prev));
     }
-    if let (Some(t), Some(o)) = (rc_core::build_advisor::in_progress(&prev, &sd.items, &owned_ids), ctx.as_object_mut()) {
-        o.insert("finishFirst".into(), serde_json::json!(t.name));
+    let locked = rc_core::build_advisor::committed(&sd.items, &owned_ids).map(|t| (t.name.clone(), t.id, t.total));
+    if let (Some(t), Some(o)) = (rc_core::build_advisor::in_progress(&prev, &sd.items, &owned_ids).map(|t| t.name.clone()).or_else(|| locked.as_ref().map(|l| l.0.clone())), ctx.as_object_mut()) {
+        o.insert("finishFirst".into(), serde_json::json!(t));
     }
     g.build_busy = true;
     // Who asked: same game + same champion when the answer comes back, or it is dropped.
@@ -319,6 +320,21 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
                                 b.items.insert(0, rc_core::build_advisor::BuildItem { name: d.name.clone(), icon_url: format!("https://ddragon.leagueoflegends.com/cdn/{}/img/item/{}.png", sd.version, d.id), why: String::new(), cost: Some(d.total) });
                                 b.items.truncate(3);
                             }
+                        }
+                    }
+                }
+                // Half an item already bought in components (2x Large Rod -> Rabadon's): it stays first (the
+                // model switched to Zhonya's with the rods in the inventory).
+                if let Some((name, id, total)) = locked.as_ref() {
+                    match b.items.iter().position(|it| it.name.eq_ignore_ascii_case(name)) {
+                        Some(0) => {}
+                        Some(p) => {
+                            let it = b.items.remove(p);
+                            b.items.insert(0, it);
+                        }
+                        None => {
+                            b.items.insert(0, rc_core::build_advisor::BuildItem { name: name.clone(), icon_url: format!("https://ddragon.leagueoflegends.com/cdn/{}/img/item/{}.png", sd.version, id), why: String::new(), cost: Some(*total) });
+                            b.items.truncate(3);
                         }
                     }
                 }

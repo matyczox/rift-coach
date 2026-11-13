@@ -323,7 +323,7 @@ impl TeamWatcher {
             let ganking = d < 0.08 || (d < 0.18 && heading);
             if mi.role != "JUNGLE" && ganking && enemy_near_me && p_me.unwrap_or(0.5) >= 0.42 && now - self.last_ask > 30_000.0 {
                 self.last_ask = now;
-                out.push(AlertState { kind: "gank-ask", text: format!("{} obok → pinguj, wchodźcie", j.champion), confidence: 0.8, expires_at: now + 6000.0 });
+                out.push(AlertState { kind: "gank-ask", text: format!("{} obok", j.champion), confidence: 0.8, expires_at: now + 6000.0 });
             }
         }
         // Allies heading my way: within 0.25 and closing in.
@@ -449,7 +449,7 @@ mod tests {
         let mut w = TeamWatcher::default();
         let vi = SeenUnit { champion: "Vi".into(), x: 0.35, y: 0.5, vx: Some(0.01), vy: Some(0.0) };
         let a = w.update(&i, me, &[vi.clone()], &[unit("Zed", 0.55, 0.5)], Some(0.6), 40_000.0);
-        assert_eq!(a.iter().map(|x| x.text.as_str()).collect::<Vec<_>>(), ["Vi obok → pinguj, wchodźcie", "Vi idzie do ciebie"]);
+        assert_eq!(a.iter().map(|x| x.text.as_str()).collect::<Vec<_>>(), ["Vi obok", "Vi idzie do ciebie"]);
         assert!(w.update(&i, me, &[vi.clone()], &[unit("Zed", 0.55, 0.5)], Some(0.6), 50_000.0).is_empty());
         assert!(w.update(&i, me, &[vi], &[], Some(0.6), 90_000.0).is_empty()); // no enemy near
         // Standing at his camp 0.12 away (not walking at me): no "obok → pinguj".

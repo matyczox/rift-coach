@@ -89,27 +89,41 @@ subscribe(({ state }) => {
   pct.textContent = v >= 0.16 ? `${Math.round(v * 100)}%` : '';
   const ln = p.lane;
   if (ln) {
-    // One line of coloured numbers: +450 g  +12 CS  +1 lvl
-    const stat = (v: number, unit: string) => {
-      const d = document.createElement('span');
-      d.className = 'pw-stat ' + (v > 0 ? 'up' : v < 0 ? 'down' : '');
+    // Blitz-like benchmark card: three big diffs (gold / CS / level), CS per minute vs my rival, and
+    // the item value of both teams as a split bar. Numbers first, tiny labels, nothing to read.
+    const k = (v: number) => (Math.abs(v) >= 1000 ? `${(Math.abs(v) / 1000).toFixed(1)}k` : `${Math.abs(v)}`);
+    const sign = (v: number) => (v > 0 ? '+' : v < 0 ? '−' : '');
+    const cell = (v: number, label: string, fmt: (x: number) => string) => {
+      const d = document.createElement('div');
+      d.className = 'bm-cell ' + (v > 0 ? 'up' : v < 0 ? 'down' : '');
       const b = document.createElement('b');
-      b.textContent = `${v > 0 ? '+' : ''}${v}`;
+      b.textContent = sign(v) + fmt(v);
       const sm = document.createElement('small');
-      sm.textContent = unit;
+      sm.textContent = label;
       d.append(b, sm);
       return d;
     };
-    detail.className = 'card lead pw-stats';
-    detail.replaceChildren(stat(ln.gold, 'g'), stat(ln.cs, 'CS'), stat(ln.level, 'lvl'));
-    // Filled out: wave on my lane and the rival's return, one small line each.
-    for (const t of [p.wave, p.rivalBack]) {
-      if (!t) continue;
-      const l = document.createElement('div');
-      l.className = 'pw-extra';
-      l.textContent = t;
-      detail.append(l);
+    const top = document.createElement('div');
+    top.className = 'bm-top';
+    top.append(cell(ln.gold, 'złoto', k), cell(ln.cs, 'cs', (x) => `${Math.abs(x)}`), cell(ln.level, 'lvl', (x) => `${Math.abs(x)}`));
+    const rows: HTMLElement[] = [top];
+    if (p.csMin && p.csMin.opp != null) {
+      const r = document.createElement('div');
+      const diff = p.csMin.me - p.csMin.opp;
+      r.className = 'bm-row ' + (diff > 0.05 ? 'up' : diff < -0.05 ? 'down' : '');
+      r.innerHTML = `<small>CS/min</small><b>${p.csMin.me.toFixed(1)}</b><i>${diff > 0.05 ? '▲' : diff < -0.05 ? '▼' : '='}</i><span>${p.csMin.opp.toFixed(1)}</span>`;
+      rows.push(r);
     }
+    if (p.itemValue && p.itemValue.ours + p.itemValue.theirs > 0) {
+      const { ours, theirs } = p.itemValue;
+      const r = document.createElement('div');
+      r.className = 'bm-items';
+      const share = (ours / (ours + theirs)) * 100;
+      r.innerHTML = `<small>przedmioty</small><b class="us">${k(ours)}</b><div class="bm-split"><i style="width:${share.toFixed(1)}%"></i></div><b class="them">${k(theirs)}</b>`;
+      rows.push(r);
+    }
+    detail.className = 'card bench';
+    detail.replaceChildren(...rows);
   } else {
     detail.replaceChildren();
   }

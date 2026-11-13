@@ -186,7 +186,7 @@ fn wants(st: &Value, has_minimap: bool, now: f64) -> Value {
         "loading": st["loadingCard"].is_object(),
         "power": st["power"].is_object() && !st["deathCard"].is_object(),
         "build": st["build"]["items"].as_array().is_some_and(|a| !a.is_empty()) || st["build"]["buyNow"].as_array().is_some_and(|a| !a.is_empty()),
-        "notify": !arr("toasts").is_empty() || !arr("buffs").is_empty() || !arr("returns").is_empty() || st["pin"].is_string() || arr("hints").iter().any(|h| (h["kind"] == "move" || h["kind"] == "ward") && h.get("from").is_some() && is_live(exp(h), gt, now)),
+        "notify": !arr("toasts").is_empty() || !arr("buffs").is_empty() || !arr("returns").is_empty() || !arr("objTimers").is_empty() || st["trinketReady"] == true || st["pin"].is_string() || arr("hints").iter().any(|h| (h["kind"] == "move" || h["kind"] == "ward") && h.get("from").is_some() && is_live(exp(h), gt, now)),
     })
 }
 
@@ -429,9 +429,7 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
                     }
                 }
             }
-            if let Some(o) = s.as_object_mut() {
-                o.insert("pin".into(), json!(format!("Postaw ward: {}", rc_core::wards::WARD_SPOTS.iter().find(|w| w.id == spot).map(|w| w.label).unwrap_or("ward"))));
-            }
+            let _ = spot; // no text pin: the label under my champion and the ring on the minimap say it
         }
         // Coach "go there" hints start at me too (arrow on the minimap and the guide on my champion).
         if let (Some((mx, my)), Some(hints)) = (g.field.my_pos, s.get_mut("hints").and_then(Value::as_array_mut)) {
@@ -460,12 +458,16 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
                 "no_wave" => Some("Brak fali"),
                 _ => None,
             });
-            if let Some(t) = txt {
-                p.insert("wave".into(), json!(t));
+            let _ = txt;
+            // Benchmarks (Blitz-like): CS per minute me vs my lane rival, item value of both teams.
+            let mins = (i.game_time / 60.0).max(1.0);
+            if let Some(me) = i.me.as_ref() {
+                let opp = i.players.iter().find(|x| !x.is_ally && !me.role.is_empty() && x.role == me.role);
+                let r1 = |v: f64| (v * 10.0).round() / 10.0;
+                p.insert("csMin".into(), json!({ "me": r1(me.cs as f64 / mins), "opp": opp.map(|o| r1(o.cs as f64 / mins)) }));
             }
-            if let Some((c, until)) = g.field.returns.first() {
-                p.insert("rivalBack".into(), json!(format!("{c} na linii za {} s", ((until - now) / 1000.0).max(0.0).round())));
-            }
+            let value = |ally: bool| i.players.iter().filter(|x| x.is_ally == ally).map(|x| x.items.iter().map(|it| it.price).sum::<f64>()).sum::<f64>().round();
+            p.insert("itemValue".into(), json!({ "ours": value(true), "theirs": value(false) }));
         }
         // Teamfight at an objective with our people there: arrow from me to the pit.
         if let (Some((label, x, y, until)), Some((mx, my))) = (g.field.help_point.as_ref().filter(|h| h.3 > now), g.field.my_pos) {
@@ -516,6 +518,36 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
             let gt = g.intel.as_ref().map(|i| i.game_time).unwrap_or(0.0);
             o.insert("toasts".into(), Value::Array(g.field.toasts.iter().map(|t| serde_json::json!({ "id": t.id, "kind": t.kind, "team": t.team, "text": t.text, "iconUrl": t.champion.as_deref().map(&icon), "expiresAt": t.expires_at })).collect()));
             o.insert("returns".into(), Value::Array(g.field.returns.iter().map(|(c, until)| serde_json::json!({ "champion": c, "iconUrl": icon(c), "secondsLeft": ((until - now) / 1000.0).max(0.0).round() })).collect()));
+            // Objectives spawning within 90 s (icon + countdown chips, like Blitz).
+            o.insert("objTimers".into(), Value::Array(g.intel.as_ref().map(|i| i.objectives.iter().filter(|ob| !ob.alive).filter_map(|ob| ob.spawns_at.map(|t| (ob, t - gt))).filter(|(_, d)| *d > 0.0 && *d <= 90.0).map(|(ob, d)| serde_json::json!({ "kind": if ob.label.contains("Elder") { "elder" } else { ob.kind }, "label": if ob.label.contains("Elder") { "Elder".to_string() } else { ob.label.clone() }, "secondsLeft": d.round() })).collect()).unwrap_or_default()));
+            // Trinket ready (stable reading from the HUD slot): glow on the slot.
+            o.insert("trinketReady".into(), json!(g.field.trinket.is_some_and(|(r, at)| r && now - at < 3000.0) && g.intel.as_ref().and_then(|i| i.me.as_ref()).is_some_and(|m| !m.is_dead)));
+            // Camp and inhibitor respawn countdowns on the minimap (seconds, last 2 minutes).
+            let mut mt: Vec<Value> = Vec::new();
+            if let Some(i) = g.intel.as_ref() {
+                for c in &g.field.camp_status {
+                    let (Some(def), Some(at)) = (rc_vision::camps::CAMPS.iter().find(|d| d.id == c.id), c.respawn_at.filter(|_| c.state == rc_vision::camps::CampState::Down)) else { continue };
+                    let left = (at - i.game_time).round();
+                    if left > 0.0 && left <= 120.0 {
+                        mt.push(serde_json::json!({ "kind": "camp", "x": def.x, "y": def.y, "secondsLeft": left }));
+                    }
+                }
+                // Inhibitors: blue positions per lane; red = (y, x) for top / bot, 180° for mid.
+                for l in &i.lanes {
+                    let blue = match l.lane { "top" => (0.073, 0.72), "bot" => (0.28, 0.927), _ => (0.21, 0.79) };
+                    let red_p = if l.lane == "mid" { (1.0 - blue.0, 1.0 - blue.1) } else { (blue.1, blue.0) };
+                    let my_red = i.me.as_ref().is_some_and(|m| m.team == "CHAOS");
+                    for (back, ours) in [(l.our_inhib_back, true), (l.their_inhib_back, false)] {
+                        let Some(t) = back else { continue };
+                        let left = (t - i.game_time).round();
+                        if left > 0.0 {
+                            let p = if ours != my_red { blue } else { red_p };
+                            mt.push(serde_json::json!({ "kind": "inhib", "x": p.0, "y": p.1, "secondsLeft": left, "ours": ours }));
+                        }
+                    }
+                }
+            }
+            o.insert("mapTimers".into(), Value::Array(mt));
             o.insert("buffs".into(), Value::Array(g.intel.as_ref().map(|i| i.buffs.iter().map(|b| serde_json::json!({ "kind": b.kind, "team": b.team, "secondsLeft": (b.until - gt).max(0.0).round() })).collect()).unwrap_or_default()));
         }
         s
