@@ -340,6 +340,8 @@ impl TeamWatcher {
                 d < 0.25 && d > 0.1 && sp > 0.004 && (dx * vx + dy * vy) / (d * sp) > 0.8
             })
             .collect();
+        // The jungler just got "X obok": not "X idzie do ciebie" too (two lines about one champion).
+        let coming: Vec<&SeenUnit> = coming.into_iter().filter(|c| !out.iter().any(|a: &AlertState| a.text.starts_with(c.champion.as_str())) && !(now - self.last_ask < 20_000.0 && jungler.is_some_and(|j| j.champion == c.champion))).collect();
         if !coming.is_empty() && enemy_near_me && now - self.last_ally > 20_000.0 {
             self.last_ally = now;
             let names: Vec<&str> = coming.iter().take(2).map(|c| c.champion.as_str()).collect();
@@ -449,7 +451,7 @@ mod tests {
         let mut w = TeamWatcher::default();
         let vi = SeenUnit { champion: "Vi".into(), x: 0.35, y: 0.5, vx: Some(0.01), vy: Some(0.0) };
         let a = w.update(&i, me, &[vi.clone()], &[unit("Zed", 0.55, 0.5)], Some(0.6), 40_000.0);
-        assert_eq!(a.iter().map(|x| x.text.as_str()).collect::<Vec<_>>(), ["Vi obok", "Vi idzie do ciebie"]);
+        assert_eq!(a.iter().map(|x| x.text.as_str()).collect::<Vec<_>>(), ["Vi obok"]);
         assert!(w.update(&i, me, &[vi.clone()], &[unit("Zed", 0.55, 0.5)], Some(0.6), 50_000.0).is_empty());
         assert!(w.update(&i, me, &[vi], &[], Some(0.6), 90_000.0).is_empty()); // no enemy near
         // Standing at his camp 0.12 away (not walking at me): no "obok → pinguj".

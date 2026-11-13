@@ -62,8 +62,14 @@ subscribe(({ state }) => {
     // Tip: danger reason first when it is high, else the bar's own advice.
     const dg = state.danger;
     const hot = dg && (dg.label === 'niebezpiecznie' || dg.label === 'uciekaj') && dg.reasons[0];
-    miTip.textContent = hot ? `${dg.label === 'uciekaj' ? 'Uciekaj' : 'Uważaj'}: ${dg.reasons[0]}` : p.advice;
-    miTip.className = 'mini-tip' + (hot ? (dg.label === 'uciekaj' ? ' danger' : ' warn') : '');
+    // Tip only for a fight here (far away it was "Masz 10, on 9 → trade teraz" all game long), never the
+    // danger reason (the alert pill shows it) and not when the coach's call already says back / retreat.
+    void hot;
+    const callNow = (state.topBar?.call ?? '').toLowerCase();
+    const sameAsCall = /back|cofnij|wycofaj|uciekaj/.test(callNow) && /back|hp|wycofaj|odejdź/i.test(p.advice);
+    const showTip = p.local && !sameAsCall;
+    miTip.textContent = showTip ? p.advice : '';
+    miTip.className = 'mini-tip' + (showTip ? '' : ' hidden');
   }
   const tb = state.visible && state.topBar && isLive(state.topBar.expiresAt, state.gameTime) ? state.topBar : null;
   if (!tb) {

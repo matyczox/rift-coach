@@ -470,7 +470,10 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
             p.insert("itemValue".into(), json!({ "ours": value(true), "theirs": value(false) }));
         }
         // Teamfight at an objective with our people there: arrow from me to the pit.
-        if let (Some((label, x, y, until)), Some((mx, my))) = (g.field.help_point.as_ref().filter(|h| h.3 > now), g.field.my_pos) {
+        // ...not while the coach's call says to give it up ("Oddaj Dragon" + "Teamfight przy Dragon → idź").
+        let call_lc = s.pointer("/topBar/call").and_then(Value::as_str).unwrap_or("").to_lowercase();
+        let gave_up = |label: &str| ["odpuść", "oddaj", "nie wchodź", "nie idź", "zostaw"].iter().any(|w| call_lc.contains(w)) && ["dragon", "baron", "herald", "voidgrubs", "atakhan"].iter().any(|o| call_lc.contains(o) && label.to_lowercase().contains(o));
+        if let (Some((label, x, y, until)), Some((mx, my))) = (g.field.help_point.as_ref().filter(|h| h.3 > now && !gave_up(&h.0)), g.field.my_pos) {
             if let Some(hints) = s.get_mut("hints").and_then(Value::as_array_mut) {
                 hints.push(json!({ "kind": "move", "x": x, "y": y, "from": { "x": mx, "y": my }, "label": label, "expiresAt": until }));
             }
@@ -512,6 +515,31 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
         if let (Some((ally, until)), Some((mx, my))) = (g.field.help.as_ref().filter(|h| h.1 > now), g.field.my_pos) {
             if let (Some(a), Some(hints)) = (g.field.allies.iter().find(|a| a.champion == *ally), s.get_mut("hints").and_then(Value::as_array_mut)) {
                 hints.push(json!({ "kind": "move", "x": a.x, "y": a.y, "from": { "x": mx, "y": my }, "label": format!("Pomóż {ally}"), "expiresAt": until }));
+            }
+        }
+        // One arrow at a time: a fight / help arrow beats the ward arrow, which beats "Fala" (three arrows
+        // and labels at once was one of the "too much at once" moments).
+        if let Some(hints) = s.get_mut("hints").and_then(Value::as_array_mut) {
+            let rank = |h: &Value| -> i32 {
+                let l = h["label"].as_str().unwrap_or("");
+                match h["kind"].as_str().unwrap_or("") {
+                    "move" | "objective" if l.starts_with("Pomóż") || l.starts_with("Teamfight") => 0,
+                    "ward" => 1,
+                    "move" | "objective" if l == "Fala" => 3,
+                    "move" | "objective" => 2,
+                    _ => 9,
+                }
+            };
+            if let Some(best) = hints.iter().filter(|h| h.get("from").is_some() && rank(h) < 9).map(|h| rank(h)).min() {
+                let mut kept = false;
+                hints.retain(|h| {
+                    if h.get("from").is_none() || rank(h) == 9 {
+                        return true;
+                    }
+                    let keep = rank(h) == best && !kept;
+                    kept |= keep;
+                    keep
+                });
             }
         }
         if let Some(o) = s.as_object_mut() {

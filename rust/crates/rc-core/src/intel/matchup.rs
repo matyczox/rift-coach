@@ -210,7 +210,9 @@ pub fn power_score(intel: &GameIntel, opp: &PlayerIntel, brief: Option<&MatchupB
         Some(s) if s.max_hp > 0.0 => s.hp / s.max_hp,
         _ => 1.0,
     };
-    let opp_hp = hp_eff(intel, opp).unwrap_or(1.0);
+    // His HP unknown (no fresh reading): assume the trade hurt him like me. Assuming 100% made the bar
+    // fall while I won the fight (my HP drops, his "stays" full): 20-25% on easy kills.
+    let opp_hp = hp_eff(intel, opp).unwrap_or(hp);
     let flash = if opp.flash_in.is_some_and(|f| f > 0.0) { 0.25 } else { 0.0 };
     let threat_re = regex::Regex::new(r"(?i)Ignite|Podpalenie|Exhaust|Wyczerpanie").unwrap();
     let threat = if opp.summoner_spells.iter().any(|s| threat_re.is_match(s)) { -0.15 } else { 0.0 };
@@ -334,7 +336,10 @@ pub fn nearby_delta(intel: &GameIntel, opp: &PlayerIntel, near: &Nearby) -> f64 
             d -= 0.5 * unit_strength(p, avg_lvl, avg_gold, hp_eff(intel, p));
         }
     }
-    d -= near.unknown_enemies as f64;
+    // Unnamed enemy bars on screen: with a named enemy already counted next to me they are mostly him
+    // (his bar not matched to his name), so they weigh little; alone they are a real unknown enemy.
+    let named_near = near.enemies.iter().any(|(_, sure)| *sure);
+    d -= near.unknown_enemies as f64 * if named_near { 0.3 } else { 1.0 };
     1.3 * d
 }
 
