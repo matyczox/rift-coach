@@ -183,7 +183,7 @@ fn wants(st: &Value, has_minimap: bool, now: f64) -> Value {
         "loading": st["loadingCard"].is_object(),
         "power": (st["power"].is_object() || st["danger"].is_object() || st["alert"].is_object() || st["objective"].is_object()) && !st["deathCard"].is_object(),
         "build": st["build"]["items"].as_array().is_some_and(|a| !a.is_empty()) || st["build"]["buyNow"].as_array().is_some_and(|a| !a.is_empty()),
-        "notify": !arr("toasts").is_empty() || !arr("buffs").is_empty() || !arr("returns").is_empty() || arr("hints").iter().any(|h| h["kind"] == "move" && h.get("from").is_some() && is_live(exp(h), gt, now)),
+        "notify": !arr("toasts").is_empty() || !arr("buffs").is_empty() || !arr("returns").is_empty() || st["pin"].is_string() || arr("hints").iter().any(|h| (h["kind"] == "move" || h["kind"] == "ward") && h.get("from").is_some() && is_live(exp(h), gt, now)),
     })
 }
 
@@ -337,6 +337,24 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
             .to_string()
         });
         log_t = g.intel.as_ref().map(|i| i.game_time).unwrap_or(0.0);
+        // Ward the coach asked for stays pinned (minimap marker + chip) until it is placed (or 2 min).
+        if let Some(spot) = g.intent.as_ref().and_then(|it| it.ward_spot.clone()) {
+            let red = g.intel.as_ref().and_then(|i| i.me.as_ref()).is_some_and(|m| m.team == "CHAOS");
+            if let Some((x, y)) = rc_core::wards::ward_point(&spot, red) {
+                if let Some(hints) = s.get_mut("hints").and_then(Value::as_array_mut) {
+                    if !hints.iter().any(|h| h["kind"] == "ward") {
+                        hints.push(json!({ "kind": "ward", "x": x, "y": y, "label": crate::hud_state::ward_label(&spot), "expiresAt": now + 3000.0 }));
+                    }
+                    // Arrow from me to the spot (minimap + the pale one on my champion).
+                    if let (Some(h), Some((mx, my))) = (hints.iter_mut().find(|h| h["kind"] == "ward"), g.field.my_pos) {
+                        h["from"] = json!({ "x": mx, "y": my });
+                    }
+                }
+            }
+            if let Some(o) = s.as_object_mut() {
+                o.insert("pin".into(), json!(format!("Ward: {}", crate::hud_state::ward_label(&spot))));
+            }
+        }
         // Fight worth joining: arrow on the minimap from me to that ally (follows him while he is seen).
         if let (Some((ally, until)), Some((mx, my))) = (g.field.help.as_ref().filter(|h| h.1 > now), g.field.my_pos) {
             if let (Some(a), Some(hints)) = (g.field.allies.iter().find(|a| a.champion == *ally), s.get_mut("hints").and_then(Value::as_array_mut)) {

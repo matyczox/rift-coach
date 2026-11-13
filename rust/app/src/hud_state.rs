@@ -97,7 +97,7 @@ fn spot_meta(id: &str) -> (&'static [&'static str], &'static str, &'static str) 
     }
 }
 
-fn ward_label(id: &str) -> &'static str {
+pub fn ward_label(id: &str) -> &'static str {
     match spot_meta(id).1 {
         "plant" => "roślina",
         "faelight" => "faelight",

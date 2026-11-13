@@ -21,7 +21,9 @@ subscribe(({ state }, clock) => {
   // Pale arrow on my champion towards a "go there" hint (help an ally / coach move): the angle on the
   // minimap, with the camera's tilt (screen y shorter than map y).
   if (guide) {
-    const g = on ? (state.hints ?? []).find((x) => x.kind === 'move' && x.from && secondsUntil(x.expiresAt, clock.gameTime()) > 0) : undefined;
+    const live = on ? (state.hints ?? []).filter((x) => x.from && secondsUntil(x.expiresAt, clock.gameTime()) > 0) : [];
+    const g = live.find((x) => x.kind === 'move') ?? live.find((x) => x.kind === 'ward');
+    guide.classList.toggle('ward', g?.kind === 'ward');
     if (g && g.from && Math.hypot(g.x - g.from.x, g.y - g.from.y) > 0.04) {
       const deg = (Math.atan2((g.y - g.from.y) * 0.8, g.x - g.from.x) * 180) / Math.PI;
       guide.style.transform = `rotate(${deg.toFixed(1)}deg) translateX(5.5rem)`;
@@ -33,10 +35,12 @@ subscribe(({ state }, clock) => {
   // Chips: one per active buff, counting down between pushes.
   const buffs = on ? state.buffs ?? [] : [];
   const rets = on ? state.returns ?? [] : [];
-  const key = buffs.map((b) => `${b.kind}:${b.team}`).concat(rets.map((r) => `r:${r.champion}`)).join(',');
+  const pin = on ? state.pin ?? null : null;
+  const key = buffs.map((b) => `${b.kind}:${b.team}`).concat(rets.map((r) => `r:${r.champion}`)).join(',') + `|${pin ?? ''}`;
   if (chips.dataset.k !== key) {
     chips.dataset.k = key;
-    chips.replaceChildren(...buffs.map((b) => {
+    const pinChip = pin ? [(() => { const c = document.createElement('div'); c.className = 'chip pin ally'; const n = document.createElement('span'); n.textContent = pin; c.append(n); return c; })()] : [];
+    chips.replaceChildren(...pinChip, ...buffs.map((b) => {
       const c = document.createElement('div');
       c.className = `chip ${b.kind} ${b.team}`;
       const ic = document.createElement('img');
@@ -58,7 +62,11 @@ subscribe(({ state }, clock) => {
     }));
   }
   const dt = clock.gameTime() - state.gameTime;
-  [...chips.children].forEach((c, i) => {
+  const off = pin ? 1 : 0;
+  [...chips.children].forEach((c0, i0) => {
+    const i = i0 - off;
+    const c = c0;
+    if (i < 0) return;
     const b = buffs[i];
     const r = rets[i - buffs.length];
     const left = b ? b.secondsLeft : r ? r.secondsLeft : null;

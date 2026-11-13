@@ -148,7 +148,7 @@ function drawGhost(gh: Ghost): void {
   }
 }
 
-function arrow(fx: number, fy: number, tx: number, ty: number, alpha: number): void {
+function arrow(fx: number, fy: number, tx: number, ty: number, alpha: number, rgb: string = GREEN): void {
   const dx = tx - fx, dy = ty - fy;
   const len = Math.hypot(dx, dy);
   if (len < 1) return;
@@ -177,8 +177,8 @@ function arrow(fx: number, fy: number, tx: number, ty: number, alpha: number): v
   // thin dark outline for contrast on the green minimap
   path(); ctx.lineWidth = 4.5; ctx.strokeStyle = `rgba(0,0,0,${0.45 * alpha})`; ctx.stroke();
   tri(); ctx.lineWidth = 2; ctx.strokeStyle = `rgba(0,0,0,${0.45 * alpha})`; ctx.stroke();
-  path(); ctx.lineWidth = 2.5; ctx.strokeStyle = `rgba(${GREEN},${alpha})`; ctx.stroke();
-  tri(); ctx.fillStyle = `rgba(${GREEN},${alpha})`; ctx.fill();
+  path(); ctx.lineWidth = 2.5; ctx.strokeStyle = `rgba(${rgb},${alpha})`; ctx.stroke();
+  tri(); ctx.fillStyle = `rgba(${rgb},${alpha})`; ctx.fill();
 }
 
 function ring(x: number, y: number, r: number, rgb: string, alpha: number, fill: number): void {
@@ -282,7 +282,9 @@ function drawHint(h: MinimapHint, gt: number, now: number): void {
         ctx.lineTo(x, y + s * 1.25); ctx.lineTo(x - s, y);
         ctx.closePath();
       };
-      if (p > 0) ring(x, y, s * 2.1, rgb, alpha * 0.6 * p, 0.12);
+      // Way there (yellow arrow from me) and a steady ring around the spot while it is pinned.
+      if (h.from) arrow(h.from.x * W, h.from.y * H, x, y, alpha, rgb);
+      ring(x, y, s * 2.1, rgb, alpha * (0.45 + 0.4 * p), 0.1);
       diamond();
       ctx.lineJoin = 'round';
       ctx.lineWidth = 2.5; ctx.strokeStyle = `rgba(0,0,0,${0.5 * alpha})`; ctx.stroke();

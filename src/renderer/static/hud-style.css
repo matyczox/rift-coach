@@ -249,3 +249,6 @@ canvas.full { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .guide.hidden { opacity: 0; }
 .guide svg { width: 100%; height: 100%; overflow: visible; }
 .guide path { fill: none; stroke: rgba(150, 255, 200, 0.9); stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 4px rgba(0,0,0,0.8)); }
+/* Pinned task (ward to place) until done. */
+.chip.pin { box-shadow: inset 0 0 0 1px rgba(255, 210, 122, 0.8); color: #ffe7b0; padding-left: 0.75rem; }
+.guide.ward path { stroke: rgba(242, 209, 75, 0.95); }

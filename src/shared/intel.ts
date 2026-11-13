@@ -261,6 +261,8 @@ export interface HudState {
   /** Champions currently considered fed (stronger ghost colour, badges). */
   fed: string[];
   ghosts: MinimapGhost[];
+  /** Task pinned until done (ward to place). */
+  pin?: string | null;
   hints: MinimapHint[];
   timers: Array<{ kind: ObjectiveTimer['kind']; label: string; x: number; y: number; secondsLeft: number }>;
   /** Minimap overlay housekeeping. */
