@@ -204,6 +204,8 @@ pub struct Field {
     pub trinket: Option<(bool, f64)>,
     /// Last time the trinket went from ready to recharging (= I placed a ward), Date.now() ms.
     pub trinket_used_at: f64,
+    /// Raw trinket reading and since when it holds (Date.now() ms): the state changes only after 1.2 s.
+    pub trinket_raw: Option<(bool, f64)>,
     /// Where my position came from on the last frame: icon | camera | held | none (for the log).
     pub pos_src: &'static str,
     /// Last vision result (Date.now() ms): when vision stops, everything spatial expires.
@@ -266,6 +268,7 @@ impl Field {
             cam_size: (0.268, 0.15),
             trinket: None,
             trinket_used_at: 0.0,
+            trinket_raw: None,
             pos_src: "none",
             last_vision_at: 0.0,
             icon_retry_at: 0.0,
@@ -944,10 +947,19 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     }
     if let Some(ready) = r.trinket_ready {
         let now = now_ms();
-        if guard.field.trinket.is_some_and(|(was, _)| was) && !ready {
-            guard.field.trinket_used_at = now;
+        // One misread frame flipped "ready -> recharging" = "ward placed": the reading must hold 1.2 s.
+        let since = match guard.field.trinket_raw { Some((v, s)) if v == ready => s, _ => now };
+        guard.field.trinket_raw = Some((ready, since));
+        let stable = now - since >= 1200.0;
+        let prev = guard.field.trinket.map(|(v, _)| v);
+        if stable || prev.is_none() {
+            if prev == Some(true) && !ready && stable {
+                guard.field.trinket_used_at = now;
+            }
+            guard.field.trinket = Some((ready, now));
+        } else if let Some((v, _)) = guard.field.trinket {
+            guard.field.trinket = Some((v, now));
         }
-        guard.field.trinket = Some((ready, now));
     }
     if let Some(frames) = &r.team_frames {
         apply_team_frames(&mut guard, frames);
@@ -1116,7 +1128,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         }
         f.push_seen.retain(|(k, _)| *k != key);
         f.push_seen.push((key, now));
-        let text = if lane == "nexus" { format!("{champ} w naszej bazie — broń nexusa") } else { format!("{champ} pcha {lane} — nikt nie pilnuje") };
+        let text = if lane == "nexus" { format!("{champ} w bazie — broń") } else { format!("{champ} pcha {lane}") };
         f.toasts.push(Toast { id: now as u64 + 7 + f.toasts.len() as u64, kind: "push".into(), team: "enemy".into(), champion: Some(champ.clone()), text, expires_at: now + 5000.0 });
     }
     // An ally fighting somewhere I can reach (jungler vs invader, skirmish): "go help" right away,
@@ -1229,9 +1241,9 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         f.push_seen.retain(|(k, _)| *k != base_key);
         f.push_seen.push((base_key, now));
         let text = match stage {
-            3 => format!("{} bije naszą wieżę {lane} — nikt nie pilnuje", e.champion),
-            2 => format!("{} blisko naszej wieży {lane}", e.champion),
-            _ => format!("{} pcha {lane} w stronę naszej wieży", e.champion),
+            3 => format!("{} bije wieżę {lane}", e.champion),
+            2 => format!("{} pod wieżą {lane}", e.champion),
+            _ => format!("{} pcha {lane}", e.champion),
         };
         f.toasts.push(Toast { id: now as u64 + 17 + f.toasts.len() as u64, kind: "push".into(), team: "enemy".into(), champion: Some(e.champion.clone()), text, expires_at: now + 6000.0 });
     }

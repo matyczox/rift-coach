@@ -337,7 +337,7 @@ impl TeamWatcher {
                 let (dx, dy) = (me.x - a.x, me.y - a.y);
                 let d = dx.hypot(dy);
                 let sp = vx.hypot(vy);
-                d < 0.25 && d > 0.05 && sp > 0.004 && (dx * vx + dy * vy) / (d * sp) > 0.8
+                d < 0.25 && d > 0.1 && sp > 0.004 && (dx * vx + dy * vy) / (d * sp) > 0.8
             })
             .collect();
         if !coming.is_empty() && enemy_near_me && now - self.last_ally > 20_000.0 {
@@ -447,7 +447,7 @@ mod tests {
         let i = intel(vec![player("Ahri", true, true, "MIDDLE", 9), player("Vi", true, false, "JUNGLE", 9), player("Zed", false, false, "MIDDLE", 10)]);
         let me = Some(Pos { x: 0.5, y: 0.5 });
         let mut w = TeamWatcher::default();
-        let vi = SeenUnit { champion: "Vi".into(), x: 0.4, y: 0.5, vx: Some(0.01), vy: Some(0.0) };
+        let vi = SeenUnit { champion: "Vi".into(), x: 0.35, y: 0.5, vx: Some(0.01), vy: Some(0.0) };
         let a = w.update(&i, me, &[vi.clone()], &[unit("Zed", 0.55, 0.5)], Some(0.6), 40_000.0);
         assert_eq!(a.iter().map(|x| x.text.as_str()).collect::<Vec<_>>(), ["Vi obok → pinguj, wchodźcie", "Vi idzie do ciebie"]);
         assert!(w.update(&i, me, &[vi.clone()], &[unit("Zed", 0.55, 0.5)], Some(0.6), 50_000.0).is_empty());

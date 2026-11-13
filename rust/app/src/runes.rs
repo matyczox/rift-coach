@@ -76,7 +76,9 @@ pub fn on_champ_select(rt: &tokio::runtime::Handle, st: &Arc<AppState>, rs: &Arc
         return;
     }
     let Some(champion) = sd.champion_by_key.get(&champ_id).cloned() else { return };
-    let role = role_name(me.get("assignedPosition").and_then(Value::as_str).unwrap_or("")).unwrap_or("ARAM/BRAK ROLI").to_string();
+    // Empty = not assigned (Swiftplay / blind): resolved in set_runes. It was "ARAM/BRAK ROLI", and the
+    // model then looked up ARAM pages for Summoner's Rift games.
+    let role = role_name(me.get("assignedPosition").and_then(Value::as_str).unwrap_or("")).unwrap_or("").to_string();
     let by_key = |p: &Value| p.get("championId").and_then(Value::as_i64).and_then(|k| sd.champion_by_key.get(&k).cloned());
     let enemies: Vec<String> = session.get("theirTeam").and_then(Value::as_array).into_iter().flatten().filter_map(by_key).collect();
     let mut sorted = enemies.clone();
@@ -98,6 +100,23 @@ pub fn on_champ_select(rt: &tokio::runtime::Handle, st: &Arc<AppState>, rs: &Arc
     }));
 }
 
+/// No assigned position: the role picked in the lobby (Swiftplay / blind: first position preference),
+/// else the champion's most played role on this patch.
+async fn resolve_role(st: &Arc<AppState>, dir: &std::path::Path, patch: &str, champion: &str, model: &str, effort: rc_core::llm::Effort) -> String {
+    if let Ok(l) = st.lcu_client.get::<Value>("/lol-lobby/v2/lobby").await {
+        let pref = l.pointer("/localMember/firstPositionPreference").and_then(Value::as_str).unwrap_or("").to_lowercase();
+        if let Some(r) = role_name(&pref) {
+            return r.into();
+        }
+    }
+    if let Ok(rates) = role_rates(dir, patch, &[champion.to_string()], model, effort).await {
+        if let Some((r, _)) = rates.get(champion).and_then(|m| m.iter().max_by(|a, b| a.1.total_cmp(b.1))) {
+            return r.clone();
+        }
+    }
+    "MIDDLE".into()
+}
+
 async fn set_runes(st: &Arc<AppState>, rs: &Arc<Mutex<RunesState>>, key: &str, champion: &str, role: &str, enemies: &[String], version: &str) {
     st.ui.lock().unwrap().runes = RunesStatus { state: "working".into(), label: Some(format!("{champion} {}", role.to_lowercase())), error: None };
     let res: anyhow::Result<()> = async {
@@ -108,6 +127,14 @@ async fn set_runes(st: &Arc<AppState>, rs: &Arc<Mutex<RunesState>>, key: &str, c
             pick(&cfg, Task::Draft, st.game.lock().unwrap().backends)
         };
         let patch = patch_of(version);
+        let resolved;
+        let role = if role.is_empty() {
+            resolved = resolve_role(st, &dir, &patch, champion, &draft.model, draft.effort).await;
+            st.ui.lock().unwrap().runes.label = Some(format!("{champion} {}", resolved.to_lowercase()));
+            resolved.as_str()
+        } else {
+            role
+        };
         // Who is my lane opponent? Joint role assignment of enemy picks on this patch's play rates.
         let rates = if enemies.is_empty() { Default::default() } else { role_rates(&dir, &patch, enemies, &draft.model, draft.effort).await? };
         let opponent = lane_opponent_for(role, &assign_roles(enemies, &rates)).filter(|o| o.1 >= 0.6);

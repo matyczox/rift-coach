@@ -428,7 +428,9 @@ fn check_intent(g: &mut Game) {
         // Trinket went from a charge to recharging after the call = a ward was placed.
         let trinket_used = g.field.trinket_used_at > 0.0 && (crate::vision::now_ms() - g.field.trinket_used_at) < (gt - it.since).max(0.0) * 1000.0 + 1000.0;
         // Evidence must belong to the requested spot: I was there, then ward points / trinket use / vision left behind.
-        let placed = visited && (me.ward_score > it.ward_score_at || left_ward || trinket_used);
+        // Not the ward score: it grows by itself while older wards live and when killing wards ("Ward
+        // postawiony" without a ward). Vision left behind counts only if the spot had none before.
+        let placed = visited && ((left_ward && !it.was_covered) || trinket_used);
         if placed {
             g.ward_seen.1 = gt;
         }

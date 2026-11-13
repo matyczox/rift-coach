@@ -9,6 +9,7 @@ const tag = $('tag');
 const alert = $('alert');
 const alertTxt = $('alertTxt');
 const alertConf = $('alertConf');
+const edge = document.querySelector<HTMLElement>('#danger-edge');
 const obj = $('obj');
 const objVerdict = $('objVerdict');
 const objTxt = $('objTxt');
@@ -90,6 +91,10 @@ subscribe(({ state }) => {
       : null;
   // A % only means something for a gank / invade guess; on a danger reason ("Mało HP (2%)") it confused.
   const showConf = !!live && al === live;
+  // A real gank / invade / steal (not a danger reason): red pulsing screen edge and a solid red pill.
+  const threat = !!live && al === live && ['gank', 'invade', 'steal'].includes(al.kind);
+  edge?.classList.toggle('hidden', !threat);
+  alert.classList.toggle('live', threat);
   if (!al) {
     alert.classList.add('hidden');
     lastAlertKey = '';

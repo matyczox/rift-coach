@@ -237,7 +237,10 @@ fn buy_now_json(g: &crate::game::Game) -> Option<Value> {
     let gold = intel.my_stats.as_ref()?.gold;
     let base = if me.team == "CHAOS" { (0.96, 0.04) } else { (0.04, 0.96) };
     let in_base = g.field.my_pos.is_some_and(|(x, y)| (x - base.0).hypot(y - base.1) < 0.12);
-    if !(me.is_dead || in_base || intel.game_time < 90.0) || gold < 300.0 {
+    // Standing still for 2+ s (recall channel): what to buy shows already while backing, not in base.
+    let tr = &g.field.my_trail;
+    let recalling = tr.len() >= 3 && tr[tr.len() - 3..].iter().all(|(t, x, y)| intel.game_time - t <= 4.0 && (x - tr[tr.len() - 1].1).hypot(y - tr[tr.len() - 1].2) < 0.008);
+    if !(me.is_dead || in_base || recalling || intel.game_time < 90.0) || gold < 300.0 {
         return None;
     }
     let plan_first = g.build.as_ref().and_then(|b| b.items.first()).map(|i| i.name.to_lowercase());

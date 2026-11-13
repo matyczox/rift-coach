@@ -87,11 +87,11 @@ export const treeRows = (trees: RuneTree[]) => trees.map(t => `${t.name}: ${t.sl
 
 export function runeSystemPrompt(opts: RuneAsk): string {
   const opp = opts.opponent?.champion;
-  return `Jesteś ekspertem od run w League of Legends. Patch ${opts.patch}. Gracz: ${opts.champion}, rola ${opts.role}. Wrogowie: ${opts.enemies.join(', ') || 'jeszcze nikt'}.
+  return `Jesteś ekspertem od run w League of Legends. Patch ${opts.patch}, Summoner's Rift (dane z ranked solo/duo, NIE ARAM). Gracz: ${opts.champion}, rola ${opts.role}. Wrogowie: ${opts.enemies.join(', ') || 'jeszcze nikt'}.
 ${opp ? `Przeciwnik na linii (pewność ${Math.round(opts.opponent!.p * 100)}%): ${opp}. Ustaw laneOpponent = "${opp}".` : 'Przeciwnik na linii niepewny: laneOpponent = null.'}
 
 MUSISZ sprawdzić dane w internecie. Nie odpowiadaj z pamięci, bo runy zmieniają się co patch. Postępuj tak:
-1. Strona bazowa: najlepsza strona ${opts.champion} ${opts.role} na tym patchu (albo poprzednim, jeśli ten jest świeży) z dużej próbki: lolalytics.com, u.gg, op.gg albo mobalytics.gg, ranga Emerald+ lub Platinum+, tysiące gier. Keystone wybierz po winrate przy sensownej popularności (pickrate ≥ 5%), a nie tylko po popularności.
+1. Strona bazowa: najlepsza strona ${opts.champion} ${opts.role} na tym patchu (albo poprzednim, jeśli ten jest świeży) z dużej próbki: lolalytics.com, u.gg, op.gg albo mobalytics.gg, ranga Emerald+ lub Platinum+, tysiące gier. Keystone: ten z głównej (najpopularniejszej) strony; inny tylko, gdy ma ≥ 15% popularności i ≥ 1,5 pkt proc. wyższy winrate (rzadkie warianty z kilkoma % popularności to szum). Odłamek Attack Speed tylko dla postaci grających auto atakami (strzelcy, część wojowników), magom i zabójcom od umiejętności daj Adaptive Force / Ability Haste.
 ${opp ? `2. Matchup: sprawdź stronę ${opts.champion} vs ${opp} (np. lolalytics "vs", u.gg matchups). Keystone i główne drzewo zmieniaj względem bazy TYLKO, gdy dane matchupu mają dużą próbkę (≥ 300 gier dla tej runy) i wyraźnie wyższy winrate (≥ 2 pkt proc.). Małe próbki (Master+, kilkadziesiąt gier) i mało znane agregatory IGNORUJ.
 3. Drobne zmiany pod przeciwnika są zawsze w porządku, jeśli mają jasny powód:
    - drugie drzewo i drobne runy: Second Wind / Doran's start przeciw poke, Bone Plating przeciw burstowi, Unflinching lub Tenacity przeciw dużej ilości CC;

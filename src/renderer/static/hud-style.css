@@ -317,3 +317,12 @@ canvas.full { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .mini-tip { font-size: 0.95rem; font-weight: 700; color: #e9eef2; text-shadow: var(--shadow); white-space: nowrap; }
 .mini-tip.danger { color: #ff9a8f; }
 .mini-tip.warn { color: #ffd27a; }
+
+/* Gank / invade / steal: pulsing red screen edge + solid red pill (seen at a glance, no reading) */
+.danger-edge { position: fixed; inset: 0; pointer-events: none; z-index: 5; box-shadow: inset 0 0 9rem 1.25rem rgba(255, 40, 40, 0.6); animation: edge-pulse 0.9s ease-in-out infinite; }
+.danger-edge.hidden { display: none; }
+@keyframes edge-pulse { 50% { box-shadow: inset 0 0 4.5rem 0.25rem rgba(255, 40, 40, 0.22); } }
+.alert.red.live { background: rgba(196, 28, 28, 0.94); border-color: rgba(255, 120, 120, 0.9); }
+.alert.red.live .txt, .alert.red.live .conf { color: #fff; font-weight: 700; }
+.alert.red.live .dot { background: #fff; }
+

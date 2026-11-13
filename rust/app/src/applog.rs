@@ -62,6 +62,13 @@ impl log::Log for FileLog {
 
 /// Logs folder (created).
 pub fn dir() -> PathBuf {
+    // Next to the exe (installed in %LOCALAPPDATA%Programs...): readable from tools that see a
+    // different (virtualised) %APPDATA%.
+    if let Some(d) = std::env::current_exe().ok().and_then(|e| e.parent().map(|p| p.join("logs"))) {
+        if std::fs::create_dir_all(&d).is_ok() {
+            return d;
+        }
+    }
     let base = std::env::var_os("APPDATA").map(PathBuf::from).unwrap_or_else(std::env::temp_dir);
     base.join("Rift Coach").join("logs")
 }

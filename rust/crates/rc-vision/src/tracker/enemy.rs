@@ -102,6 +102,8 @@ struct Internal {
     last_item_gold: Option<f64>,
     /// Estimate frozen at the last fog frame (scored when the enemy reappears).
     frozen: Option<Estimate>,
+    /// Seen standing on one spot: (x, y, since t). Standing 7+ s then vanishing = a recall (8 s channel).
+    still: Option<(f64, f64, f64)>,
 }
 
 pub struct EnemyTracker {
@@ -198,6 +200,7 @@ impl EnemyTracker {
                         pending: None,
                         last_item_gold: e.item_gold,
                         frozen: None,
+                        still: None,
                     };
                     // Game start: everyone walks out of their fountain.
                     if f.t < 100.0 {
@@ -316,6 +319,10 @@ impl EnemyTracker {
                             tr.pub_.vel = (tr.pub_.vel.0 * (1.0 - k) + ((det.x - l.x) / dtv) * k, tr.pub_.vel.1 * (1.0 - k) + ((det.y - l.y) / dtv) * k);
                         }
                     }
+                    tr.still = match tr.still {
+                        Some((x, y, s0)) if tr.pub_.state == TrackState::Visible && (det.x - x).hypot(det.y - y) < 0.012 => Some((x, y, s0)),
+                        _ => Some((det.x, det.y, f.t)),
+                    };
                     tr.pub_.last = Some(Sighting { x: det.x, y: det.y, t: f.t });
                     let hits: u32 = tr.hits.iter().map(|&h| h as u32).sum();
                     if tr.pub_.state != TrackState::Visible && (hits >= 2 || tr.pub_.state == TrackState::Fog || tr.pub_.state == TrackState::Unknown) {
@@ -332,7 +339,23 @@ impl EnemyTracker {
             // Not seen this frame.
             let mut caught_up = false;
             if let Some(l) = tr.pub_.last {
-                if tr.pub_.state == TrackState::Visible && tr.hits.iter().all(|&h| h == 0) && f.t - l.t >= 0.35 {
+                // Stood on one spot for 7+ s, then vanished: the recall finished (seen backing, then
+                // "Kha'Zix invade" from a ghost walking out of that spot). Start him at his fountain.
+                let recalled = tr.pub_.state == TrackState::Visible && tr.hits.iter().all(|&h| h == 0) && f.t - l.t >= 0.35 && tr.still.is_some_and(|(_, _, s0)| l.t - s0 >= 7.0);
+                if recalled {
+                    tr.pub_.state = TrackState::Fog;
+                    tr.pub_.fog_since = Some(l.t);
+                    tr.pub_.last = Some(Sighting { x: fp.0, y: fp.1, t: l.t });
+                    tr.pub_.recalled_at = Some(l.t);
+                    tr.baseline_at = Some(fp);
+                    tr.still = None;
+                    let mut pf = self.new_filter(e);
+                    pf.reset(fp, &PriorContext { leaving_base: true, ..ctx.clone() }, None, &mut self.rng);
+                    tr.last_prior_at = f.t;
+                    tr.pf = Some(pf);
+                    caught_up = true;
+                } else if tr.pub_.state == TrackState::Visible && tr.hits.iter().all(|&h| h == 0) && f.t - l.t >= 0.35 {
+                    tr.still = None;
                     tr.pub_.state = TrackState::Fog;
                     tr.pub_.fog_since = Some(l.t);
                     tr.baseline_at = Some((l.x, l.y));
@@ -461,6 +484,7 @@ fn placeholder() -> Internal {
         pending: None,
         last_item_gold: None,
         frozen: None,
+        still: None,
     }
 }
 

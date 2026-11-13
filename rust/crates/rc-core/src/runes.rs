@@ -193,11 +193,11 @@ pub fn rune_system_prompt(o: &RuneAsk) -> String {
         None => String::new(),
     };
     format!(
-        "Jesteś ekspertem od run w League of Legends. Patch {patch}. Gracz: {champion}, rola {role}. Wrogowie: {enemies}.
+        "Jesteś ekspertem od run w League of Legends. Patch {patch}, Summoner's Rift (dane z ranked solo/duo, NIE ARAM). Gracz: {champion}, rola {role}. Wrogowie: {enemies}.
 {opp_line}
 
 MUSISZ sprawdzić dane w internecie. Nie odpowiadaj z pamięci, bo runy zmieniają się co patch. Postępuj tak:
-1. Strona bazowa: najlepsza strona {champion} {role} na tym patchu (albo poprzednim, jeśli ten jest świeży) z dużej próbki: lolalytics.com, u.gg, op.gg albo mobalytics.gg, ranga Emerald+ lub Platinum+, tysiące gier. Keystone wybierz po winrate przy sensownej popularności (pickrate ≥ 5%), a nie tylko po popularności.
+1. Strona bazowa: najlepsza strona {champion} {role} na tym patchu (albo poprzednim, jeśli ten jest świeży) z dużej próbki: lolalytics.com, u.gg, op.gg albo mobalytics.gg, ranga Emerald+ lub Platinum+, tysiące gier. Keystone: ten z głównej (najpopularniejszej) strony; inny tylko, gdy ma ≥ 15% popularności i ≥ 1,5 pkt proc. wyższy winrate (rzadkie warianty z kilkoma % popularności to szum). Odłamek Attack Speed tylko dla postaci grających auto atakami (strzelcy, część wojowników), magom i zabójcom od umiejętności daj Adaptive Force / Ability Haste.
 {steps}
 
 Podaj ANGIELSKIE nazwy dokładnie jak w grze:
