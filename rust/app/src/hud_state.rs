@@ -59,7 +59,10 @@ pub fn local_alerts(intel: &GameIntel, now: f64) -> Vec<Alert> {
     }
     // Baron / Elder windows: shown as a countdown chip (top right), not as an alert.
     if let Some(ace) = &intel.ace {
-        out.push(if ace.team == "ally" { Alert::new("ace", "ACE — push / Baron teraz", 1.0, now + 3000.0) } else { Alert::new("missing", "Wróg zrobił ACE — cofnij się", 1.0, now + 3000.0) });
+        // Only our ACE (a window to use). "Wróg zrobił ACE — cofnij się" told the obvious.
+        if ace.team == "ally" {
+            out.push(Alert::new("ace", "ACE — push / Baron teraz", 1.0, now + 3000.0));
+        }
     }
     for p in &intel.players {
         let s = intel.streaks.get(&p.champion).copied().unwrap_or(0);
