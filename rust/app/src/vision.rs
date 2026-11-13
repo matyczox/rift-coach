@@ -983,6 +983,13 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         if !(o.is_dead && o.respawn_in > 10.0) {
             continue;
         }
+        // Only when the wave really comes our way (minimap dots: their wave on our side / under our
+        // tower) and he is not seen fighting one of us ("Darius pcha top" while he fought Fizz).
+        let wave_ours = f.waves.as_ref().and_then(|w| w.lanes.iter().find(|l| l.lane == lane)).is_some_and(|l| matches!(l.state.as_str(), "our_side" | "under_our_tower"));
+        let fighting = f.visible_enemies.iter().find(|v| v.champion == e.champion).is_some_and(|v| f.allies.iter().any(|a| (a.x - v.x).hypot(a.y - v.y) < 0.08));
+        if !wave_ours || fighting || f.allies.iter().any(|a| a.champion == o.champion) {
+            continue;
+        }
         let enemy_base = if my_team_t == Team::Order { (0.96, 0.04) } else { (0.04, 0.96) };
         if f.visible_enemies.iter().any(|v| v.champion == e.champion && (v.x - enemy_base.0).hypot(v.y - enemy_base.1) < 0.2) {
             continue;
