@@ -103,6 +103,8 @@ pub fn strip(v: &serde_json::Value) -> serde_json::Value {
         ),
         Value::Array(a) => Value::Array(a.iter().map(strip).collect()),
         Value::String(s) if s.starts_with("data:") || s.starts_with("http") => Value::String("…".into()),
+        // 2 decimals: a 0.6487 -> 0.6491 wobble is not a change worth a log line.
+        Value::Number(n) if n.is_f64() => n.as_f64().map(|f| serde_json::json!((f * 100.0).round() / 100.0)).unwrap_or(Value::Null),
         x => x.clone(),
     }
 }
