@@ -49,7 +49,9 @@ pub fn local_alerts(intel: &GameIntel, now: f64) -> Vec<Alert> {
         }
         let behind = if s.kind == "level" { me.level < p.level } else { me.completed_items < p.completed_items };
         if behind {
-            out.push(Alert::new("spike", format!("{}: {}", p.champion, s.label), 1.0, now + 8000.0));
+            // "Brand: poziom 16 100%" said nothing: what changed, in game words, no %.
+            let text = if s.kind == "level" { format!("{} {}: mocniejsze R", p.champion, s.label.replace("poziom ", "lvl ")) } else { format!("{} ma {}", p.champion, s.label) };
+            out.push(Alert::new("spike", text, 1.0, now + 8000.0));
         }
     }
     // Baron / Elder windows: shown as a countdown chip (top right), not as an alert.

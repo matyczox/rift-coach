@@ -95,7 +95,9 @@ function layout(m: HudMessage, s: number): void {
   // Above the build panel (left of the minimap): right above the minimap it sat on the ally portraits.
   const nw = 300 * s, nh = 200 * s;
   const bw = 250 * s, bh = 230 * s;
-  place(panels.get('notify')!, { x: b.x - 14 * s - nw, y: b.y + b.height - bh - nh - 6 * s, width: nw, height: nh });
+  // Pop-ups (objective soon, rival back, buffs): bottom centre right above the coach bar, where the eyes are.
+  place(panels.get('notify')!, { x: (W - 600 * s) / 2, y: H * 0.845 - th - 70 * s, width: 600 * s, height: 70 * s });
+  void nw; void nh;
   place(panels.get('build')!, { x: b.x - bw - 14 * s, y: b.y + b.height - bh, width: bw, height: bh });
   // Panels the player dragged somewhere else (the minimap layer stays on the minimap).
   for (const kind of DRAGGABLE) {

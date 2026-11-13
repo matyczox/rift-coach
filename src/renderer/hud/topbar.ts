@@ -90,7 +90,7 @@ subscribe(({ state }) => {
       ? { kind: 'gank', text: dg.reasons[0], confidence: dg.level, expiresAt: Date.now() + 1000 }
       : null;
   // A % only means something for a gank / invade guess; on a danger reason ("Mało HP (2%)") it confused.
-  const showConf = !!live && al === live;
+  const showConf = !!live && al === live && ['gank', 'invade', 'steal', 'objective'].includes(al.kind);
   // A real gank / invade / steal (not a danger reason): red pulsing screen edge and a solid red pill.
   const threat = !!live && al === live && ['gank', 'invade', 'steal'].includes(al.kind);
   edge?.classList.toggle('hidden', !threat);

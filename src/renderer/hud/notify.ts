@@ -14,6 +14,7 @@ const BUFF_ICON: Record<string, string> = { baron: 'icons/baron.png', elder: 'ic
 /** Spawn chips: bundled icons (Dragon / Atakhan tinted in CSS). */
 const OBJ_ICON: Record<string, string> = { baron: 'icons/baron.png', elder: 'icons/dragon_elder.png', dragon: 'icons/dragon_elder.png', herald: 'icons/riftherald.png', grubs: 'icons/riftherald.png', atakhan: 'icons/baron.png' };
 const trinket = document.querySelector<HTMLElement>('#trinket-glow');
+const firstSeen = new Map<string, number>();
 /** Held Eye duration is not exact (it may be used earlier): show it as an estimate. */
 const APPROX = new Set(['herald']);
 
@@ -50,6 +51,20 @@ subscribe(({ state }, clock) => {
     ...(state.buffs ?? []).map((b): Entry => ({ key: 'b:' + b.kind + b.team, cls: `chip ${b.kind} ${b.team}`, icon: BUFF_ICON[b.kind] ?? '', name: BUFF_NAME[b.kind] ?? b.kind, left: b.secondsLeft, approx: APPROX.has(b.kind) })),
     ...(state.returns ?? []).map((r): Entry => ({ key: 'r:' + r.champion, cls: 'chip return enemy', icon: r.iconUrl, iconCls: 'champ', name: 'na linii za', left: r.secondsLeft, ret: true })),
   ] : [];
+  // Pop up, don't pin: an objective at 60 s, 30 s and the last 10 s; a buff while it runs; the rival's
+  // return for 5 s when it appears and the last 5 s. Everything else stays hidden.
+  const nowMs = performance.now();
+  for (const e of entries) if (!firstSeen.has(e.key)) firstSeen.set(e.key, nowMs);
+  for (const k of [...firstSeen.keys()]) if (!entries.some((e) => e.key === k)) firstSeen.delete(k);
+  const dt0 = clock.gameTime() - state.gameTime;
+  const visibleNow = entries.filter((e) => {
+    const left = e.left - dt0;
+    if (e.key.startsWith('o:')) return (left > 55 && left <= 60) || (left > 25 && left <= 30) || left <= 10;
+    if (e.ret) return nowMs - (firstSeen.get(e.key) ?? nowMs) < 5000 || left <= 5;
+    return true;
+  });
+  entries.length = 0;
+  entries.push(...visibleNow);
   const key = entries.map((e) => e.key).join(',');
   if (chips.dataset.k !== key) {
     chips.dataset.k = key;
