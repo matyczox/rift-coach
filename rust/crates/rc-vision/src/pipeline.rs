@@ -93,6 +93,8 @@ pub struct VisionResult {
     /// Allies' health bars (same read, the other colour).
     #[serde(skip)]
     pub hp_allies: Option<Vec<HealthBar>>,
+    /// Centre of the white camera rectangle on the minimap (= me with a locked camera).
+    pub camera: Option<(f64, f64)>,
     /// Ally portraits above the minimap: HP / mana of every ally (team order, me excluded).
     #[serde(skip)]
     pub team_frames: Option<Vec<crate::teamframes::AllyFrame>>,
@@ -164,7 +166,7 @@ impl Vision {
         });
         let mut res = match &minimap {
             Some(m) => self.process_minimap(m, at),
-            None => VisionResult { at, width: 0, detections: Vec::new(), fog_mask: None, fog_grid: self.params.fog_grid, camps: Vec::new(), hp: None, hp_allies: None, team_frames: None, waves: None, ms: 0.0 },
+            None => VisionResult { at, width: 0, detections: Vec::new(), fog_mask: None, fog_grid: self.params.fog_grid, camps: Vec::new(), hp: None, hp_allies: None, camera: None, team_frames: None, waves: None, ms: 0.0 },
         };
         if let Some(every) = self.params.hp_every_ms {
             if self.last_hp_at.is_none_or(|l| at.saturating_sub(l) >= every || at < l) {
@@ -218,7 +220,7 @@ impl Vision {
         let blue_is_ally = self.roster.red_team() != self.roster.own_team;
         let raw = read_waves(img, &portraits, flip, blue_is_ally, fog_mask.as_deref().map(|m| (m, self.params.fog_grid)), &WaveParams::default());
         let waves = Some(self.waves.push(at, raw));
-        VisionResult { at, width: img.width, detections, fog_mask, fog_grid: self.params.fog_grid, camps, hp: None, hp_allies: None, team_frames: None, waves, ms: t0.elapsed().as_secs_f64() * 1e3 }
+        VisionResult { at, width: img.width, detections, fog_mask, fog_grid: self.params.fog_grid, camps, hp: None, hp_allies: None, camera: crate::camera::camera_center(img), team_frames: None, waves, ms: t0.elapsed().as_secs_f64() * 1e3 }
     }
 }
 

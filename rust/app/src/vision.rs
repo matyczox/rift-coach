@@ -164,6 +164,8 @@ pub struct Field {
     pub my_pos_at: f64,
     /// Last trusted spot of my icon (kept when my_pos goes unknown): (x, y, Date.now() ms).
     pub my_last_real: Option<(f64, f64, f64)>,
+    /// Last time my icon sat in the middle of the camera box (camera locked on me): Date.now() ms.
+    pub cam_locked_at: f64,
     /// Last vision result (Date.now() ms): when vision stops, everything spatial expires.
     pub last_vision_at: f64,
     /// CommunityDragon was unreachable at roster load (square icons in use): retry at this time (ms).
@@ -217,6 +219,7 @@ impl Field {
             my_pos: None,
             my_pos_at: 0.0,
             my_last_real: None,
+            cam_locked_at: 0.0,
             last_vision_at: 0.0,
             icon_retry_at: 0.0,
             recall_seen: Vec::new(),
@@ -926,6 +929,14 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             f.my_pos = Some((d.x, d.y));
             f.my_pos_at = now;
             f.my_last_real = Some((d.x, d.y, now));
+            if r.camera.is_some_and(|(cx, cy)| (cx - d.x).hypot(cy - d.y) < 0.05) {
+                f.cam_locked_at = now;
+            }
+        } else if let Some((cx, cy)) = r.camera.filter(|_| !me.is_dead && now - f.cam_locked_at < 30000.0) {
+            // My icon hidden (under others in a fight): with the camera locked on me (seen in the last
+            // 30 s) the camera box centre IS my position.
+            f.my_pos = Some((cx, cy));
+            f.my_pos_at = now;
         } else if me.is_dead || now - f.my_pos_at > if f.my_pos.is_some_and(|(x, y)| r.detections.iter().any(|d| (d.x - x).hypot(d.y - y) < 0.045)) { 4000.0 } else { 3000.0 } {
             // (My icon under someone else's in a fight: keep my last spot up to 8 s, not "unknown" —
             // without it the fight bar only counted the one enemy whose health bar had a name.)

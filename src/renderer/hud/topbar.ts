@@ -13,7 +13,8 @@ const obj = $('obj');
 const objVerdict = $('objVerdict');
 const objTxt = $('objTxt');
 let lastObjKey = '';
-const mini = $('mini');
+const mini = $('miniWrap');
+const miTip = $('miTip');
 const miMe = $('miMe') as HTMLImageElement;
 const miEn = $('miEn') as HTMLImageElement;
 const miFill = $('miFill');
@@ -55,8 +56,13 @@ subscribe(({ state }) => {
     const al = (p.allies ?? []).length, en = (p.enemies ?? []).length;
     miAl.textContent = al ? `+${al}` : '';
     miEnN.textContent = en ? `+${en}` : '';
-    mini.classList.toggle('far', !p.local);
+    $('mini').classList.toggle('far', !p.local);
     mini.classList.remove('hidden');
+    // Tip: danger reason first when it is high, else the bar's own advice.
+    const dg = state.danger;
+    const hot = dg && (dg.label === 'niebezpiecznie' || dg.label === 'uciekaj') && dg.reasons[0];
+    miTip.textContent = hot ? `${dg.label === 'uciekaj' ? 'Uciekaj' : 'Uważaj'}: ${dg.reasons[0]}` : p.advice;
+    miTip.className = 'mini-tip' + (hot ? (dg.label === 'uciekaj' ? ' danger' : ' warn') : '');
   }
   const tb = state.visible && state.topBar && isLive(state.topBar.expiresAt, state.gameTime) ? state.topBar : null;
   if (!tb) {

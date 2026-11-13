@@ -308,3 +308,12 @@ canvas.full { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .mini-track b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 800; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.9); }
 .pw-stats { flex-wrap: wrap; }
 .pw-extra { flex-basis: 100%; font-size: 0.8125rem; color: var(--muted); margin-top: 0.2rem; }
+/* Right panel: lane numbers only (bar + tip + danger moved to the bottom mini bar) */
+#p-power #pw, #p-power #danger { display: none !important; }
+#p-power .card.power { display: none; }
+/* Bottom: tip under the mini bar */
+.mini-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; }
+.mini-wrap.hidden { display: none; }
+.mini-tip { font-size: 0.95rem; font-weight: 700; color: #e9eef2; text-shadow: var(--shadow); white-space: nowrap; }
+.mini-tip.danger { color: #ff9a8f; }
+.mini-tip.warn { color: #ffd27a; }

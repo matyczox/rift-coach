@@ -5,6 +5,7 @@
 
 pub mod background;
 pub mod calibration;
+pub mod camera;
 #[cfg(all(windows, feature = "capture"))]
 pub mod capture;
 pub mod camps;
