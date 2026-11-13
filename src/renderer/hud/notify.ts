@@ -1,7 +1,7 @@
 // Top-right corner: Baron / Elder buff timers (flare up when they appear, count down while the
 // buff lasts) and short toasts that slide in and fly away (enemy back).
 import { $, subscribe } from './common';
-import { fmtClock } from './types';
+import { fmtClock, secondsUntil } from './types';
 
 const chips = $('chips');
 // Alerts live in their own full-window layer (outside the panel, which clips).
@@ -14,8 +14,22 @@ const BUFF_ICON: Record<string, string> = { baron: 'icons/baron.png', elder: 'ic
 /** Held Eye duration is not exact (it may be used earlier): show it as an estimate. */
 const APPROX = new Set(['herald']);
 
+const guide = document.querySelector<HTMLElement>('#guide');
+
 subscribe(({ state }, clock) => {
   const on = state.visible;
+  // Pale arrow on my champion towards a "go there" hint (help an ally / coach move): the angle on the
+  // minimap, with the camera's tilt (screen y shorter than map y).
+  if (guide) {
+    const g = on ? (state.hints ?? []).find((x) => x.kind === 'move' && x.from && secondsUntil(x.expiresAt, clock.gameTime()) > 0) : undefined;
+    if (g && g.from && Math.hypot(g.x - g.from.x, g.y - g.from.y) > 0.04) {
+      const deg = (Math.atan2((g.y - g.from.y) * 0.8, g.x - g.from.x) * 180) / Math.PI;
+      guide.style.transform = `rotate(${deg.toFixed(1)}deg) translateX(5.5rem)`;
+      guide.classList.remove('hidden');
+    } else {
+      guide.classList.add('hidden');
+    }
+  }
   // Chips: one per active buff, counting down between pushes.
   const buffs = on ? state.buffs ?? [] : [];
   const rets = on ? state.returns ?? [] : [];

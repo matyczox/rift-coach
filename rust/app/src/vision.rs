@@ -139,6 +139,8 @@ pub struct Field {
     pub fight_seen: Vec<(String, f64)>,
     /// Go help this ally (fight worth joining): (ally, until Date.now() ms) -> arrow on the minimap.
     pub help: Option<(String, f64)>,
+    /// Last fight toast: (toast id, enemies in it) - dropped once they are all dead.
+    pub fight_toast: Option<(u64, Vec<String>)>,
     /// Lane opponent walking back to lane: (champion, ETA as Date.now() ms).
     pub returns: Vec<(String, f64)>,
     /// Enemies dead in the last frame (respawn detection).
@@ -190,6 +192,7 @@ impl Field {
             enemy_bars: (0, 0.0),
             near_seen: Default::default(),
             help: None,
+            fight_toast: None,
             prev_dead: Vec::new(),
             tracker,
             camps: CampTracker::default(),
@@ -246,6 +249,7 @@ impl Field {
         self.enemy_bars = (0, 0.0);
         self.near_seen.clear();
         self.help = None;
+        self.fight_toast = None;
         self.prev_dead.clear();
         self.ghosts.clear();
         self.my_pos = None;
@@ -968,6 +972,8 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             let (kind, team, call) = if theirs > ours { ("fight-bad", "enemy", "nie idź, za dużo ich") } else if theirs == ours { ("fight", "ally", "pomóż, wyrównane") } else { ("fight", "ally", "pomóż") };
             f.toasts.push(Toast { id: now as u64 + 13 + f.toasts.len() as u64, kind: kind.into(), team: team.into(), champion: Some(a.champion.clone()), text: format!("{} vs {}{more}{fog} → {call}", a.champion, foe.champion), expires_at: now + 6000.0 });
             f.help = (theirs <= ours).then(|| (a.champion.clone(), now + 8000.0));
+            let id = f.toasts.last().map(|t| t.id).unwrap_or(0);
+            f.fight_toast = Some((id, f.visible_enemies.iter().filter(|e| (e.x - a.x).hypot(e.y - a.y) < AREA).map(|e| e.champion.clone()).collect()));
             break;
         }
     }
@@ -1005,6 +1011,17 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         f.push_seen.retain(|(k, _)| *k != key);
         f.push_seen.push((key, now));
         f.toasts.push(Toast { id: now as u64 + 17 + f.toasts.len() as u64, kind: "push".into(), team: "enemy".into(), champion: Some(e.champion.clone()), text: format!("{} pcha {lane} pod naszą wieżę — nikt nie pilnuje", e.champion), expires_at: now + 6000.0 });
+    }
+    // Fight over (all its enemies dead): the "X vs Y" toast and the help arrow go now, not after 6 s.
+    if let Some((id, foes)) = f.fight_toast.clone() {
+        let over = !foes.is_empty() && foes.iter().all(|c| intel.players.iter().any(|p| p.champion == *c && p.is_dead));
+        if over || !f.toasts.iter().any(|t| t.id == id) {
+            if over {
+                f.toasts.retain(|t| t.id != id);
+                f.help = None;
+            }
+            f.fight_toast = None;
+        }
     }
     // Teamplay prompts (gank ask, follow-up, ...).
     let (allies_s, enemies_s) = (crate::knowledge::seen(&f.allies), crate::knowledge::seen(&f.visible_enemies));

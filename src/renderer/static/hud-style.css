@@ -244,3 +244,8 @@ canvas.full { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .toast.fight-bad { box-shadow: inset 0 0 0 1px rgba(255, 90, 90, 0.8); color: #ffd0d0; }
 /* Calls sit at the bottom of their panel (panel is right above the game HUD); the gank warning goes above the call. */
 #p-topbar .top { height: 100%; justify-content: flex-start; flex-direction: column-reverse; }
+/* Where to go: pale arrow next to my champion, pointing towards the target. */
+.guide { position: fixed; left: 50%; top: 52%; width: 9rem; height: 3rem; margin: -1.5rem 0 0 -4.5rem; transform-origin: 50% 50%; pointer-events: none; opacity: 0.55; transition: opacity 300ms; }
+.guide.hidden { opacity: 0; }
+.guide svg { width: 100%; height: 100%; overflow: visible; }
+.guide path { fill: none; stroke: rgba(150, 255, 200, 0.9); stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 4px rgba(0,0,0,0.8)); }
