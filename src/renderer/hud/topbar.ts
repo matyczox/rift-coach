@@ -119,20 +119,28 @@ subscribe(({ state }) => {
         const txt = document.createElement('span');
         txt.className = 'ob-text';
         txt.textContent = al.text;
-        const parts: HTMLElement[] = [icon, txt];
+        const line = document.createElement('div');
+        line.className = 'ob-line';
+        line.append(icon, txt);
+        const rows: HTMLElement[] = [line];
         if (isDragon && dr) {
-          const sc = document.createElement('span');
-          sc.className = 'ob-score';
-          sc.innerHTML = `<b class="us">${dr.ours}</b>:<b class="them">${dr.theirs}</b>`;
-          parts.push(sc);
+          // Both teams' dragons as diamonds (4 each = soul), like the in-game feats strip.
+          const pips = document.createElement('div');
+          pips.className = 'ob-pips';
+          const pip = (cls: string) => { const p = document.createElement('span'); p.className = 'ob-pip ' + cls; return p; };
+          for (let i = 0; i < 4; i++) pips.append(pip(i < dr.ours ? 'us' : ''));
+          const gap = document.createElement('span'); gap.className = 'ob-gap'; pips.append(gap);
+          for (let i = 0; i < 4; i++) pips.append(pip(i < dr.theirs ? 'them' : ''));
+          if (soulPoint) {
+            const sp = document.createElement('span');
+            sp.className = 'ob-soul ' + soulPoint;
+            sp.textContent = soulPoint === 'their' ? '  ICH SOUL POINT' : '  NASZ SOUL POINT';
+            pips.append(sp);
+          }
+          rows.push(pips);
         }
-        if (soulPoint) {
-          const sp = document.createElement('span');
-          sp.className = 'ob-soul ' + soulPoint;
-          sp.textContent = soulPoint === 'their' ? 'ICH SOUL POINT' : 'NASZ SOUL POINT';
-          parts.push(sp);
-        }
-        banner.replaceChildren(...parts);
+        banner.replaceChildren(...rows);
+
       }
     }
   }

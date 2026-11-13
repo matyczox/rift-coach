@@ -312,16 +312,19 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
                     return;
                 }
                 // Bought while the model was thinking: never recommend what I already have.
-                let owned: Vec<String> = intel.me.as_ref().map(|m| m.items.iter().map(|i| i.name.to_lowercase()).collect()).unwrap_or_default();
-                b.items.retain(|it| !owned.contains(&it.name.to_lowercase()));
+                // By id (the model answers in English, the inventory names may be Polish).
+                let owned_ids: Vec<i64> = intel.me.as_ref().map(|m| m.items.iter().map(|i| i.id).collect()).unwrap_or_default();
+                b.items.retain(|it| !sd.items.values().any(|d| owned_ids.contains(&d.id) && (d.name.eq_ignore_ascii_case(&it.name) || d.name_en.as_deref().is_some_and(|e| e.eq_ignore_ascii_case(&it.name)))));
                 // Only basic Boots: the upgraded boots stay in the plan (the model dropped Plated Steelcaps right
                 // after the basic Boots were bought, as if boots were done).
                 if let Some(me) = intel.me.as_ref() {
-                    let is_boots = |name: &str| sd.items.values().any(|d| d.name.eq_ignore_ascii_case(name) && d.tags.iter().any(|t| t == "Boots") && d.total > 300.0);
+                    // Model names are English, the item data may be localised: match either.
+                    let same = |d: &rc_core::intel::ddragon::ItemData, name: &str| d.name.eq_ignore_ascii_case(name) || d.name_en.as_deref().is_some_and(|e| e.eq_ignore_ascii_case(name));
+                    let is_boots = |name: &str| sd.items.values().any(|d| same(d, name) && d.tags.iter().any(|t| t == "Boots") && d.total > 300.0);
                     let only_basic = me.items.iter().any(|i| i.id == 1001) && !me.items.iter().any(|i| i.id != 1001 && sd.items.get(&i.id).is_some_and(|d| d.tags.iter().any(|t| t == "Boots")));
                     if only_basic && !b.items.iter().any(|it| is_boots(&it.name)) {
                         if let Some(prev_boots) = prev.iter().find(|n| is_boots(n)) {
-                            if let Some(d) = sd.items.values().find(|d| d.name.eq_ignore_ascii_case(prev_boots)) {
+                            if let Some(d) = sd.items.values().find(|d| same(d, prev_boots)) {
                                 b.items.insert(0, rc_core::build_advisor::BuildItem { name: d.name.clone(), icon_url: format!("https://ddragon.leagueoflegends.com/cdn/{}/img/item/{}.png", sd.version, d.id), why: String::new(), cost: Some(d.total) });
                                 b.items.truncate(3);
                             }

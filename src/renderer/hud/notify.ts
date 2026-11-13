@@ -48,7 +48,8 @@ subscribe(({ state }, clock) => {
   type Entry = { key: string; cls: string; icon: string; iconCls?: string; name: string; left: number; approx?: boolean; ret?: boolean };
   const entries: Entry[] = on ? [
     ...(state.objTimers ?? []).map((o): Entry => ({ key: 'o:' + o.kind, cls: 'chip obj ' + o.kind, icon: OBJ_ICON[o.kind] ?? '', iconCls: 'obj-' + o.kind, name: o.label, left: o.secondsLeft })),
-    ...(state.buffs ?? []).map((b): Entry => ({ key: 'b:' + b.kind + b.team, cls: `chip ${b.kind} ${b.team}`, icon: BUFF_ICON[b.kind] ?? '', name: BUFF_NAME[b.kind] ?? b.kind, left: b.secondsLeft, approx: APPROX.has(b.kind) })),
+    // Eye of the Herald: no way to know when it is used, so the chip only hung there. Baron / Elder only.
+    ...(state.buffs ?? []).filter((b) => b.kind !== 'herald').map((b): Entry => ({ key: 'b:' + b.kind + b.team, cls: `chip ${b.kind} ${b.team}`, icon: BUFF_ICON[b.kind] ?? '', name: BUFF_NAME[b.kind] ?? b.kind, left: b.secondsLeft, approx: APPROX.has(b.kind) })),
     ...(state.returns ?? []).map((r): Entry => ({ key: 'r:' + r.champion, cls: 'chip return enemy', icon: r.iconUrl, iconCls: 'champ', name: 'na linii za', left: r.secondsLeft, ret: true })),
   ] : [];
   // Pop up, don't pin: an objective at 60 s, 30 s and the last 10 s; a buff while it runs; the rival's
