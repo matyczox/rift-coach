@@ -1046,7 +1046,11 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         });
     }
     let my_role = intel.me.as_ref().map(|m| rc_vision::tracker::Role::parse(&m.role));
-    for a in tracker_alerts(&tracks, f.my_pos, my_team_t, my_role, t, now) {
+    let new_alerts = {
+        let near_me = |c: &str| f.my_pos.and_then(|p| f.tracker.as_ref().and_then(|tr| tr.mass_near(c, p, 0.11)));
+        tracker_alerts(&tracks, f.my_pos, my_team_t, my_role, t, now, &near_me)
+    };
+    for a in new_alerts {
         let kind = serde_json::to_value(a.kind).ok().and_then(|v| v.as_str().map(String::from)).unwrap_or_default();
         let al = Alert { kind, text: a.text, confidence: a.confidence, expires_at: a.expires_at };
         match f.alerts.iter().position(|x| x.kind == al.kind) {

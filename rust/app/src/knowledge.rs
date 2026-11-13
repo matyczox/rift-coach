@@ -286,6 +286,7 @@ pub fn fog_tracks(g: &Game) -> Vec<FogTrack> {
             t.all()
                 .into_iter()
                 .map(|tr| FogTrack {
+                    near_me: g.field.my_pos.and_then(|p| t.mass_near(&tr.champion, p, 0.12)),
                     gank_ready: rc_vision::tracker::alerts::gank_ready(&tr, my_role, gt),
                     champion: tr.champion,
                     in_fog: tr.state == rc_vision::tracker::TrackState::Fog,

@@ -112,6 +112,7 @@ fn objective_timer_pulls_junglers_to_dragon() {
 #[test]
 fn item_purchase_in_fog_puts_enemy_in_fountain() {
     let mut tr = EnemyTracker::new(open(), Learner::new(None), 100);
+    tr.item_recall = true;
     let e = |gold: f64| [EnemyInput { item_gold: Some(gold), ..ww() }];
     let mut t = 500.0;
     for _ in 0..3 {

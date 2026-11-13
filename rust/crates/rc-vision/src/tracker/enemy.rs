@@ -113,11 +113,15 @@ pub struct EnemyTracker {
     particles: usize,
     /// Learn from reappearances only in real Summoner's Rift games.
     pub learning_enabled: bool,
+    /// Treat a jump in an unseen enemy's item gold as a proven recall (reset to his fountain). Off: the
+    /// game shows enemy items like the scoreboard, as last seen, so the jump arrives when he walks out of
+    /// the fog far from base ("Sion in base" while he was top).
+    pub item_recall: bool,
 }
 
 impl EnemyTracker {
     pub fn new(terrain: Arc<GridTerrain>, learner: Learner, particles: usize) -> EnemyTracker {
-        EnemyTracker { tracks: Vec::new(), last_t: None, rng: Rng::new(12345), terrain, learner, particles, learning_enabled: true }
+        EnemyTracker { tracks: Vec::new(), last_t: None, rng: Rng::new(12345), terrain, learner, particles, learning_enabled: true, item_recall: false }
     }
 
     pub fn reset(&mut self) {
@@ -258,7 +262,7 @@ impl EnemyTracker {
             if let (Some(prev), Some(cur)) = (prev_item_gold, e.item_gold) {
                 // A recall channel is 8 s: someone lost from sight a moment ago cannot have bought in base.
                 let unseen_for = tr.pub_.fog_since.map_or(f64::INFINITY, |fs| f.t - fs);
-                if cur - prev >= 250.0 && tr.pub_.state != TrackState::Visible && unseen_for >= 6.0 {
+                if self.item_recall && cur - prev >= 250.0 && tr.pub_.state != TrackState::Visible && unseen_for >= 6.0 {
                     tr.pub_.state = TrackState::Fog;
                     tr.pub_.fog_since = Some(f.t);
                     tr.pub_.last = Some(Sighting { x: fp.0, y: fp.1, t: f.t });
@@ -390,6 +394,13 @@ impl EnemyTracker {
     /// Offline training: the true position of a fogged champion at time t is known.
     /// Soft evidence for a champion in fog (e.g. a camp near q was cleared): reweights the fog
     /// estimate only. Never a sighting: the track stays in Fog and nothing is learned from it.
+    pub fn mass_near(&self, champion: &str, q: (f64, f64), r: f64) -> Option<f64> {
+        let tr = self.tracks.iter().find(|t| t.pub_.champion == champion && t.pub_.state == TrackState::Fog)?;
+        let pf = tr.pf.as_ref()?;
+        let total: f64 = pf.particles.iter().map(|p| p.w).sum();
+        (total > 1e-12).then(|| pf.mass_near(q, r) / total)
+    }
+
     pub fn soft_hint(&mut self, champion: &str, q: (f64, f64)) {
         if let Some(tr) = self.tracks.iter_mut().find(|t| t.pub_.champion == champion && t.pub_.state == TrackState::Fog) {
             if let Some(pf) = tr.pf.as_mut() {

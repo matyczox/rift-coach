@@ -33,7 +33,9 @@ pub fn gank_ready(t: &EnemyTrack, my_role: Option<Role>, game_time: f64) -> bool
     !lane_opp && age >= 4.0
 }
 
-pub fn tracker_alerts(tracks: &[EnemyTrack], me: Option<(f64, f64)>, my_team: Team, my_role: Option<Role>, game_time: f64, now: f64) -> Vec<AlertState> {
+/// `near_me(champion)` = probability (all hypotheses) that the fogged enemy is within reach of me; when
+/// given it decides gank warnings, so the warning agrees with the zones drawn on the minimap.
+pub fn tracker_alerts(tracks: &[EnemyTrack], me: Option<(f64, f64)>, my_team: Team, my_role: Option<Role>, game_time: f64, now: f64, near_me: &dyn Fn(&str) -> Option<f64>) -> Vec<AlertState> {
     let mut out = Vec::new();
     let fog: Vec<&EnemyTrack> = tracks.iter().filter(|t| t.state == TrackState::Fog && t.estimate.is_some() && t.fog_since.is_some() && gank_ready(t, my_role, game_time)).collect();
     let near = |t: &EnemyTrack, p: (f64, f64), r: f64| {
@@ -58,13 +60,16 @@ pub fn tracker_alerts(tracks: &[EnemyTrack], me: Option<(f64, f64)>, my_team: Te
             }
         }
         // Short on purpose ("Briar gank"): read at a glance, mid-fight.
-        let best = fog.iter().map(|t| (near(t, me, 0.11), t)).max_by(|a, b| a.0.total_cmp(&b.0));
+        // Probability he is near me from all hypotheses ("Nami gank" while the drawn ghost sat in base:
+        // one centre and the zones disagreed). Fallback: the centre/radius overlap.
+        let best = fog.iter().map(|t| (near_me(&t.champion).map(|m| (m / 0.6).min(1.0)).unwrap_or_else(|| near(t, me, 0.11)), t)).max_by(|a, b| a.0.total_cmp(&b.0));
         if let Some((p, t)) = best.filter(|b| out.is_empty() && b.0 > 0.5) {
             out.push(AlertState { kind: AlertKind::Gank, text: format!("{} gank", t.champion), confidence: p, expires_at: now + 4000.0 });
         }
     }
     let long_missing = fog.iter().filter(|t| game_time - t.fog_since.unwrap_or(game_time) > 20.0).count();
-    if game_time > 12.0 * 60.0 && long_missing >= 3 && out.is_empty() {
+    // "3 we mgle" told the player nothing to do: off (the gank / danger warnings cover real threats).
+    if false && game_time > 12.0 * 60.0 && long_missing >= 3 && out.is_empty() {
         out.push(AlertState { kind: AlertKind::Missing, text: format!("{long_missing} we mgle"), confidence: (long_missing as f64 / 5.0).min(1.0), expires_at: now + 4000.0 });
     }
     out

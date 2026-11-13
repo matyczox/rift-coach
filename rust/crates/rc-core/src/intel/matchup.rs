@@ -161,6 +161,12 @@ fn hp_fresh(intel: &GameIntel, p: &PlayerIntel) -> Option<f64> {
     }
 }
 
+/// HP as a ratio: full HP vs an enemy under half is a big edge (the linear difference made it look
+/// "even" once his level / gold were counted). ln(mine / his), capped.
+pub fn hp_edge(mine: f64, his: f64) -> f64 {
+    (2.2 * (mine.clamp(0.05, 1.6).ln() - his.clamp(0.05, 1.6).ln())).clamp(-3.0, 3.0)
+}
+
 /// Build-up resources (mana / energy are handled as "mana"): a full bar is a power spike, Rumble's
 /// overheat is a silence.
 pub fn resource_edge(kind: &str, pct: Option<f64>, value: Option<f64>) -> f64 {
@@ -209,9 +215,11 @@ pub fn power_score(intel: &GameIntel, opp: &PlayerIntel, brief: Option<&MatchupB
     // screen reading, and energy refills fast).
     let opp_low = opp.mana_pct.map_or(0.0, |m| 0.4 * (1.0 - (m / 0.4).min(1.0)));
     // My mana (mana champions): below ~40% the all-in gets weaker, at 0 about -0.6.
-    let my_mana = me.mana_pct.map_or(0.0, |m| -0.6 * (1.0 - (m / 0.4).min(1.0)));
+    // Energy refills fast (Akali, Lee Sin...): half the penalty of mana.
+    let energy = intel.my_stats.as_ref().is_some_and(|s| s.resource_type == "ENERGY");
+    let my_mana = me.mana_pct.map_or(0.0, |m| -0.6 * if energy { 0.5 } else { 1.0 } * (1.0 - (m / 0.4).min(1.0)));
     let my_resource = intel.my_stats.as_ref().map_or(0.0, |s| if s.overheated { -0.6 } else { resource_edge(&s.resource_type, s.resource_pct, s.resource_value) });
-    let score = my_mana + my_resource + opp_low + 1.6 * curve + 0.45 * level_diff + 0.35 * gold_diff + 0.35 * items_diff + 1.5 * (hp - 1.0) - 1.5 * (opp_hp - 1.0) + flash + threat;
+    let score = my_mana + my_resource + opp_low + 1.6 * curve + 0.45 * level_diff + 0.35 * gold_diff + 0.35 * items_diff + hp_edge(hp, opp_hp) + flash + threat;
     (sigmoid(score), score)
 }
 
@@ -439,6 +447,20 @@ pub(crate) mod tests {
     use crate::intel::game_intel::{MyStats, TeamIntel};
     use crate::llm::caller::FakeCaller;
     use std::collections::BTreeMap;
+
+    /// Full HP vs an enemy under half (everything else equal): clearly mine, not "ostrożnie".
+    #[test]
+    fn hp_ratio_decides_even_fight() {
+        let me = player("Akali", true, true, "MIDDLE", 8);
+        let mut voli = player("Volibear", false, false, "TOP", 9);
+        voli.hp_pct = Some(0.45);
+        voli.hp_seen_at = Some(600.0);
+        let i = intel(vec![me, player("Sion", false, false, "MIDDLE", 8), voli]);
+        let icon = |c: &str| c.to_string();
+        let pb = power_bar_near(&i, None, &icon, &Nearby { enemies: vec![("Volibear".into(), true)], ..Default::default() }).unwrap();
+        assert!(pb.p_me > 0.65, "{}", pb.p_me);
+        assert!(!pb.advice.contains("ostrożnie"), "{}", pb.advice);
+    }
 
     /// Build-up resources: Rumble overheated is a silence, 50-99 heat empowers; fury / ferocity full helps.
     #[test]

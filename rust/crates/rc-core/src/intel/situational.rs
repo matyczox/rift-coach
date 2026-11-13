@@ -49,8 +49,10 @@ pub struct FogTrack {
     /// `state === 'fog'`
     pub in_fog: bool,
     pub estimate: Option<FogEstimate>,
-    /// Out of sight long enough to call it a gank threat (4 s; my lane opponent 10 s).
+    /// Out of sight long enough to call it a gank threat (4 s; never my lane opponent).
     pub gank_ready: bool,
+    /// Probability (all hypotheses) that he is within reach of me; None = unknown.
+    pub near_me: Option<f64>,
 }
 
 /// `AlertState` from shared/intel.ts.
@@ -130,6 +132,12 @@ impl FedWatcher {
 }
 
 fn ghost_threat(t: &FogTrack, me: Pos, r: f64) -> f64 {
+    if !t.in_fog {
+        return 0.0;
+    }
+    if let Some(m) = t.near_me {
+        return (m / 0.6).min(1.0);
+    }
     let Some(e) = t.estimate.filter(|_| t.in_fog) else { return 0.0 };
     let d = (e.x - me.x).hypot(e.y - me.y);
     if d >= r + e.radius {
@@ -203,7 +211,8 @@ pub fn danger_at(intel: &GameIntel, me: Option<Pos>, tracks: &[FogTrack], visibl
     if missing >= 3 {
         let w = 0.05 * missing as f64;
         score += w;
-        reasons.push((w, format!("{missing} we mgle")));
+        // Counts towards the danger level, but is never shown as the reason (says nothing to act on).
+        reasons.push((0.0, String::new()));
     }
     let level = score.clamp(0.0, 1.0);
     let label = if level < 0.25 {
@@ -216,7 +225,7 @@ pub fn danger_at(intel: &GameIntel, me: Option<Pos>, tracks: &[FogTrack], visibl
         "uciekaj"
     };
     reasons.sort_by(|a, b| b.0.total_cmp(&a.0));
-    Some(DangerState { level, label, reasons: reasons.into_iter().take(2).map(|r| r.1).collect() })
+    Some(DangerState { level, label, reasons: reasons.into_iter().filter(|r| !r.1.is_empty()).take(2).map(|r| r.1).collect() })
 }
 
 /// Go / contest / skip for the next objective within 60 s (or alive).
@@ -371,7 +380,7 @@ mod tests {
         assert!((d.level - 0.84).abs() < 1e-9);
         assert_eq!(d.label, "uciekaj");
         assert_eq!(d.reasons, ["Zed blisko (fed)", "słabszy w matchupie"]);
-        let fog = |c: &str| FogTrack { champion: c.into(), in_fog: true, gank_ready: true, estimate: Some(FogEstimate { x: 0.52, y: 0.5, radius: 0.05 }) };
+        let fog = |c: &str| FogTrack { champion: c.into(), in_fog: true, gank_ready: true, near_me: None, estimate: Some(FogEstimate { x: 0.52, y: 0.5, radius: 0.05 }) };
         let d = danger_at(&i, me, &[fog("A"), fog("B"), fog("C")], &[], None, &[]).unwrap();
         assert_eq!(d.reasons[0], "A gank");
         assert!(d.level > 0.5);

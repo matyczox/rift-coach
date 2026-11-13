@@ -256,6 +256,20 @@ pub fn goal_prior(kind: GoalKind, c: &PriorContext) -> f64 {
     if matches!(c.baron_in, Some(d) if d < 50.0) && kind == GoalKind::Baron {
         w *= 4.0;
     }
+    // Just out of the fountain (respawn / back): a laner walks back to his own lane. Without this the bot
+    // lane points next to the red base drew the ghost there (quickly arrived hypotheses pile up) while
+    // the mid laner was on his long way to mid.
+    if c.leaving_base && kind.is_lane() {
+        let own = match c.role {
+            Some(Role::Top) => Some(GoalKind::LaneTop),
+            Some(Role::Middle) => Some(GoalKind::LaneMid),
+            Some(Role::Bottom) | Some(Role::Utility) => Some(GoalKind::LaneBot),
+            _ => None,
+        };
+        if let Some(own) = own {
+            w *= if kind == own { 3.0 } else { 0.25 };
+        }
+    }
     if c.likely_recall && kind == GoalKind::Base {
         w *= 5.0;
     }
