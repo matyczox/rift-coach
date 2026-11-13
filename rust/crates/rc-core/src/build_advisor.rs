@@ -28,7 +28,7 @@ pub const SYSTEM: &str = "Jesteś ekspertem od buildów League of Legends. Dobie
 - fazę gry, jego obecne przedmioty i złoto,
 - typ obrażeń wrogów (AD/AP), ich przedmioty, leczenie, tarcze, CC, kto jest nafeedowany (najgroźniejszy),
 - aktualny build z mety z briefu patcha (jeśli podany) — odchodź od niego tylko z konkretnego powodu.
-Nazwy przedmiotów DOKŁADNIE z listy \"availableItems\" (angielskie nazwy z gry). Jeśli jest \"finishFirst\" (zaczęty przedmiot z planu — gracz ma już jego składniki), zwykle daj go jako pierwszy; inny tylko, gdy wyraźnie bardziej się opłaca (np. te składniki lepiej pasują do innego przedmiotu, który teraz bardziej się przyda). Bez uzasadnień — tylko nazwy.
+Nazwy przedmiotów DOKŁADNIE z listy \"availableItems\" (angielskie nazwy z gry). Jeśli jest \"finishFirst\" (zaczęty przedmiot z planu — gracz ma już jego składniki), zwykle daj go jako pierwszy; inny tylko, gdy wyraźnie bardziej się opłaca (np. te składniki lepiej pasują do innego przedmiotu, który teraz bardziej się przyda). Gdy \"me.boots\" to \"brak\" albo zwykłe Boots, a minęło ~8 min, w planie MUSZĄ być buty tier 2 (np. Plated Steelcaps na AD i auto ataki, Mercury's Treads na AP i CC) jako pierwszy albo drugi przedmiot. Bez uzasadnień — tylko nazwy.
 \"phase\": \"wczesna gra\" / \"środek gry\" / \"późna gra\".";
 
 /// Items in Data Dragon order (JS iterates integer keys ascending).
@@ -50,6 +50,9 @@ pub fn build_context(intel: &GameIntel, items: &HashMap<i64, ItemData>, profiles
         mo.insert("goldNow".into(), json!(s.gold));
     }
     mo.insert("items".into(), json!(me.items.iter().map(|i| &i.name).collect::<Vec<_>>()));
+    // Boots are easy to forget in a 3-item plan (lvl 15 Ambessa with 4 items and no boots).
+    let boots = me.items.iter().find(|i| items.get(&i.id).is_some_and(|d| d.tags.iter().any(|t| t == "Boots"))).map(|i| i.name.clone());
+    mo.insert("boots".into(), json!(boots.unwrap_or_else(|| "brak".into())));
     if let Some(s) = &intel.my_stats {
         mo.insert("stats".into(), serde_json::to_value(s).unwrap_or(Value::Null));
     }
@@ -80,7 +83,7 @@ pub fn build_context(intel: &GameIntel, items: &HashMap<i64, ItemData>, profiles
     if let Some(b) = patch_brief {
         o.insert("patch".into(), json!(b));
     }
-    o.insert("availableItems".into(), json!(sorted_items(items).into_iter().filter(|i| i.completed && i.total >= 900.0).map(|i| &i.name).collect::<Vec<_>>()));
+    o.insert("availableItems".into(), json!(sorted_items(items).into_iter().filter(|i| (i.completed || i.tags.iter().any(|t| t == "Boots")) && i.total >= 900.0).map(|i| &i.name).collect::<Vec<_>>()));
     Some(crate::jsutil::js_numbers(Value::Object(o)))
 }
 
