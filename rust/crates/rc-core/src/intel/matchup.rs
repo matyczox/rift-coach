@@ -285,6 +285,9 @@ pub struct Nearby {
     pub me_under_my_tower: bool,
     /// Enemies seen in range of their own tower (chasing them = diving).
     pub enemies_under_tower: Vec<String>,
+    /// Enemy health bars on my screen that could not be told apart (same level...): counted as an
+    /// average enemy each.
+    pub unknown_enemies: usize,
 }
 
 /// Weight of one extra champion in a fight: ~1, more for higher level / more item gold than the
@@ -328,6 +331,7 @@ pub fn nearby_delta(intel: &GameIntel, opp: &PlayerIntel, near: &Nearby) -> f64 
             d -= 0.5 * unit_strength(p, avg_lvl, avg_gold, hp_eff(intel, p));
         }
     }
+    d -= near.unknown_enemies as f64;
     1.3 * d
 }
 
@@ -375,6 +379,9 @@ pub fn power_bar_near(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dy
         (opp, brief, true)
     } else if let Some(p) = strongest_near {
         (p, None, true)
+    } else if near.unknown_enemies > 0 {
+        // Enemy bars on my screen without names: a fight here all the same.
+        (opp, None, true)
     } else {
         (opp, brief, false)
     };

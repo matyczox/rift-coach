@@ -362,6 +362,14 @@ pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
             }
         }
     }
+    // Enemy health bars on screen right now that got no name: someone is there all the same.
+    if let Some(i) = g.intel.as_ref() {
+        let (bars, at) = g.field.enemy_bars;
+        if i.game_time - at <= 1.5 {
+            let named = i.players.iter().filter(|p| !p.is_ally && !p.is_dead && p.onscreen_at.is_some_and(|t| i.game_time - t <= 1.5)).count();
+            n.unknown_enemies = bars.saturating_sub(named);
+        }
+    }
     let Some((mx, my)) = g.field.my_pos else { return n };
     let me = g.intel.as_ref().and_then(|i| i.me.as_ref()).map(|m| m.champion.clone()).unwrap_or_default();
     for a in &g.field.allies {

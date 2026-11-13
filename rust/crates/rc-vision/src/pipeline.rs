@@ -72,7 +72,7 @@ pub struct VisionParams {
 
 impl Default for VisionParams {
     fn default() -> Self {
-        VisionParams { detect: DetectParams::default(), fog: FogParams::default(), fog_grid: 64, camps: ReadCampsParams::default(), full_sweep_every: 5, region_r: 0.08, hp_every_ms: Some(350), threads: 2 }
+        VisionParams { detect: DetectParams::default(), fog: FogParams::default(), fog_grid: 64, camps: ReadCampsParams::default(), full_sweep_every: 5, region_r: 0.08, hp_every_ms: Some(200), threads: 2 }
     }
 }
 

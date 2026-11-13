@@ -131,6 +131,8 @@ pub struct Field {
     pub toasts: Vec<Toast>,
     /// Unguarded lane pushes announced: ("champion@lane", Date.now() ms).
     pub push_seen: Vec<(String, f64)>,
+    /// Enemy health bars on my screen in the last read: (count, game time). Unnamed ones count too.
+    pub enemy_bars: (usize, f64),
     /// Ally fights announced: (ally, Date.now() ms).
     pub fight_seen: Vec<(String, f64)>,
     /// Go help this ally (fight worth joining): (ally, until Date.now() ms) -> arrow on the minimap.
@@ -183,6 +185,7 @@ impl Field {
             returns: Vec::new(),
             push_seen: Vec::new(),
             fight_seen: Vec::new(),
+            enemy_bars: (0, 0.0),
             help: None,
             prev_dead: Vec::new(),
             tracker,
@@ -237,6 +240,7 @@ impl Field {
         self.returns.clear();
         self.push_seen.clear();
         self.fight_seen.clear();
+        self.enemy_bars = (0, 0.0);
         self.help = None;
         self.prev_dead.clear();
         self.ghosts.clear();
@@ -803,6 +807,7 @@ fn apply_ally_hp(g: &mut Game, bars: &[HealthBar]) {
 fn apply_hp(g: &mut Game, bars: &[HealthBar]) {
     let Game { intel, tracker, field, .. } = g;
     let Some(intel) = intel.as_ref() else { return };
+    field.enemy_bars = (bars.len(), intel.game_time);
     let cands: Vec<ChampionCandidate> = intel.players.iter().filter(|p| !p.is_ally && !p.is_dead).map(|p| ChampionCandidate { champion: p.champion.clone(), level: p.level.max(0) as u32, screen: None }).collect();
     for (bar, c) in bars.iter().zip(match_bars_to_champions(bars, &cands, &MatchOptions::default())) {
         if let Some(c) = c {
@@ -869,7 +874,9 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         if let Some(d) = r.detections.iter().find(|d| d.champion == me.champion) {
             f.my_pos = Some((d.x, d.y));
             f.my_pos_at = now;
-        } else if me.is_dead || now - f.my_pos_at > 3000.0 {
+        } else if me.is_dead || now - f.my_pos_at > if f.my_pos.is_some_and(|(x, y)| r.detections.iter().any(|d| (d.x - x).hypot(d.y - y) < 0.045)) { 8000.0 } else { 3000.0 } {
+            // (My icon under someone else's in a fight: keep my last spot up to 8 s, not "unknown" —
+            // without it the fight bar only counted the one enemy whose health bar had a name.)
             // Unknown, not "where I was": an old position fed alerts, the fight bar and the coach.
             f.my_pos = None;
         }
