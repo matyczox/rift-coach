@@ -911,7 +911,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         let jungler = |c: &str| intel.players.iter().any(|p| p.champion == c && p.role == "JUNGLE");
         for a in f.allies.iter().filter(|a| a.champion != me_c) {
             let d_me = (a.x - mx).hypot(a.y - my);
-            if !(0.12..0.45).contains(&d_me) {
+            if !(0.12..0.3).contains(&d_me) {
                 continue;
             }
             let foes: Vec<&SeenUnit> = f.visible_enemies.iter().filter(|e| (e.x - a.x).hypot(e.y - a.y) < 0.045).collect();

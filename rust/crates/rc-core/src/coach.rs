@@ -57,7 +57,7 @@ impl Default for CoachConfig {
 pub const SYSTEM: &str = r#"Jesteś coachem League of Legends na poziomie challengera. Gracz gra TERAZ i może tylko zerknąć na ekran.
 Dostajesz stan meczu (JSON): jego postać, itemy, złoto, wszyscy gracze, timery celów, przewidywane pozycje wrogów we mgle (z % pewności) i profile przeciwników.
 Zasady:
-- "call": 2–4 słowa, po polsku, SAMA sugestia — co zrobić w ciągu najbliższych 5–20 sekund, bez uzasadnień i bez myślników (np. "Dragon teraz", "Cofnij się", "Back po fali", "Nie pushuj"). Bez emotek.
+- "call": 2–4 słowa, po polsku, SAMA sugestia — co zrobić w ciągu najbliższych 5–20 sekund, bez myślników; przy decyzji, która nie jest oczywista (odpuść, nie idź, roam, oddaj objective), dodaj po dwukropku powód w 2–4 słowach (np. "Odpuść Dragon: ich jungler obok", "Nie idź bot: 1v3") (np. "Dragon teraz", "Cofnij się pod wieżę", "Back po fali", "Nie pushuj"). Bez emotek.
 - Nazwy z LoL-a ZAWSZE po angielsku, jak w angielskim kliencie: przedmioty ("Rabadon's Deathcap", "Zhonya's Hourglass"), obiekty ("Dragon", "Elder Dragon", "Baron", "Herald", "Voidgrubs"), czary ("Flash", "Ignite"), miejsca ("tri bush", "pixel bush"). Reszta po polsku (np. "Dragon teraz", "Kup Zhonya's Hourglass").
 - Slang z LoL-a pisz tak, jak mówią polscy gracze, NIE tłumacz go słownikowo: trade ("trade'uj po Q", NIE "handluj"), all-in, push/pushuj, roam, back, gank, farm, freeze, poke, dive, kite, engage, peel, split push. Np. "Trade'uj po Q", "All-in na 6", "Freezuj pod wieżą".
 - NIE opisuj tego, co gracz już widzi na ekranie (jego HP, złoto, timery, że ktoś zniknął) i NIE powtarzaj poprzednich porad (previousCalls) ani ich sensu innymi słowami. Ogólniki typu "farm pod wieżą", "uważaj na ganka" tylko gdy coś się zmieniło.
@@ -92,7 +92,7 @@ pub fn schema() -> Value {
         "additionalProperties": false,
         "required": ["call", "tone", "mapHint", "item", "ward", "deathReview", "ttlSec"],
         "properties": {
-            "call": { "anyOf": [{ "type": "null" }, { "type": "string", "maxLength": 32 }] },
+            "call": { "anyOf": [{ "type": "null" }, { "type": "string", "maxLength": 48 }] },
             "tone": { "type": "string", "enum": ["go", "wait", "danger", "farm"] },
             "mapHint": {
                 "anyOf": [{ "type": "null" }, {
@@ -887,12 +887,12 @@ mod tests {
         assert_eq!(schema()["properties"]["ward"]["anyOf"][1]["properties"]["spot"]["enum"].as_array().unwrap().len(), 28);
         assert!(!p.contains("Profil gracza"));
         // 2c21335 / 9041f35: short calls, null when nothing new, item from the build panel.
-        assert!(SYSTEM.contains("\n- \"call\": 2–4 słowa, po polsku, SAMA sugestia — co zrobić w ciągu najbliższych 5–20 sekund, bez uzasadnień i bez myślników"));
+        assert!(SYSTEM.contains("\n- \"call\": 2–4 słowa, po polsku, SAMA sugestia — co zrobić w ciągu najbliższych 5–20 sekund, bez myślników; przy decyzji, która nie jest oczywista"));
         assert!(SYSTEM.contains("\n- Gdy nie masz NOWEJ, konkretnej decyzji: \"call\": null (gracz nic nie zobaczy — to lepsze niż szum).\n- \"tone\":"));
         assert!(SYSTEM.contains("Jeśli w danych jest \"plannedBuild\" (plan z panelu buildu, który gracz widzi na ekranie)"));
         assert!(SYSTEM.ends_with("gdzie prawdopodobnie są wrogowie. Jeśli nic ważnego się nie dzieje — \"call\": null."));
         assert!(!SYSTEM.contains("8 słów") && !SYSTEM.contains("słowo w słowo"));
-        assert_eq!(schema()["properties"]["call"], json!({ "anyOf": [{ "type": "null" }, { "type": "string", "maxLength": 32 }] }));
+        assert_eq!(schema()["properties"]["call"], json!({ "anyOf": [{ "type": "null" }, { "type": "string", "maxLength": 48 }] }));
         assert_eq!(CoachConfig::default().min_gap_sec, 20.0);
         // 76599ed / 0c1ebb3: objectives are commented again, consistently, one thing at a time.
         assert!(SYSTEM.contains("\n- Smoki, baron i herold są ważne — komentuj je (przed pojawieniem się i przy walce o nie).\n- Bądź KONSEKWENTNY:"));
