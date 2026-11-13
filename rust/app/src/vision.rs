@@ -137,6 +137,9 @@ pub struct Field {
     pub enemy_bars: (usize, f64),
     /// Lane pushes warned: "champion@lane" -> stage (1 coming, 2 near our tower, 3 hitting it).
     pub push_stage: std::collections::HashMap<String, u8>,
+    /// Allies last seen on the minimap: champion -> (x, y, game time). An ally standing on an enemy
+    /// hides under his icon, so "nobody there" needs a few seconds of memory.
+    pub ally_last: std::collections::HashMap<String, (f64, f64, f64)>,
     /// Fog "X invade" guess: (shown since, quiet until) in Date.now() ms.
     pub invade_guess: (f64, f64),
     /// Ally fights announced: (ally, Date.now() ms).
@@ -194,6 +197,7 @@ impl Field {
             push_seen: Vec::new(),
             fight_seen: Vec::new(),
             invade_guess: (0.0, 0.0),
+            ally_last: Default::default(),
             push_stage: Default::default(),
             enemy_bars: (0, 0.0),
             near_seen: Default::default(),
@@ -253,6 +257,7 @@ impl Field {
         self.push_seen.clear();
         self.fight_seen.clear();
         self.invade_guess = (0.0, 0.0);
+        self.ally_last.clear();
         self.push_stage.clear();
         self.enemy_bars = (0, 0.0);
         self.near_seen.clear();
@@ -933,6 +938,9 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     }
     f.occluded_since.retain(|k, _| !k.starts_with("ally:") || kept.contains(k));
     f.visible_enemies = r.detections.iter().filter(|d| d.team != my_team_t).map(|d| with_vel(&f.visible_enemies, d)).collect();
+    for a in &f.allies {
+        f.ally_last.insert(a.champion.clone(), (a.x, a.y, intel.game_time));
+    }
     if let Some((mx, my)) = f.my_pos {
         for e in f.visible_enemies.iter().filter(|e| (e.x - mx).hypot(e.y - my) < 0.15) {
             f.near_seen.insert(e.champion.clone(), intel.game_time);
@@ -1040,7 +1048,10 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         let speed = v.vx.hypot(v.vy);
         let heading = speed > 0.0008 && ((tower.0 - v.x) * v.vx + (tower.1 - v.y) * v.vy) / (d.max(1e-6) * speed) > 0.6;
         let wave_ours = f.waves.as_ref().and_then(|w| w.lanes.iter().find(|l| l.lane == lane)).is_some_and(|l| matches!(l.state.as_str(), "our_side" | "under_our_tower"));
-        let guarded = f.allies.iter().any(|a| (a.x - v.x).hypot(a.y - v.y) < 0.18) || f.my_pos.is_some_and(|(x, y)| (x - v.x).hypot(y - v.y) < 0.18);
+        // Someone of us next to him now, or a moment ago (icon hidden under his): no warning.
+        let guarded = f.allies.iter().any(|a| (a.x - v.x).hypot(a.y - v.y) < 0.18)
+            || f.ally_last.values().any(|(x, y, t)| intel.game_time - t <= 6.0 && (x - v.x).hypot(y - v.y) < 0.18)
+            || f.my_pos.is_some_and(|(x, y)| (x - v.x).hypot(y - v.y) < 0.18);
         // Their wave really on our side; walking at our tower alone is not a push (lane start).
         let _ = heading;
         if guarded || !wave_ours {
