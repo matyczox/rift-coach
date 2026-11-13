@@ -623,7 +623,9 @@ fn events(
                 // "Turret_T1_L_03_A": T1 = ORDER's tower, T2 = CHAOS's; L = top, C = mid, R = bot.
                 let name = s(e.get("TurretKilled"));
                 let owner = if name.contains("_T1_") { Some("ORDER") } else if name.contains("_T2_") { Some("CHAOS") } else { None };
-                let lane = if name.contains("_L_") { Some("top") } else if name.contains("_R_") { Some("bot") } else if name.contains("_C_") { Some("mid") } else { None };
+                // Inhibitor turrets of top / bot are named _C_06 / _C_07 ("C" though they stand on the side lanes):
+                // they were counted as mid, so a dead top inhib turret still "stood" ("pod wieżą" at a dead tower).
+                let lane = if name.contains("_L_") || name.contains("_C_06") { Some("top") } else if name.contains("_R_") || name.contains("_C_07") { Some("bot") } else if name.contains("_C_") { Some("mid") } else { None };
                 let nexus = name.contains("_C_01") || name.contains("_C_02");
                 if let (Some(o), Some(l)) = (owner, lane) {
                     if !nexus {
