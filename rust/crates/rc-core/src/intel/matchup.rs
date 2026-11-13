@@ -279,6 +279,12 @@ pub struct Nearby {
     /// A bit further away but heading to me (gank / collapse incoming): counted at half weight.
     pub allies_coming: Vec<String>,
     pub enemies_coming: Vec<String>,
+    /// I stand in range of a standing enemy tower (fighting there = diving).
+    pub me_under_enemy_tower: bool,
+    /// I stand in range of one of our towers (it fights for me).
+    pub me_under_my_tower: bool,
+    /// Enemies seen in range of their own tower (chasing them = diving).
+    pub enemies_under_tower: Vec<String>,
 }
 
 /// Weight of one extra champion in a fight: ~1, more for higher level / more item gold than the
@@ -373,14 +379,20 @@ pub fn power_bar_near(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dy
         (opp, brief, false)
     };
     let (_, base) = power_score(intel, primary, primary_brief);
-    let p_me = sigmoid(base + if local { nearby_delta(intel, primary, near) } else { 0.0 });
+    // Towers: fighting in range of his tower (or him running under it) costs a lot; mine helps me.
+    let dive = local && (near.me_under_enemy_tower || near.enemies_under_tower.contains(&primary.champion));
+    let tower = if !local { 0.0 } else if dive { -1.3 } else if near.me_under_my_tower { 0.8 } else { 0.0 };
+    let p_me = sigmoid(base + tower + if local { nearby_delta(intel, primary, near) } else { 0.0 });
     let side = |c: &str, sure: bool| intel.players.iter().find(|p| p.champion == c && !p.is_dead).map(|p| NearSide { champion: p.champion.clone(), icon_url: icon(&p.champion), level: p.level, sure });
-    let allies: Vec<NearSide> = near.allies.iter().filter(|c| intel.players.iter().any(|p| &p.champion == *c && p.is_ally && !p.is_me)).filter_map(|c| side(c, true)).collect();
+    // Allies next to me only matter in a fight (an enemy near): in base / on the way it just confused.
+    let allies: Vec<NearSide> = if !local { Vec::new() } else { near.allies.iter().filter(|c| intel.players.iter().any(|p| &p.champion == *c && p.is_ally && !p.is_me)).filter_map(|c| side(c, true)).collect() };
     let enemies: Vec<NearSide> = near.enemies.iter().filter(|(c, _)| *c != primary.champion && intel.players.iter().any(|p| &p.champion == c && !p.is_ally)).filter_map(|(c, s)| side(c, *s)).collect();
     let gold = (js_round((me.item_gold - opp.item_gold) / 50.0) * 50.0) as i64;
     let cs = me.cs - opp.cs;
     let detail = format!("lvl {} vs {} · {} g · CS {}", me.level, opp.level, signed(gold), signed(cs));
-    let advice = if local && primary.champion != opp.champion {
+    let advice = if dive && p_me < 0.75 {
+        format!("{} pod wieżą → nie nurkuj", primary.champion)
+    } else if local && primary.champion != opp.champion {
         // A fight with someone else (roam, gank, objective): no lane wording.
         if let Some(hp) = hp_fresh(intel, primary).filter(|&h| h < 0.35 && p_me >= 0.55) {
             format!("{} {}% HP → wchodź", primary.champion, js_round(hp * 100.0) as i64)
@@ -399,7 +411,7 @@ pub fn power_bar_near(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dy
         if me.level > opp.level {
             format!("Masz {}, on {} → trade teraz", me.level, opp.level)
         } else {
-            "Silniejszy teraz → wymieniaj".into()
+            "Silniejszy teraz → trade'uj".into()
         }
     } else if p_me <= 0.4 {
         match next_good_level(brief, me.level) {
@@ -460,6 +472,10 @@ pub(crate) mod tests {
         let pb = power_bar_near(&i, None, &icon, &Nearby { enemies: vec![("Volibear".into(), true)], ..Default::default() }).unwrap();
         assert!(pb.p_me > 0.65, "{}", pb.p_me);
         assert!(!pb.advice.contains("ostrożnie"), "{}", pb.advice);
+        // Same fight with Volibear under his tower: much worse, don't dive.
+        let dive = power_bar_near(&i, None, &icon, &Nearby { enemies: vec![("Volibear".into(), true)], enemies_under_tower: vec!["Volibear".into()], ..Default::default() }).unwrap();
+        assert!(dive.p_me < pb.p_me - 0.15, "{} vs {}", dive.p_me, pb.p_me);
+        assert!(dive.advice.contains("nie nurkuj"), "{}", dive.advice);
     }
 
     /// Build-up resources: Rumble overheated is a silence, 50-99 heat empowers; fury / ferocity full helps.

@@ -131,6 +131,8 @@ pub struct Field {
     pub toasts: Vec<Toast>,
     /// Unguarded lane pushes announced: ("champion@lane", Date.now() ms).
     pub push_seen: Vec<(String, f64)>,
+    /// Ally fights announced: (ally, Date.now() ms).
+    pub fight_seen: Vec<(String, f64)>,
     /// Lane opponent walking back to lane: (champion, ETA as Date.now() ms).
     pub returns: Vec<(String, f64)>,
     /// Enemies dead in the last frame (respawn detection).
@@ -178,6 +180,7 @@ impl Field {
             toasts: Vec::new(),
             returns: Vec::new(),
             push_seen: Vec::new(),
+            fight_seen: Vec::new(),
             prev_dead: Vec::new(),
             tracker,
             camps: CampTracker::default(),
@@ -230,6 +233,7 @@ impl Field {
         self.toasts.clear();
         self.returns.clear();
         self.push_seen.clear();
+        self.fight_seen.clear();
         self.prev_dead.clear();
         self.ghosts.clear();
         self.my_pos = None;
@@ -771,9 +775,16 @@ fn apply_team_frames(g: &mut Game, frames: &[rc_vision::teamframes::AllyFrame]) 
 }
 
 fn apply_ally_hp(g: &mut Game, bars: &[HealthBar]) {
-    let Game { intel, tracker, .. } = g;
+    let Game { intel, tracker, field, .. } = g;
     let Some(intel) = intel.as_ref() else { return };
-    let cands: Vec<ChampionCandidate> = intel.players.iter().filter(|p| p.is_ally && !p.is_me && !p.is_dead).map(|p| ChampionCandidate { champion: p.champion.clone(), level: p.level.max(0) as u32, screen: None }).collect();
+    // A blue bar can be my own mana strip ("Maokai obok" while he stood top and I mid): only allies
+    // whose minimap icon is near me (or hidden under my portrait) can have a bar on my screen.
+    let me = field.my_pos;
+    let close = |c: &str| match (me, field.allies.iter().find(|a| a.champion == c)) {
+        (Some((mx, my)), Some(a)) => (a.x - mx).hypot(a.y - my) < 0.2,
+        _ => true,
+    };
+    let cands: Vec<ChampionCandidate> = intel.players.iter().filter(|p| p.is_ally && !p.is_me && !p.is_dead && close(&p.champion)).map(|p| ChampionCandidate { champion: p.champion.clone(), level: p.level.max(0) as u32, screen: None }).collect();
     for (bar, c) in bars.iter().zip(match_bars_to_champions(bars, &cands, &MatchOptions::default())) {
         if let Some(c) = c {
             tracker.set_hp(&c, bar.pct, intel.game_time);
@@ -887,6 +898,32 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         f.push_seen.retain(|(k, _)| *k != key);
         f.push_seen.push((key, now));
         f.toasts.push(Toast { id: now as u64 + 7 + f.toasts.len() as u64, kind: "push".into(), team: "enemy".into(), champion: Some(champ.clone()), text: format!("{champ} pcha {lane} — nikt nie pilnuje"), expires_at: now + 5000.0 });
+    }
+    // An ally fighting somewhere I can reach (jungler vs invader, skirmish): "go help" right away,
+    // locally. Not plain laning: a jungler involved, or 3+ champions in the scrap.
+    if let Some((mx, my)) = f.my_pos {
+        let me_c = intel.me.as_ref().map(|m| m.champion.clone()).unwrap_or_default();
+        let jungler = |c: &str| intel.players.iter().any(|p| p.champion == c && p.role == "JUNGLE");
+        for a in f.allies.iter().filter(|a| a.champion != me_c) {
+            let d_me = (a.x - mx).hypot(a.y - my);
+            if !(0.12..0.45).contains(&d_me) {
+                continue;
+            }
+            let foes: Vec<&SeenUnit> = f.visible_enemies.iter().filter(|e| (e.x - a.x).hypot(e.y - a.y) < 0.045).collect();
+            let friends = f.allies.iter().filter(|b| b.champion != me_c && (b.x - a.x).hypot(b.y - a.y) < 0.045).count();
+            let Some(foe) = foes.first() else { continue };
+            if !(jungler(&a.champion) || foes.iter().any(|e| jungler(&e.champion)) || friends + foes.len() >= 3) {
+                continue;
+            }
+            if f.fight_seen.iter().any(|(k, at)| *k == a.champion && now - at < 30000.0) {
+                continue;
+            }
+            f.fight_seen.retain(|(k, _)| *k != a.champion);
+            f.fight_seen.push((a.champion.clone(), now));
+            let more = if foes.len() > 1 { format!(" +{}", foes.len() - 1) } else { String::new() };
+            f.toasts.push(Toast { id: now as u64 + 13 + f.toasts.len() as u64, kind: "fight".into(), team: "ally".into(), champion: Some(a.champion.clone()), text: format!("{} bije się z {}{more} → pomóż", a.champion, foe.champion), expires_at: now + 6000.0 });
+            break;
+        }
     }
     // Teamplay prompts (gank ask, follow-up, ...).
     let (allies_s, enemies_s) = (crate::knowledge::seen(&f.allies), crate::knowledge::seen(&f.visible_enemies));

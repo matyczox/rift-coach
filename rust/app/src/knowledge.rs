@@ -307,6 +307,39 @@ pub fn current_p_me(g: &Game) -> Option<f64> {
 
 /// Who is around me on the minimap, for the power bar's fight estimate (fast, local): allies and
 /// visible enemies within ~1/7 of the map, plus enemies whose fresh fog estimate is that close.
+/// Lane towers (outer, inner, inhibitor) per lane, ORDER side, minimap fractions (y down). CHAOS
+/// towers are the point mirror. Towers die outer first, so "lost N" = the first N are gone.
+const TOWERS: [(&str, [(f64, f64); 3]); 3] = [
+    ("top", [(0.066, 0.298), (0.102, 0.549), (0.079, 0.712)]),
+    ("mid", [(0.393, 0.570), (0.339, 0.676), (0.246, 0.751)]),
+    ("bot", [(0.706, 0.931), (0.465, 0.900), (0.288, 0.916)]),
+];
+const NEXUS_TOWERS: [(f64, f64); 2] = [(0.118, 0.847), (0.146, 0.878)];
+/// Tower shot range (~750 units + champion size) as a fraction of the map.
+const TOWER_RANGE: f64 = 0.055;
+
+/// Standing towers: (mine, ours) for every tower still up.
+pub fn standing_towers(g: &Game) -> Vec<(f64, f64, bool)> {
+    let Some(i) = g.intel.as_ref() else { return Vec::new() };
+    let my_chaos = i.me.as_ref().is_some_and(|m| m.team == "CHAOS");
+    let mut out = Vec::new();
+    for (lane, pos) in TOWERS {
+        let st = i.lanes.iter().find(|l| l.lane == lane);
+        for order_side in [true, false] {
+            let ours = order_side != my_chaos;
+            let lost = st.map_or(0, |s| if ours { s.ours_lost } else { s.theirs_lost }) as usize;
+            for &(x, y) in pos.iter().skip(lost) {
+                out.push(if order_side { (x, y, ours) } else { (1.0 - x, 1.0 - y, ours) });
+            }
+        }
+    }
+    for &(x, y) in &NEXUS_TOWERS {
+        out.push((x, y, !my_chaos));
+        out.push((1.0 - x, 1.0 - y, my_chaos));
+    }
+    out
+}
+
 pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
     // ~1/7 of the map: a whole dragon / baron pit fight with the bushes around it.
     const R: f64 = 0.15;
@@ -347,6 +380,11 @@ pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
     for e in g.field.visible_enemies.iter().filter(|e| coming(e)) {
         n.enemies_coming.push(e.champion.clone());
     }
+    let towers = standing_towers(g);
+    let in_range = |x: f64, y: f64, ours: bool| towers.iter().any(|t| t.2 == ours && (t.0 - x).hypot(t.1 - y) < TOWER_RANGE);
+    n.me_under_enemy_tower = in_range(mx, my, false);
+    n.me_under_my_tower = in_range(mx, my, true);
+    n.enemies_under_tower = g.field.visible_enemies.iter().filter(|e| (e.x - mx).hypot(e.y - my) < R && in_range(e.x, e.y, false)).map(|e| e.champion.clone()).collect();
     for t in fog_tracks(g) {
         let Some(est) = t.estimate.filter(|_| t.in_fog) else { continue };
         if est.radius < 0.2 && (est.x - mx).hypot(est.y - my) < R + est.radius * 0.5 && !n.enemies.iter().any(|(c, _)| *c == t.champion) {

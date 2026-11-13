@@ -252,7 +252,16 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
                 let tracks = k::fog_tracks(g);
                 let (allies, enemies) = (k::seen(&g.field.allies), k::seen(&g.field.visible_enemies));
                 (
-                    rc_core::intel::matchup::power_bar_near(i, g.matchup.as_ref(), &icon, &k::nearby(g)).and_then(|p| serde_json::to_value(p).ok()),
+                    {
+                        // Not while everyone is still walking to lane or I stand in my base: nothing to fight.
+                        let base = if i.me.as_ref().is_some_and(|m| m.team == "CHAOS") { (0.96, 0.04) } else { (0.04, 0.96) };
+                        let in_base = g.field.my_pos.is_some_and(|(x, y)| (x - base.0).hypot(y - base.1) < 0.15);
+                        if i.game_time < 75.0 || in_base {
+                            None
+                        } else {
+                            rc_core::intel::matchup::power_bar_near(i, g.matchup.as_ref(), &icon, &k::nearby(g)).and_then(|p| serde_json::to_value(p).ok())
+                        }
+                    },
                     rc_core::intel::situational::danger_at(i, k::pos(g.field.my_pos), &tracks, &enemies, fight_p.or_else(|| k::current_p_me(g)), &fed).and_then(|d| serde_json::to_value(d).ok()),
                     rc_core::intel::situational::objective_call(i, &tracks, &allies, &enemies).and_then(|o| serde_json::to_value(o).ok()),
                     fed,
