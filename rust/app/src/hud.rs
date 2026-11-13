@@ -502,9 +502,8 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
                 } else {
                     None
                 };
-                if let (Some(p), Some(o)) = (plan, s.as_object_mut()) {
-                    o.insert("pin".into(), json!(p));
-                }
+                // Not drawn any more: a text chip over the ally portraits was one more thing to read.
+                let _ = plan;
             }
         }
         // Fight worth joining: arrow on the minimap from me to that ally (follows him while he is seen).
