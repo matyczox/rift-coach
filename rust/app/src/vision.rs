@@ -1472,7 +1472,9 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     f.returns.retain(|(_, until)| *until > now - 3000.0);
     f.prev_dead = intel.players.iter().filter(|p| !p.is_ally && p.is_dead).map(|p| p.champion.clone()).collect();
     for tr in &tracks {
-        if new_recalls.contains(&tr.champion) && intel.players.iter().any(|x| x.champion == tr.champion && !x.is_ally) {
+        // Off: "X w bazie" was a guess (a purchase while unseen / standing then vanishing) and misled ("Cassiopeia
+        // w bazie" while she stood bot). The tracker still uses it for the fog estimate.
+        if false && new_recalls.contains(&tr.champion) && intel.players.iter().any(|x| x.champion == tr.champion && !x.is_ally) {
             f.toasts.push(Toast { id: now as u64 ^ (f.toasts.len() as u64) << 1, kind: "recall".into(), team: "enemy".into(), champion: Some(tr.champion.clone()), text: format!("{} w bazie", tr.champion), expires_at: now + 3500.0 });
         }
     }
