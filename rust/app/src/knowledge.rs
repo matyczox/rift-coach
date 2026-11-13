@@ -251,6 +251,34 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
                 }
             }
         }
+        // The whole enemy team at a glance: what damage it deals and what it already builds against
+        // (models miscount "4 of 5 AD" or "3 have MR" from raw item lists).
+        let tagged = |p: &rc_core::intel::game_intel::PlayerIntel, tag: &str| p.items.iter().filter(|i| i.price >= 400.0 && sd.items.get(&i.id).is_some_and(|d| d.tags.iter().any(|t| t == tag))).count();
+        let (mut ad, mut ap, mut mixed) = (0, 0, 0);
+        let (mut armor, mut mr) = (Vec::new(), Vec::new());
+        let mut per: std::collections::HashMap<String, serde_json::Value> = std::collections::HashMap::new();
+        for p in intel.players.iter().filter(|p| !p.is_ally) {
+            let (ad_i, ap_i) = (tagged(p, "Damage"), tagged(p, "SpellDamage"));
+            // Items decide once built (an AP Kai'Sa / an AD Kayle); otherwise the champion's ratings.
+            let dmg = if ap_i >= ad_i + 2 { "AP" } else if ad_i >= ap_i + 2 { "AD" } else { sd.champion_damage.get(&p.champion).copied().unwrap_or("mixed") };
+            match dmg { "AD" => ad += 1, "AP" => ap += 1, _ => mixed += 1 }
+            let (a, m) = (tagged(p, "Armor"), tagged(p, "SpellBlock"));
+            if a > 0 { armor.push(format!("{} ({a})", p.champion)); }
+            if m > 0 { mr.push(format!("{} ({m})", p.champion)); }
+            per.insert(p.champion.clone(), serde_json::json!({ "damage": dmg, "armorItems": a, "mrItems": m }));
+        }
+        if let Some(es) = o.get_mut("enemies").and_then(serde_json::Value::as_array_mut) {
+            for e in es {
+                let c = e.get("champion").and_then(serde_json::Value::as_str).unwrap_or("").to_string();
+                if let (Some(eo), Some(x)) = (e.as_object_mut(), per.get(&c)) {
+                    eo.insert("damage".into(), x["damage"].clone());
+                }
+            }
+        }
+        o.insert("enemyTeam".into(), serde_json::json!({ "damage": { "AD": ad, "AP": ap, "mixed": mixed }, "withArmorItems": armor, "withMagicResistItems": mr }));
+        if let Some(opp) = intel.me.as_ref().filter(|m| !m.role.is_empty()).and_then(|m| intel.players.iter().find(|p| !p.is_ally && p.role == m.role)) {
+            o.insert("laneOpponent".into(), serde_json::json!(opp.champion));
+        }
     }
     if let (false, Some(o)) = (prev.is_empty(), ctx.as_object_mut()) {
         o.insert("currentPlan".into(), serde_json::json!(prev));

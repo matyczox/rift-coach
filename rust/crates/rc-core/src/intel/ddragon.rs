@@ -43,6 +43,19 @@ pub struct StaticData {
     pub name_by_id: HashMap<String, String>,
     /// Display name -> classes from the game data ("Ahri" -> ["Mage", "Assassin"]).
     pub champion_tags: HashMap<String, Vec<String>>,
+    /// Display name -> main damage type from the game data ratings (info.attack vs info.magic): "AD" / "AP" / "mixed".
+    pub champion_damage: HashMap<String, &'static str>,
+}
+
+/// "AD" / "AP" / "mixed" from the champion's attack / magic ratings (0..10).
+pub fn damage_type(attack: f64, magic: f64) -> &'static str {
+    if magic >= attack + 2.0 {
+        "AP"
+    } else if attack >= magic + 2.0 {
+        "AD"
+    } else {
+        "mixed"
+    }
 }
 
 pub fn champion_icon_url(version: &str, ddragon_id: &str) -> String {
@@ -108,6 +121,10 @@ pub fn from_raw(version: &str, raw: &Value) -> StaticData {
             sd.name_by_id.insert(id.into(), name.into());
             let tags: Vec<String> = c.get("tags").and_then(Value::as_array).map(|a| a.iter().filter_map(|t| t.as_str().map(String::from)).collect()).unwrap_or_default();
             sd.champion_tags.insert(name.into(), tags);
+            let (atk, mag) = (c.pointer("/info/attack").and_then(Value::as_f64), c.pointer("/info/magic").and_then(Value::as_f64));
+            if let (Some(a), Some(m)) = (atk, mag) {
+                sd.champion_damage.insert(name.into(), damage_type(a, m));
+            }
         }
     }
     sd.items = parse_items(raw.get("items").unwrap_or(&Value::Null));
