@@ -539,6 +539,19 @@ pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
     n.me_under_enemy_tower = in_range(mx, my, false);
     n.me_under_my_tower = in_range(mx, my, true);
     n.enemies_under_tower = g.field.visible_enemies.iter().filter(|e| (e.x - mx).hypot(e.y - my) < R && in_range(e.x, e.y, false)).map(|e| e.champion.clone()).collect();
+    // Hold "under tower" 1.5 s: at the edge of tower range it flipped every frame (bar 44 % <-> 74 %).
+    if let Ok(mut memo) = g.field.tower_memo.lock() {
+        let t = crate::vision::now_ms();
+        if n.me_under_enemy_tower { memo.insert(String::new(), t); }
+        for c in &n.enemies_under_tower { memo.insert(c.clone(), t); }
+        memo.retain(|_, at| t - *at < 1500.0);
+        if memo.contains_key("") { n.me_under_enemy_tower = true; }
+        for (c, _) in memo.iter().filter(|(c, _)| !c.is_empty()) {
+            if !n.enemies_under_tower.contains(c) && g.field.visible_enemies.iter().any(|e| e.champion == *c && (e.x - mx).hypot(e.y - my) < R) {
+                n.enemies_under_tower.push(c.clone());
+            }
+        }
+    }
     // Near me a moment ago (icon flickered off the minimap): still in the fight.
     if let Some(i) = g.intel.as_ref() {
         for (c, _) in g.field.near_seen.iter() {

@@ -10,6 +10,7 @@ const alert = $('alert');
 const alertTxt = $('alertTxt');
 const alertConf = $('alertConf');
 const edge = document.querySelector<HTMLElement>('#danger-edge');
+let contraSince = 0;
 const banner = document.querySelector<HTMLElement>('#obj-banner');
 const obj = $('obj');
 const objVerdict = $('objVerdict');
@@ -75,7 +76,14 @@ subscribe(({ state }) => {
   }
   // An answer without words (only a map hint) drew an empty bubble.
   const tb = state.visible && state.topBar && (state.topBar.call ?? '').trim() && isLive(state.topBar.expiresAt, state.gameTime) ? state.topBar : null;
-  if (!tb) {
+  // A delayed call that the fight bar has contradicted for 3 s ('Cofnij się' at 80 %, 'All-in' at 25 %)
+  // steps aside: the bar is what happens now.
+  const pl = state.power && state.power.local ? state.power.pMe : null;
+  const cl = (tb?.call ?? '').toLowerCase();
+  const against = pl != null && ((/cofnij|wycofaj|uciekaj|nie wchodź|odejdź/.test(cl) && pl >= 0.72) || (/all-in|wejdź|atakuj|zabij|trade/.test(cl) && pl <= 0.3));
+  if (against) { if (!contraSince) contraSince = performance.now(); } else contraSince = 0;
+  const hideCall = against && performance.now() - contraSince > 3000;
+  if (!tb || hideCall) {
     bar.classList.add('hidden');
     lastCall = '';
   } else {

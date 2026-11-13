@@ -154,6 +154,8 @@ impl Habit {
 
 /// Per-game vision state (lives in `Game`, under the same lock as the intel).
 pub struct Field {
+    /// Who was under an enemy tower and when (Date.now() ms; "" = me): held 1.5 s so the fight bar does not flicker.
+    pub tower_memo: std::sync::Mutex<std::collections::HashMap<String, f64>>,
     pub toasts: Vec<Toast>,
     /// Unguarded lane pushes announced: ("champion@lane", Date.now() ms).
     pub push_seen: Vec<(String, f64)>,
@@ -265,6 +267,7 @@ impl Field {
             my_pos_at: 0.0,
             my_last_real: None,
             my_trail: Vec::new(),
+            tower_memo: Default::default(),
             base_seen: Default::default(),
             cam_locked_at: 0.0,
             cam_unlocked_at: 0.0,
