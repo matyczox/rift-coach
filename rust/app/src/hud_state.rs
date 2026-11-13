@@ -121,7 +121,9 @@ fn smart_ward_spot(purposes: &[&str], visible: Option<&dyn Fn(f64, f64) -> f64>,
     for s in WARD_SPOTS {
         let (watches, kind, spawn) = spot_meta(s.id);
         let relevance = purposes.iter().filter(|p| watches.contains(p)).count() as f64;
-        if relevance == 0.0 || (spawn == "rift-transform" && !transformed) {
+        // Base Faelights (next to the inhibitors) were picked at game start for their vision value: never
+        // a sensible local suggestion.
+        if relevance == 0.0 || (spawn == "rift-transform" && !transformed) || s.id == "faelight-enemy-base" || s.id == "faelight-my-base" {
             continue;
         }
         let (px, py) = ward_point(s.id, red)?;

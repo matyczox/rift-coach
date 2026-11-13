@@ -290,7 +290,7 @@ function drawHint(h: MinimapHint, gt: number, now: number): void {
       ctx.lineJoin = 'round';
       ctx.lineWidth = 2.5; ctx.strokeStyle = `rgba(0,0,0,${0.5 * alpha})`; ctx.stroke();
       ctx.fillStyle = `rgba(${rgb},${alpha})`; ctx.fill();
-      if (h.label) pill(h.label, x + s + 4, y, `rgb(${rgb})`, 'left');
+      // No word next to the ring ('faelight' / 'ward' said nothing the ring does not).
       break;
     }
     case 'avoid': {
