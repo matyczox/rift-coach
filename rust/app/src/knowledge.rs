@@ -286,7 +286,10 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
                 }
             }
         }
-        o.insert("enemyTeam".into(), serde_json::json!({ "damage": { "AD": ad, "AP": ap, "mixed": mixed }, "withArmorItems": armor, "withMagicResistItems": mr }));
+        // Who heals: champions known for big healing, or anyone with lifesteal / omnivamp items.
+        const HEALERS: [&str; 24] = ["Soraka", "Yuumi", "Sona", "Nami", "Milio", "Seraphine", "Aatrox", "Vladimir", "Sylas", "Warwick", "Dr. Mundo", "Swain", "Briar", "Fiddlesticks", "Olaf", "Darius", "Illaoi", "Kayn", "Nasus", "Renekton", "Trundle", "Volibear", "Yorick", "Samira"];
+        let healing: Vec<String> = intel.players.iter().filter(|p| !p.is_ally && !p.is_dead).filter(|p| HEALERS.contains(&p.champion.as_str()) || tagged(p, "LifeSteal") + tagged(p, "SpellVamp") > 0).map(|p| p.champion.clone()).collect();
+        o.insert("enemyTeam".into(), serde_json::json!({ "damage": { "AD": ad, "AP": ap, "mixed": mixed }, "withArmorItems": armor, "withMagicResistItems": mr, "healing": healing }));
         if let Some(opp) = intel.me.as_ref().filter(|m| !m.role.is_empty()).and_then(|m| intel.players.iter().find(|p| !p.is_ally && p.role == m.role)) {
             o.insert("laneOpponent".into(), serde_json::json!(opp.champion));
         }
@@ -359,7 +362,9 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
                 }
                 // The first item holds 150 s (unless bought): the model flipped it every answer.
                 if let (Some(first), true) = (prev.first().cloned(), locked.is_none()) {
-                    let fresh = now - g.build_first_at < 150_000.0;
+                    // ...unless the enemies finished a new item since (their build is a reason to change it).
+                    let enemy_items: usize = intel.players.iter().filter(|p| !p.is_ally).map(|p| p.completed_items as usize).sum();
+                    let fresh = now - g.build_first_at < 150_000.0 && enemy_items <= g.build_enemy_items;
                     let owned_first = intel.me.as_ref().is_some_and(|m| m.items.iter().any(|i| sd.items.get(&i.id).is_some_and(|d| d.name.eq_ignore_ascii_case(&first) || d.name_en.as_deref().is_some_and(|e| e.eq_ignore_ascii_case(&first)))));
                     if fresh && !owned_first && b.items.first().is_some_and(|it| !it.name.eq_ignore_ascii_case(&first)) {
                         match b.items.iter().position(|it| it.name.eq_ignore_ascii_case(&first)) {
@@ -373,6 +378,7 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
                         }
                     }
                 }
+                let enemy_items_now: usize = intel.players.iter().filter(|p| !p.is_ally).map(|p| p.completed_items as usize).sum();
                 let first_changed = g.build.as_ref().and_then(|o| o.items.first()).map(|i| i.name.clone()) != b.items.first().map(|i| i.name.clone());
                 // Full inventory: the plan is a swap. Say what goes (the cheapest finished item, never boots).
                 if let Some(me) = intel.me.as_ref() {
@@ -390,6 +396,7 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
                 g.build = if b.items.is_empty() { None } else { Some(b) };
                 if first_changed {
                     g.build_first_at = now;
+                    g.build_enemy_items = enemy_items_now;
                 }
             }
             Err(e) => log::warn!(target: "build", "error {e}"),
