@@ -236,6 +236,22 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
     // Plan before this answer: an item from it I already started stays first until finished.
     let prev: Vec<String> = g.build.as_ref().map(|b| b.items.iter().map(|i| i.name.clone()).collect()).unwrap_or_default();
     let owned_ids: Vec<i64> = intel.me.as_ref().map(|m| m.items.iter().map(|i| i.id).collect()).unwrap_or_default();
+    // Champion classes (Mage / Assassin / Tank ...) for me and every enemy: models that reason from item
+    // stats alone put Liandry's on a burst Ahri; with the class they build for the champion.
+    if let Some(o) = ctx.as_object_mut() {
+        let class = |c: &str| sd.champion_tags.get(c).cloned().unwrap_or_default();
+        if let (Some(me), Some(mo)) = (intel.me.as_ref(), o.get_mut("me").and_then(serde_json::Value::as_object_mut)) {
+            mo.insert("class".into(), serde_json::json!(class(&me.champion)));
+        }
+        if let Some(es) = o.get_mut("enemies").and_then(serde_json::Value::as_array_mut) {
+            for e in es {
+                let c = e.get("champion").and_then(serde_json::Value::as_str).unwrap_or("").to_string();
+                if let Some(eo) = e.as_object_mut() {
+                    eo.insert("class".into(), serde_json::json!(class(&c)));
+                }
+            }
+        }
+    }
     if let (false, Some(o)) = (prev.is_empty(), ctx.as_object_mut()) {
         o.insert("currentPlan".into(), serde_json::json!(prev));
     }

@@ -41,6 +41,8 @@ pub struct StaticData {
     pub champion_by_key: HashMap<i64, String>,
     /// Ddragon id ("MonkeyKing") -> English display name ("Wukong").
     pub name_by_id: HashMap<String, String>,
+    /// Display name -> classes from the game data ("Ahri" -> ["Mage", "Assassin"]).
+    pub champion_tags: HashMap<String, Vec<String>>,
 }
 
 pub fn champion_icon_url(version: &str, ddragon_id: &str) -> String {
@@ -104,6 +106,8 @@ pub fn from_raw(version: &str, raw: &Value) -> StaticData {
                 sd.champion_by_key.insert(k, name.into());
             }
             sd.name_by_id.insert(id.into(), name.into());
+            let tags: Vec<String> = c.get("tags").and_then(Value::as_array).map(|a| a.iter().filter_map(|t| t.as_str().map(String::from)).collect()).unwrap_or_default();
+            sd.champion_tags.insert(name.into(), tags);
         }
     }
     sd.items = parse_items(raw.get("items").unwrap_or(&Value::Null));
