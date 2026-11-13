@@ -21,7 +21,7 @@ async fn main() {
         "goldDiff": -900,
         "availableItems": ["Rabadon's Deathcap", "Shadowflame", "Zhonya's Hourglass", "Banshee's Veil", "Void Staff", "Cryptbloom", "Morellonomicon", "Liandry's Torment", "Luden's Echo", "Stormsurge", "Lich Bane", "Horizon Focus", "Mejai's Soulstealer", "Seraph's Embrace", "Cosmic Drive", "Sorcerer's Shoes", "Mercury's Treads", "Plated Steelcaps", "Ionian Boots of Lucidity"]
     });
-    let runs = [("gpt-6.1-terra", Effort::High), ("gpt-6.1-terra", Effort::High), ("gpt-6.1-terra", Effort::Xhigh), ("claude-opus-5-5", Effort::Low)];
+    let runs = [("gpt-6.1-sol", Effort::High), ("gpt-6.1-sol", Effort::Xhigh), ("gpt-6.1-sol", Effort::High), ("gpt-6.1-terra", Effort::High)];
     for (model, effort) in runs {
         let call = ModelCall { model: model.into(), effort: Some(effort), system: SYSTEM.into(), schema: schema(), prompt: ctx.to_string(), timeout_ms: Some(240_000), ..Default::default() };
         match call_model::<Value>(&call).await {

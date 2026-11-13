@@ -28,7 +28,7 @@ pub const SYSTEM: &str = "Jesteś ekspertem od buildów League of Legends. Dobie
 - fazę gry, jego obecne przedmioty i złoto,
 - typ obrażeń wrogów (AD/AP), ich przedmioty, leczenie, tarcze, CC, kto jest nafeedowany (najgroźniejszy),
 - aktualny build z mety z briefu patcha (jeśli podany) — odchodź od niego tylko z konkretnego powodu.
-Najpierw ustal, czym jest postać gracza (\"me.class\" z danych gry) i jak wygrywa walki, dopiero potem dobieraj przedmioty — nie licz samych statystyk. Burst (Mage + Assassin, np. Ahri, Syndra, LeBlanc, Zed): obrażenia na jedno combo i penetracja (Shadowflame, Rabadon's Deathcap, Stormsurge, Lich Bane, Void Staff gdy wróg ma odporność na magię) plus jeden przedmiot na przeżycie (Zhonya's albo Banshee's); Liandry's Torment i Rylai's to przedmioty dla magów zadających obrażenia długo (Brand, Cassiopeia, Vladimir, Swain) — burstowi daj je tylko przeciw 3+ wrogom, których GŁÓWNA klasa (pierwsza w \"class\") to Tank — Fighter z dopiskiem Tank (Urgot, Wukong, Darius) to nie tank. Przeciw zabójcom i nurkującym (Assassin, Fighter wchodzący w ciebie) — Zhonya's albo Plated Steelcaps; przeciw samym magom — Mercury's Treads / Banshee's Veil; przeciw tankom (\"enemies[].class\" Tank) — procentowa penetracja i obrażenia od maks. HP. Nazwy przedmiotów DOKŁADNIE z listy \"availableItems\" (angielskie nazwy z gry). Jeśli jest \"finishFirst\" (zaczęty przedmiot z planu — gracz ma już jego składniki), zwykle daj go jako pierwszy; inny tylko, gdy wyraźnie bardziej się opłaca (np. te składniki lepiej pasują do innego przedmiotu, który teraz bardziej się przyda). Gdy \"me.boots\" to \"brak\" albo zwykłe Boots, a minęło ~8 min, w planie MUSZĄ być buty tier 2 (np. Plated Steelcaps na AD i auto ataki, Mercury's Treads na AP i CC) jako pierwszy albo drugi przedmiot. Jeśli jest \"currentPlan\" (plan, który gracz już widzi), zostaw jego pierwszy przedmiot, chyba że jest konkretny nowy powód (przedmioty lub feed wrogów) — nie zmieniaj planu w tę i z powrotem. Bez uzasadnień — tylko nazwy.
+Najpierw ustal, czym jest postać gracza (\"me.class\" z danych gry) i jak wygrywa walki, dopiero potem dobieraj przedmioty — nie licz samych statystyk. Burst (Mage + Assassin, np. Ahri, Syndra, LeBlanc, Zed): obrażenia na jedno combo i penetracja (Shadowflame, Rabadon's Deathcap, Stormsurge, Lich Bane, Void Staff gdy wróg ma odporność na magię) plus jeden przedmiot na przeżycie (Zhonya's albo Banshee's); Liandry's Torment i Rylai's to przedmioty dla magów zadających obrażenia długo (Brand, Cassiopeia, Vladimir, Swain) — burstowi daj je tylko przeciw 3+ wrogom, których GŁÓWNA klasa (pierwsza w \"class\") to Tank — Fighter z dopiskiem Tank (Urgot, Wukong, Darius) to nie tank. Przeciw zabójcom i nurkującym (Assassin, Fighter wchodzący w ciebie) — Zhonya's albo Plated Steelcaps; przeciw samym magom — Mercury's Treads / Banshee's Veil; przeciw tankom (\"enemies[].class\" Tank) — procentowa penetracja i obrażenia od maks. HP. Nazwy przedmiotów DOKŁADNIE z listy \"availableItems\" (angielskie nazwy z gry). Jeśli jest \"finishFirst\" (zaczęty przedmiot z planu — gracz ma już jego składniki), zwykle daj go jako pierwszy; inny tylko, gdy wyraźnie bardziej się opłaca (np. te składniki lepiej pasują do innego przedmiotu, który teraz bardziej się przyda). Gdy \"me.boots\" to \"brak\" albo zwykłe Boots, a minęło ~8 min, w planie MUSZĄ być buty tier 2 (np. Plated Steelcaps na AD i auto ataki, Mercury's Treads na AP i CC) jako pierwszy albo drugi przedmiot. Jeśli jest \"currentPlan\" (plan, który gracz już widzi), zostaw jego pierwszy przedmiot, chyba że jest konkretny nowy powód (przedmioty lub feed wrogów) — nie zmieniaj planu w tę i z powrotem. Jeśli w \"me.componentsInto\" gracz ma składnik, zwykle pierwszy przedmiot to jeden z tych, w które się składa (i pasuje do postaci) — nie zostawiaj kupionego składnika bez dokończenia. Bez uzasadnień — tylko nazwy.
 \"phase\": \"wczesna gra\" / \"środek gry\" / \"późna gra\".";
 
 /// Items in Data Dragon order (JS iterates integer keys ascending).
@@ -53,6 +53,19 @@ pub fn build_context(intel: &GameIntel, items: &HashMap<i64, ItemData>, profiles
     // Boots are easy to forget in a 3-item plan (lvl 15 Ambessa with 4 items and no boots).
     let boots = me.items.iter().find(|i| items.get(&i.id).is_some_and(|d| d.tags.iter().any(|t| t == "Boots"))).map(|i| i.name.clone());
     mo.insert("boots".into(), json!(boots.unwrap_or_else(|| "brak".into())));
+    // My components (>= 400 g, not finished items) and the finished items each one builds into.
+    let comps: Map<String, Value> = me
+        .items
+        .iter()
+        .filter(|i| items.get(&i.id).is_some_and(|d| !d.completed && d.total >= 400.0 && !d.tags.iter().any(|t| t == "Boots")))
+        .map(|i| {
+            let into: Vec<&str> = sorted_items(items).into_iter().filter(|d| d.completed && d.from.contains(&i.id)).map(|d| d.name_en.as_deref().unwrap_or(&d.name)).take(6).collect();
+            (i.name.clone(), json!(into))
+        })
+        .collect();
+    if !comps.is_empty() {
+        mo.insert("componentsInto".into(), Value::Object(comps));
+    }
     if let Some(s) = &intel.my_stats {
         mo.insert("stats".into(), serde_json::to_value(s).unwrap_or(Value::Null));
     }
@@ -356,6 +369,15 @@ mod tests {
         assert_eq!(buy_now(&maw, &items, &[1033], 400.0, false), vec![1036]);
         // Mantle owned, 900 g: Hexdrinker costs only 850 more -> buy it.
         assert_eq!(buy_now(&maw, &items, &[1033], 900.0, false), vec![3155]);
+    }
+
+    /// The TS build prompt (src/main/coach/build.ts) must stay the same text as SYSTEM.
+    #[test]
+    fn prompt_matches_ts() {
+        let ts = include_str!("../../../../src/main/coach/build.ts");
+        let start = ts.find("const SYSTEM = `").expect("SYSTEM in build.ts") + "const SYSTEM = `".len();
+        let end = start + ts[start..].find('`').expect("end of SYSTEM");
+        assert_eq!(ts[start..end].replace("\r\n", "\n"), SYSTEM);
     }
 
     #[test]

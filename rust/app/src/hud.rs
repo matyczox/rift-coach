@@ -174,17 +174,17 @@ fn wants(st: &Value, has_minimap: bool, now: f64) -> Value {
         && (!arr("ghosts").is_empty()
             || st["showFrame"].as_bool().unwrap_or(false)
             || st["recording"].as_bool().unwrap_or(false)
-            || st["objective"].is_object()
             || arr("hints").iter().any(|h| is_live(exp(h), gt, now))
             || arr("timers").iter().any(|t| t["secondsLeft"].as_f64().is_some_and(|s| s > 0.0 && s <= 60.0)));
     let high_danger = matches!(st["danger"]["label"].as_str(), Some("niebezpiecznie" | "uciekaj")) && !st["deathCard"].is_object();
-    let topbar = st["power"].is_object() || (st["topBar"].is_object() && is_live(exp(&st["topBar"]), gt, now)) || (st["alert"].is_object() && is_live(exp(&st["alert"]), gt, now)) || urgent(&st["objective"]) || high_danger;
+    let topbar = st["power"].is_object() || (st["topBar"].is_object() && is_live(exp(&st["topBar"]), gt, now)) || (st["alert"].is_object() && is_live(exp(&st["alert"]), gt, now)) || high_danger;
+    let _ = urgent;
     json!({
         "minimap": minimap,
         "topbar": topbar,
         "death": st["deathCard"].is_object(),
         "loading": st["loadingCard"].is_object(),
-        "power": (st["power"].is_object() || st["danger"].is_object() || st["alert"].is_object() || st["objective"].is_object()) && !st["deathCard"].is_object(),
+        "power": st["power"].is_object() && !st["deathCard"].is_object(),
         "build": st["build"]["items"].as_array().is_some_and(|a| !a.is_empty()) || st["build"]["buyNow"].as_array().is_some_and(|a| !a.is_empty()),
         "notify": !arr("toasts").is_empty() || !arr("buffs").is_empty() || !arr("returns").is_empty() || st["pin"].is_string() || arr("hints").iter().any(|h| (h["kind"] == "move" || h["kind"] == "ward") && h.get("from").is_some() && is_live(exp(h), gt, now)),
     })
@@ -193,7 +193,7 @@ fn wants(st: &Value, has_minimap: bool, now: f64) -> Value {
 /// "Kup teraz" for the build panel: only when I can shop (dead, in my base, or the first 90 s), from my
 /// gold and the next planned item's recipe.
 /// Point on a lane at wave front `front` (0 = our inhibitor tower, 1 = theirs), minimap fractions.
-fn wave_point(lane: &str, front: f64, red: bool) -> (f64, f64) {
+pub fn wave_point(lane: &str, front: f64, red: bool) -> (f64, f64) {
     // ORDER view: our inhibitor tower -> ... -> their inhibitor tower.
     let path: &[(f64, f64)] = match lane {
         "top" => &[(0.079, 0.712), (0.066, 0.298), (0.07, 0.07), (0.29, 0.067), (0.705, 0.082)],
@@ -284,6 +284,7 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
     let show_frame = st.vision.show_frame();
     let advice = st.ui.lock().unwrap().last_advice.clone();
     let mut field_line: Option<String> = None;
+    let pos_unknown = st.game.lock().unwrap().field.my_pos.is_none();
     let mut log_t = 0.0;
     let mut state = {
         let mut g = st.game.lock().unwrap();
@@ -299,7 +300,8 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
         // the ganker is the one in trouble.
         // Only a real local fight counts (someone near); and a gank warning is muted only when allies
         // are actually with me and the fight there is clearly ours.
-        let fight = g.intel.as_ref().and_then(|i| rc_core::intel::matchup::power_bar_near(i, g.matchup.as_ref(), &|c: &str| c.to_string(), &k::nearby(g))).filter(|p| p.local);
+        let near_once = k::nearby(g);
+        let fight = g.intel.as_ref().and_then(|i| rc_core::intel::matchup::power_bar_near(i, g.matchup.as_ref(), &|c: &str| c.to_string(), &near_once)).filter(|p| p.local);
         let fight_p = fight.as_ref().map(|p| p.p_me);
         let mute_gank = fight.as_ref().is_some_and(|p| p.p_me >= 0.6 && !p.allies.is_empty());
         let alerts: Vec<crate::vision::Alert> = g.field.alerts.iter().filter(|a| !(a.kind == "gank" && mute_gank)).cloned().collect();
@@ -310,19 +312,8 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
                 let tracks = k::fog_tracks(g);
                 let (allies, enemies) = (k::seen(&g.field.allies), k::seen(&g.field.visible_enemies));
                 (
-                    {
-                        // Not while everyone is still walking to lane or I stand in my base: nothing to fight.
-                        let base = if i.me.as_ref().is_some_and(|m| m.team == "CHAOS") { (0.96, 0.04) } else { (0.04, 0.96) };
-                        let in_base = g.field.my_pos.is_some_and(|(x, y)| (x - base.0).hypot(y - base.1) < 0.15);
-                        // (No longer hidden in base: the user wants it there too.)
-                        let _ = in_base;
-                        // Shown from the start (the user asked; it was hidden for the first 75 s).
-                        if false {
-                            None
-                        } else {
-                            rc_core::intel::matchup::power_bar_near(i, g.matchup.as_ref(), &icon, &k::nearby(g)).and_then(|p| serde_json::to_value(p).ok())
-                        }
-                    },
+                    // Always shown (from the game start and in base, as the user asked).
+                    rc_core::intel::matchup::power_bar_near(i, g.matchup.as_ref(), &icon, &near_once).and_then(|p| serde_json::to_value(p).ok()),
                     rc_core::intel::situational::danger_at(i, k::pos(g.field.my_pos), &tracks, &enemies, fight_p.or_else(|| k::current_p_me(g)), &fed).and_then(|d| serde_json::to_value(d).ok()),
                     rc_core::intel::situational::objective_call(i, &tracks, &allies, &enemies).and_then(|o| serde_json::to_value(o).ok()),
                     fed,
@@ -330,6 +321,14 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
             }
             None => (None, None, None, Vec::new()),
         };
+        // The ward the player just placed: its marker from the (still fresh) advice is gone, not back.
+        let advice: Option<Value> = advice.clone().map(|mut a| {
+            let done = g.ward_done.as_ref().filter(|(_, at)| now - at < 120_000.0).map(|(s, _)| s.clone());
+            if done.is_some_and(|d| a.get("ward").and_then(|w| w.get("spot")).and_then(Value::as_str) == Some(d.as_str())) {
+                a["ward"] = Value::Null;
+            }
+            a
+        });
         let mut s = compose_hud(&HudInputs {
             visible,
             intel: g.intel.as_ref(),
@@ -418,6 +417,12 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
                 o.insert("pin".into(), json!(format!("Postaw ward: {}", rc_core::wards::WARD_SPOTS.iter().find(|w| w.id == spot).map(|w| w.label).unwrap_or("ward"))));
             }
         }
+        // Coach "go there" hints start at me too (arrow on the minimap and the guide on my champion).
+        if let (Some((mx, my)), Some(hints)) = (g.field.my_pos, s.get_mut("hints").and_then(Value::as_array_mut)) {
+            for h in hints.iter_mut().filter(|h| (h["kind"] == "move" || h["kind"] == "objective") && h.get("from").is_none()) {
+                h["from"] = json!({ "x": mx, "y": my });
+            }
+        }
         // "Zaahen invade": show WHERE on the minimap (his most likely spot from the tracker).
         if let Some(champ) = g.field.alerts.iter().find(|a| a.kind == "invade" && a.expires_at > now).and_then(|a| a.text.strip_suffix(" invade").map(String::from)) {
             if let (Some(gh), Some(hints)) = (g.field.ghosts.iter().find(|gh| gh.champion == champ), s.get_mut("hints").and_then(Value::as_array_mut)) {
@@ -464,7 +469,7 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
                 let ward_ready = g.field.trinket.is_some_and(|(r, at)| r && now - at < 5000.0);
                 let next = i.objectives.iter().filter(|o| matches!(o.kind, "dragon" | "elder" | "baron" | "grubs" | "herald") && !o.alive).filter_map(|o| o.spawns_at.map(|t| (o, t - gt))).filter(|(_, d)| (15.0..=90.0).contains(d)).min_by(|a, b| a.1.total_cmp(&b.1));
                 let plan = if let Some((o, d)) = next {
-                    let name = match o.kind { "dragon" => "Dragon", "elder" => "Elder Dragon", "baron" => "Baron", "grubs" => "Voidgrubs", _ => "Herald" };
+                    let name = if o.label.contains("Elder") { "Elder Dragon" } else { match o.kind { "dragon" => "Dragon", "baron" => "Baron", "grubs" => "Voidgrubs", _ => "Herald" } };
                     let river = if matches!(o.kind, "dragon" | "elder") { "rzeka bot" } else { "rzeka top" };
                     let mut steps: Vec<String> = Vec::new();
                     if lane.is_some() && !pushed {
@@ -511,7 +516,7 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
         }
         if state["build"]["buyNow"].is_array() {
             h.last_buy = Some((state["build"]["buyNow"].clone(), Instant::now()));
-        } else if let (Some((v, _)), true) = (h.last_buy.as_ref().filter(|(_, at)| at.elapsed() < hold), state["build"].is_object()) {
+        } else if let (Some((v, _)), true) = (h.last_buy.as_ref().filter(|(_, at)| at.elapsed() < hold), state["build"].is_object() && pos_unknown) {
             state["build"]["buyNow"] = v.clone();
         }
     } else {

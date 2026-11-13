@@ -34,6 +34,8 @@ pub struct Intent {
 
 pub struct Game {
     pub intent: Option<Intent>,
+    /// Ward spot just confirmed placed (spot id, Date.now() ms): the advice's marker for it is dropped.
+    pub ward_done: Option<(String, f64)>,
     /// My ward score and the game time it last went up (= I placed a ward then).
     pub ward_seen: (i64, f64),
     pub static_data: Option<Arc<StaticData>>,
@@ -70,6 +72,7 @@ impl Game {
     pub fn new(data_dir: &std::path::Path) -> Self {
         Game {
             intent: None,
+            ward_done: None,
             ward_seen: (0, -1000.0),
             static_data: None,
             tracker: IntelTracker::default(),
@@ -183,7 +186,12 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
         let ctx = CoachContext {
             intel: g.intel.as_ref(),
             ghosts: g.field.ghosts.iter().filter_map(|x| serde_json::to_value(x).ok()).collect(),
-            alerts: g.field.alerts.iter().filter_map(|x| serde_json::to_value(x).ok()).collect(),
+            // Same gank mute as the HUD (allies with me and the fight clearly ours): the model must not call
+            // a gank the player was not shown.
+            alerts: {
+                let mute = g.intel.as_ref().and_then(|i| rc_core::intel::matchup::power_bar_near(i, g.matchup.as_ref(), &|c: &str| c.to_string(), &crate::knowledge::nearby(g))).filter(|p| p.local).is_some_and(|p| p.p_me >= 0.6 && !p.allies.is_empty());
+                g.field.alerts.iter().filter(|x| !(mute && x.kind == "gank")).filter_map(|x| serde_json::to_value(x).ok()).collect()
+            },
             profiles: g.profiles.iter().filter_map(|p| serde_json::to_value(p).ok()).collect(),
             patch_brief: brief,
             matchup,
@@ -199,7 +207,7 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
                 let fight = bar.as_ref().filter(|p| p.local).map(|p| r2(p.p_me));
                 let tracks = crate::knowledge::fog_tracks(g);
                 let enemies_seen = crate::knowledge::seen(&g.field.visible_enemies);
-                let danger = rc_core::intel::situational::danger_at(i, crate::knowledge::pos(g.field.my_pos), &tracks, &enemies_seen, fight, &crate::knowledge::fed_names(i));
+                let danger = rc_core::intel::situational::danger_at(i, crate::knowledge::pos(g.field.my_pos), &tracks, &enemies_seen, fight.or_else(|| crate::knowledge::current_p_me(g)), &crate::knowledge::fed_names(i));
                 let now = crate::vision::now_ms();
                 serde_json::json!({
                     "me": g.field.my_pos.map(|(x, y)| serde_json::json!({ "x": r2(x), "y": r2(y), "area": area_name(x, y, red) })),
@@ -330,7 +338,9 @@ fn intent_of(g: &Game, a: &Value) -> Option<Intent> {
         return Some(Intent { ward_spot: Some(spot.to_string()), target: None, label: call, since: intel.game_time, ward_score_at: me.ward_score, was_covered: covered, at_spot_since: None });
     }
     let target = a.get("mapHint").and_then(|m| m.get("target")).and_then(Value::as_str)?;
-    let p = crate::hud_state::map_point_for(target, red)?;
+    // A lane target means its wave (the arrow points there too), not the lane corner.
+    let wave = matches!(target, "top" | "mid" | "bot").then(|| g.field.waves.as_ref().and_then(|w| w.lanes.iter().find(|l| l.lane == target)).and_then(|l| l.front)).flatten();
+    let p = match wave { Some(front) => crate::hud::wave_point(target, front, red), None => crate::hud_state::map_point_for(target, red)? };
     Some(Intent { ward_spot: None, target: Some(p), label: call, since: intel.game_time, ward_score_at: me.ward_score, was_covered: false, at_spot_since: None })
 }
 
@@ -396,6 +406,9 @@ fn check_intent(g: &mut Game) {
     g.intent = None;
     let now = now_ms();
     if reason == "ward-done" {
+        if let Some(spot) = it.ward_spot.clone() {
+            g.ward_done = Some((spot, now));
+        }
         g.field.toasts.push(crate::vision::Toast { id: now as u64 + 31, kind: "done".into(), team: "ally".into(), champion: None, text: format!("✓ {text}"), expires_at: now + 3000.0 });
     }
     g.coach.request_followup(reason);

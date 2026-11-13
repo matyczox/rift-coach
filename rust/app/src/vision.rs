@@ -977,6 +977,20 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             let at_fountain = (d.x - fountain.0).hypot(d.y - fountain.1) < 0.12;
             !at_fountain || just_respawned || f.my_last_real.is_none_or(|(x, y, at)| (d.x - x).hypot(d.y - y) < 0.3 || now - at > 8500.0)
         });
+        // My green bar on screen + the camera rectangle (= what the screen shows) -> my spot on the map,
+        // whatever the camera does (locked or not). A box cut by the map edge gets its usual size back
+        // from the side that is still there; a jump of > 1/3 map in 3 s is rejected (false green bar).
+        let screen_pos = match (r.me_screen, r.camera_rect) {
+            (Some((sx, sy)), Some((x0, y0, x1, y1))) if !me.is_dead => {
+                let (cw, ch) = f.cam_size;
+                let (x0, x1) = if x0 <= 0.01 && x1 - x0 < cw * 0.95 { (x1 - cw, x1) } else if x1 >= 0.99 && x1 - x0 < cw * 0.95 { (x0, x0 + cw) } else { (x0, x1) };
+                let (y0, y1) = if y0 <= 0.01 && y1 - y0 < ch * 0.95 { (y1 - ch, y1) } else if y1 >= 0.99 && y1 - y0 < ch * 0.95 { (y0, y0 + ch) } else { (y0, y1) };
+                let p = (x0 + sx * (x1 - x0), y0 + sy * (y1 - y0));
+                let jump = f.my_pos.filter(|_| now - f.my_pos_at < 3000.0).is_some_and(|(px, py)| (p.0 - px).hypot(p.1 - py) > 0.3);
+                (!jump).then_some(p)
+            }
+            _ => None,
+        };
         if let Some(d) = pick {
             f.my_pos = Some((d.x, d.y));
             f.my_pos_at = now;
@@ -987,14 +1001,8 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
                 Some(dist) if dist > 0.09 => f.cam_unlocked_at = now,
                 _ => {}
             }
-        } else if let (Some((sx, sy)), Some((x0, y0, x1, y1)), false) = (r.me_screen, r.camera_rect, me.is_dead) {
-            // My green bar on screen + the camera rectangle (= what the screen shows) -> my spot on the
-            // map, whatever the camera does (locked or not). A box cut by the map edge gets its usual size
-            // back from the side that is still there.
-            let (cw, ch) = f.cam_size;
-            let (x0, x1) = if x0 <= 0.01 && x1 - x0 < cw * 0.95 { (x1 - cw, x1) } else if x1 >= 0.99 && x1 - x0 < cw * 0.95 { (x0, x0 + cw) } else { (x0, x1) };
-            let (y0, y1) = if y0 <= 0.01 && y1 - y0 < ch * 0.95 { (y1 - ch, y1) } else if y1 >= 0.99 && y1 - y0 < ch * 0.95 { (y0, y0 + ch) } else { (y0, y1) };
-            f.my_pos = Some((x0 + sx * (x1 - x0), y0 + sy * (y1 - y0)));
+        } else if let Some(p) = screen_pos {
+            f.my_pos = Some(p);
             f.my_pos_at = now;
             f.pos_src = "screen";
         } else if let Some((cx, cy)) = r.camera.filter(|_| !me.is_dead && now - f.cam_locked_at < 30000.0 && f.cam_locked_at > f.cam_unlocked_at) {
@@ -1080,6 +1088,11 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         guards.push(SeenUnit { champion: String::new(), x, y, vx: 0.0, vy: 0.0 });
     }
     // Not in the first minutes: everyone is just walking to lane.
+    for (c, (x, y, t)) in &f.ally_last {
+        if intel.game_time - t <= 6.0 && !guards.iter().any(|g| g.champion == *c) {
+            guards.push(SeenUnit { champion: c.clone(), x: *x, y: *y, vx: 0.0, vy: 0.0 });
+        }
+    }
     let pushes = if intel.game_time > 150.0 { unguarded_pushes(&f.visible_enemies, &guards, my_team_t) } else { Vec::new() };
     for (champ, lane) in pushes {
         let role = match lane { "top" => "TOP", "bot" => "BOTTOM", "mid" => "MIDDLE", _ => "" };
@@ -1423,9 +1436,10 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
                 miss *= 1.0 - m.min(0.95);
             }
             let p = 1.0 - miss;
-            let name = match o.kind { "dragon" => "Dragon", "elder" => "Elder Dragon", "baron" => "Baron", "herald" => "Herald", "grubs" => "Voidgrubs", _ => "Atakhan" };
+            // (Elder comes as kind "dragon" with the label "Elder Dragon".)
+            let name = if o.label.contains("Elder") { "Elder Dragon" } else { match o.kind { "dragon" => "Dragon", "baron" => "Baron", "herald" => "Herald", "grubs" => "Voidgrubs", _ => "Atakhan" } };
             // Shown from 50 %, then kept down to 25 % (it flickered on/off around the threshold).
-            let showing = f.alerts.iter().any(|x| x.kind == "objective" && x.expires_at > now && x.text.ends_with(name));
+            let showing = f.alerts.iter().any(|x| x.kind == "objective" && x.expires_at > now && x.text.starts_with("Mogą robić") && x.text.ends_with(name));
             // Our people at the pit too = a teamfight there: arrow to go (up to ~half the map away).
             let ours_there = f.allies.iter().filter(|a| (a.x - pit.0).hypot(a.y - pit.1) < 0.12).count();
             let far = f.my_pos.is_some_and(|(x, y)| { let d = (x - pit.0).hypot(y - pit.1); d > 0.1 && d < 0.55 });
@@ -1437,8 +1451,8 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
                         None => tr.mass_near(&j.champion, pit, 0.18).unwrap_or(0.0),
                     };
                     if m >= 0.35 {
-                        let al = Alert::new("objective", format!("{} może ukraść {name}", j.champion), m.min(0.9), now + 4000.0);
-                        match f.alerts.iter().position(|x| x.kind == "objective") {
+                        let al = Alert::new("steal", format!("{} może ukraść {name}", j.champion), m.min(0.9), now + 4000.0);
+                        match f.alerts.iter().position(|x| x.kind == "steal") {
                             Some(i) => f.alerts[i] = al,
                             None => f.alerts.push(al),
                         }

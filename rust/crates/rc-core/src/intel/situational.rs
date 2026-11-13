@@ -163,7 +163,7 @@ pub fn danger_at(intel: &GameIntel, me: Option<Pos>, tracks: &[FogTrack], visibl
     let shield = match p_me { Some(p) if p >= 0.6 => 0.5, Some(p) if p >= 0.5 => 0.75, _ => 1.0 };
     for e in visible_enemies {
         let d = (e.x - me.x).hypot(e.y - me.y);
-        if d > 0.14 {
+        if d > 0.15 {
             continue;
         }
         let is_fed = fed.contains(&e.champion);
@@ -173,7 +173,7 @@ pub fn danger_at(intel: &GameIntel, me: Option<Pos>, tracks: &[FogTrack], visibl
             _ => None,
         });
         let hp_w = hp.map_or(1.0, |h| 0.25 + 0.75 * h.clamp(0.0, 1.0));
-        let w = (1.0 - d / 0.14) * if is_fed { 1.6 } else { 1.0 } * 0.45 * shield * hp_w;
+        let w = (1.0 - d / 0.15) * if is_fed { 1.6 } else { 1.0 } * 0.45 * shield * hp_w;
         score += w;
         reasons.push((w, format!("{} blisko{}", e.champion, if is_fed { " (fed)" } else { "" })));
     }

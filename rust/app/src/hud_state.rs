@@ -261,8 +261,8 @@ pub fn compose_hud(i: &HudInputs) -> Value {
     };
     // A threat to me (gank / invade) beats "they may be doing Dragon".
     // Kinds the top bar does not show (ally prompts...) must not hide one it does.
-    let rank = |a: &crate::vision::Alert| a.confidence - match a.kind.as_str() { "gank" | "invade" | "missing" => 0.0, "objective" => 0.5, _ => 1.0 };
-    let alert = i.alerts.iter().filter(|a| a.expires_at > now).max_by(|a, b| rank(a).partial_cmp(&rank(b)).unwrap_or(std::cmp::Ordering::Equal));
+    let rank = |a: &crate::vision::Alert| a.confidence - match a.kind.as_str() { "gank" | "invade" | "missing" | "steal" => 0.0, _ => 0.5 };
+    let alert = i.alerts.iter().filter(|a| a.expires_at > now && matches!(a.kind.as_str(), "gank" | "invade" | "missing" | "steal" | "objective")).max_by(|a, b| rank(a).partial_cmp(&rank(b)).unwrap_or(std::cmp::Ordering::Equal));
     let death_card = match me {
         Some(m) if dead => json!({
             "title": format!("Nie żyjesz · respawn {}", fmt_t(m.respawn_in)),

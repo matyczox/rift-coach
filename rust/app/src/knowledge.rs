@@ -400,7 +400,7 @@ pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
     if let Some(i) = g.intel.as_ref() {
         let (bars, at) = g.field.enemy_bars;
         if i.game_time - at <= 1.5 {
-            let named = i.players.iter().filter(|p| !p.is_ally && !p.is_dead && p.onscreen_at.is_some_and(|t| i.game_time - t <= 1.5)).count();
+            let named = i.players.iter().filter(|p| !p.is_ally && !p.is_dead && p.onscreen_at.is_some_and(|t| i.game_time - t <= 4.0)).count();
             n.unknown_enemies = bars.saturating_sub(named);
         }
     }
