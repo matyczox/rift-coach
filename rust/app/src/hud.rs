@@ -255,7 +255,16 @@ fn buy_now_json(g: &crate::game::Game) -> Option<Value> {
     // full item ("pokazywało przedmiot, a nie pierścień z potkami").
     let bought_anything = me.items.iter().any(|i| sd.items.get(&i.id).is_some_and(|d| d.total >= 300.0));
     let ids = if !bought_anything && intel.game_time < 180.0 {
-        let tag = |t: &str| target.is_some_and(|d| d.tags.iter().any(|x| x == t));
+        // No plan yet (first seconds): the champion's class decides (Mage -> Ring, Tank -> Shield, else Blade).
+        let class: Vec<String> = sd.champion_tags.get(&me.champion).cloned().unwrap_or_default();
+        let tag = |t: &str| match target {
+            Some(d) => d.tags.iter().any(|x| x == t),
+            None => match t {
+                "SpellDamage" => class.first().is_some_and(|c| c == "Mage" || c == "Support") || (class.iter().any(|c| c == "Mage") && !class.iter().any(|c| c == "Marksman" || c == "Fighter")),
+                "Armor" | "Health" => class.first().is_some_and(|c| c == "Tank"),
+                _ => false,
+            },
+        };
         let (start, pots): (i64, usize) = match me.role.as_str() {
             "UTILITY" => (3865, 2),
             "JUNGLE" => (if tag("SpellDamage") { 1102 } else if tag("Armor") || tag("Health") && !tag("Damage") { 1103 } else { 1101 }, 1),

@@ -219,6 +219,12 @@ fn build_session(intel: &GameIntel) -> String {
 /// Build panel: re-ask the build model on item / enemy-item / death changes or every 3 min.
 pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64) {
     let (Some(sd), Some(_)) = (g.static_data.clone(), g.intel.as_ref()) else { return };
+    // A new game / champion: the old plan goes (a Practice Tool restart keeps the Live API up).
+    let key = build_session(g.intel.as_ref().unwrap());
+    if key != g.build_key {
+        g.build = None;
+        g.build_key = key;
+    }
     // Just bought something from the plan: drop it from the panel now, not after the next answer.
     if let (Some(b), Some(me)) = (g.build.as_mut(), g.intel.as_ref().and_then(|i| i.me.as_ref())) {
         let owned: Vec<String> = me.items.iter().map(|i| i.name.to_lowercase()).collect();

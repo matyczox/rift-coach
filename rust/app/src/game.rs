@@ -60,6 +60,8 @@ pub struct Game {
     pub team_watcher: TeamWatcher,
     pub build_trigger: BuildTrigger,
     pub build: Option<rc_core::build_advisor::BuildPanelState>,
+    /// Game + champion the build plan belongs to (a plan from the last game showed Doran's Blade on Ahri).
+    pub build_key: String,
     pub build_busy: bool,
     // ---- post-game ----
     pub match_log: MatchLog,
@@ -91,6 +93,7 @@ impl Game {
             team_watcher: TeamWatcher::default(),
             build_trigger: BuildTrigger::default(),
             build: None,
+            build_key: String::new(),
             build_busy: false,
             match_log: MatchLog::new(),
             obs: ObsRecorder::default(),
