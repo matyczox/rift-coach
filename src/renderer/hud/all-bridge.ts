@@ -88,9 +88,10 @@ function layout(m: HudMessage, s: number): void {
   const b = mr ?? { x: W - side, y: H - side, width: side, height: side };
   // Build: left of the minimap, bottom-aligned, narrow (no descriptions) and with a clear gap so it never
   // covers the minimap's edge.
-  // Notifications: top-right corner, under the score / FPS line.
-  const nw = 300 * s, nh = 260 * s;
-  place(panels.get('notify')!, { x: W - nw - W * 0.006, y: H * 0.06, width: nw, height: nh });
+  // Timers / pinned ward / rival back on lane: right above the minimap, where the eyes go every few
+  // seconds anyway (the top-right corner under the score is never looked at mid-fight).
+  const nw = 300 * s, nh = 200 * s;
+  place(panels.get('notify')!, { x: b.x + b.width - nw, y: b.y - nh - 6 * s, width: nw, height: nh });
   const bw = 250 * s, bh = 230 * s;
   place(panels.get('build')!, { x: b.x - bw - 14 * s, y: b.y + b.height - bh, width: bw, height: bh });
   // Panels the player dragged somewhere else (the minimap layer stays on the minimap).

@@ -279,3 +279,8 @@ canvas.full { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .bar .call { font-size: 1.4rem; }
 .bar { padding: 0.6rem 1.1rem 0.65rem 1rem; }
 .alert { font-size: 1.1rem; }
+/* Timer chips sit right above the minimap: stack from the bottom up. */
+#p-notify .notify { height: 100%; box-sizing: border-box; justify-content: flex-end; padding: 0 0.25rem 0.25rem; }
+#p-notify .chips { flex-direction: column-reverse; }
+/* Urgent alerts: just below my champion (camera-locked centre), above the call bar. */
+.toasts { top: 62%; }
