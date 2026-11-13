@@ -740,7 +740,7 @@ pub fn unguarded_pushes(enemies: &[SeenUnit], allies: &[SeenUnit], my_team: Team
         } else {
             continue;
         };
-        if allies.iter().any(|a| (a.x - e.x).hypot(a.y - e.y) < 0.12) {
+        if allies.iter().any(|a| (a.x - e.x).hypot(a.y - e.y) < 0.18) {
             continue;
         }
         out.push((e.champion.clone(), lane));
@@ -936,7 +936,9 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     if let Some((x, y)) = f.my_pos {
         guards.push(SeenUnit { champion: String::new(), x, y, vx: 0.0, vy: 0.0 });
     }
-    for (champ, lane) in unguarded_pushes(&f.visible_enemies, &guards, my_team_t) {
+    // Not in the first minutes: everyone is just walking to lane.
+    let pushes = if intel.game_time > 150.0 { unguarded_pushes(&f.visible_enemies, &guards, my_team_t) } else { Vec::new() };
+    for (champ, lane) in pushes {
         let role = match lane { "top" => "TOP", "bot" => "BOTTOM", "mid" => "MIDDLE", _ => "" };
         if !role.is_empty() && intel.players.iter().any(|p| p.champion == champ && p.role == role) {
             continue;
@@ -996,7 +998,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     // Their laner seen on his lane pushing towards our tower (their wave on our side, or him walking at our
     // tower) with none of us near: warn before he is AT the tower.
     for (role, lane) in [("TOP", "top"), ("MIDDLE", "mid"), ("BOTTOM", "bot")] {
-        if intel.me.as_ref().is_some_and(|m| m.role == role) {
+        if intel.game_time < 150.0 || intel.me.as_ref().is_some_and(|m| m.role == role) {
             continue;
         }
         let Some(e) = intel.players.iter().find(|p| !p.is_ally && p.role == role && !p.is_dead) else { continue };
@@ -1015,23 +1017,28 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             continue; // in our base: the nexus warning above covers it
         }
         let base_key = format!("{}@{lane}", e.champion);
-        if !on_lane || d > 0.4 {
+        // Their outer tower of the lane: he must be on OUR half (closer to our tower than to his).
+        let their_tower = (1.0 - tower.0, 1.0 - tower.1);
+        let our_half = d < (v.x - their_tower.0).hypot(v.y - their_tower.1);
+        if !on_lane || !our_half || d > 0.4 {
             // Back on his side: the next push warns from the start again.
             f.push_stage.remove(&base_key);
             continue;
         }
-        if d > 0.35 {
+        if d > 0.22 {
             continue;
         }
         let speed = v.vx.hypot(v.vy);
         let heading = speed > 0.0008 && ((tower.0 - v.x) * v.vx + (tower.1 - v.y) * v.vy) / (d.max(1e-6) * speed) > 0.6;
         let wave_ours = f.waves.as_ref().and_then(|w| w.lanes.iter().find(|l| l.lane == lane)).is_some_and(|l| matches!(l.state.as_str(), "our_side" | "under_our_tower"));
-        let guarded = f.allies.iter().any(|a| (a.x - v.x).hypot(a.y - v.y) < 0.12) || f.my_pos.is_some_and(|(x, y)| (x - v.x).hypot(y - v.y) < 0.12);
-        if guarded || !(wave_ours || heading) {
+        let guarded = f.allies.iter().any(|a| (a.x - v.x).hypot(a.y - v.y) < 0.18) || f.my_pos.is_some_and(|(x, y)| (x - v.x).hypot(y - v.y) < 0.18);
+        // Their wave really on our side; walking at our tower alone is not a push (lane start).
+        let _ = heading;
+        if guarded || !wave_ours {
             continue;
         }
         // Warn again only when he gets closer (coming -> near our tower -> hitting it), not on a timer.
-        let stage: u8 = if d < 0.08 { 3 } else if d < 0.2 { 2 } else { 1 };
+        let stage: u8 = if d < 0.06 { 3 } else if d < 0.12 { 2 } else { 1 };
         if f.push_stage.get(&base_key).is_some_and(|s| *s >= stage) {
             continue;
         }

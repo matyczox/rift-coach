@@ -396,6 +396,13 @@ pub fn power_bar_near(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dy
     let my_hp = intel.my_stats.as_ref().filter(|s| s.max_hp > 0.0).map_or(1.0, |s| s.hp / s.max_hp);
     let hp_cap = if my_hp < 0.25 { 0.2 + 1.6 * my_hp } else { 1.0 };
     let p_me = sigmoid(base + tower + if local { nearby_delta(intel, primary, near) } else { 0.0 }).min(hp_cap);
+    // A NaN (bad screen reading somewhere) made the whole bar vanish (JSON has no NaN): log it, show 50 %.
+    let p_me = if p_me.is_finite() {
+        p_me
+    } else {
+        log::warn!("power bar NaN: base {base} tower {tower} near {:?} hp_cap {hp_cap}", near);
+        0.5
+    };
     let side = |c: &str, sure: bool| intel.players.iter().find(|p| p.champion == c && !p.is_dead).map(|p| NearSide { champion: p.champion.clone(), icon_url: icon(&p.champion), level: p.level, sure });
     // Allies next to me only matter in a fight (an enemy near): in base / on the way it just confused.
     let allies: Vec<NearSide> = if !local { Vec::new() } else { near.allies.iter().filter(|c| intel.players.iter().any(|p| &p.champion == *c && p.is_ally && !p.is_me)).filter_map(|c| side(c, true)).collect() };
