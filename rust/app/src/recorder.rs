@@ -199,7 +199,10 @@ pub fn stop_recording(st: &crate::state::AppState) {
 
 /// Disk housekeeping (30 s after start, like index.ts): keep the newest 5 sessions, none older than 14 days.
 pub fn prune(st: &crate::state::AppState) {
-    let active = st.recorder.lock().unwrap().status.session_id.clone().filter(|_| st.recorder.lock().unwrap().active());
+    let active = {
+        let r = st.recorder.lock().unwrap();
+        r.status.session_id.clone().filter(|_| r.active())
+    };
     let opts = rc_core::recorder::PruneOptions { active, ..Default::default() };
     let freed = rc_core::recorder::prune_recordings(&st.recordings_dir(), &opts);
     if freed > 0 {

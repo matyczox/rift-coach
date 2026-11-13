@@ -370,7 +370,8 @@ pub fn standing_towers(g: &Game) -> Vec<(f64, f64, bool)> {
             let ours = order_side != my_chaos;
             let lost = st.map_or(0, |s| if ours { s.ours_lost } else { s.theirs_lost }) as usize;
             for &(x, y) in pos.iter().skip(lost) {
-                out.push(if order_side { (x, y, ours) } else { (1.0 - x, 1.0 - y, ours) });
+                // Red towers: top / bot = reflection (y, x) of the same blue lane, mid = 180° turn.
+                out.push(if order_side { (x, y, ours) } else if lane == "mid" { (1.0 - x, 1.0 - y, ours) } else { (y, x, ours) });
             }
         }
     }
@@ -387,8 +388,11 @@ pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
     let mut n = rc_core::intel::matchup::Nearby::default();
     // Health bar on my screen in the last 1.5 s = right next to me, whatever the minimap shows (portraits
     // hide under mine when we run together).
-    if let Some(i) = g.intel.as_ref() {
-        for p in i.players.iter().filter(|p| !p.is_me && !p.is_dead && p.onscreen_at.is_some_and(|t| i.game_time - t <= 4.0)) {
+    // ...but only when the screen is around me: camera locked on me, or my own bar seen on it (a panned
+    // camera looking at a far fight must not fill my fight bar).
+    let screen_is_mine = g.field.cam_locked_at >= g.field.cam_unlocked_at || g.field.pos_src == "screen";
+    if let Some(i) = g.intel.as_ref().filter(|_| screen_is_mine) {
+        for p in i.players.iter().filter(|p| !p.is_me && !p.is_dead && p.onscreen_at.is_some_and(|t| (-1.0..=4.0).contains(&(i.game_time - t)))) {
             if p.is_ally {
                 n.allies.push(p.champion.clone());
             } else {
@@ -400,7 +404,7 @@ pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
     if let Some(i) = g.intel.as_ref() {
         let (bars, at) = g.field.enemy_bars;
         if i.game_time - at <= 1.5 {
-            let named = i.players.iter().filter(|p| !p.is_ally && !p.is_dead && p.onscreen_at.is_some_and(|t| i.game_time - t <= 4.0)).count();
+            let named = i.players.iter().filter(|p| !p.is_ally && !p.is_dead && p.onscreen_at.is_some_and(|t| (-1.0..=4.0).contains(&(i.game_time - t)))).count();
             n.unknown_enemies = bars.saturating_sub(named);
         }
     }

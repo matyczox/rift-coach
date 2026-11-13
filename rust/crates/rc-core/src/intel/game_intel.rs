@@ -274,7 +274,12 @@ impl IntelTracker {
         }
         let ap = &d.active_player;
         let me_name = ap.riot_id.as_ref().map(|r| r.split('#').next().unwrap_or("").to_string()).or_else(|| ap.summoner_name.clone()).unwrap_or_default();
-        let me_idx = d.all_players.iter().position(|p| name_of(p) == me_name || p.riot_id == ap.riot_id);
+        // Exact, non-empty Riot ID first (two players can share a game name; None == None matched too).
+        let me_idx = d
+            .all_players
+            .iter()
+            .position(|p| ap.riot_id.as_deref().is_some_and(|r| !r.is_empty()) && p.riot_id == ap.riot_id)
+            .or_else(|| d.all_players.iter().position(|p| !me_name.is_empty() && name_of(p) == me_name));
         let my_team = me_idx.map(|i| d.all_players[i].team.clone()).unwrap_or_else(|| "ORDER".into());
 
         let mut players = Vec::new();

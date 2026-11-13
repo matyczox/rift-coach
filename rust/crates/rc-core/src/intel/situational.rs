@@ -13,8 +13,8 @@ use serde::Serialize;
 /// Minimap positions of objectives (normalized).
 fn obj_pos(kind: &str) -> Option<Pos> {
     Some(match kind {
-        "dragon" => Pos { x: 0.67, y: 0.70 },
-        "baron" | "herald" | "grubs" => Pos { x: 0.33, y: 0.30 },
+        "dragon" => Pos { x: 0.663, y: 0.703 },
+        "baron" | "herald" | "grubs" => Pos { x: 0.337, y: 0.296 },
         _ => return None,
     })
 }

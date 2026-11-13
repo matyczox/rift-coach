@@ -480,7 +480,8 @@ impl ParticleFilter {
         for pi in 0..self.particles.len() {
             let mut p = self.particles[pi];
             let goal = &self.goals[p.goal];
-            if goal.kind == GoalKind::Base && self.elapsed >= RECALL_CHANNEL + (p.w * 1e6 % 3.0) {
+            // Recall: teleport ONCE when the channel ends; afterwards the particle may leave base (it was pinned forever).
+            if goal.kind == GoalKind::Base && !p.arrived && self.elapsed >= RECALL_CHANNEL + (p.w * 1e6 % 3.0) {
                 p.x = clamp01(self.fountain.0 + (rng.next() - 0.5) * 0.02);
                 p.y = clamp01(self.fountain.1 + (rng.next() - 0.5) * 0.02);
                 p.arrived = true;

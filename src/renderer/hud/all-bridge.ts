@@ -61,6 +61,8 @@ window.hud = {
 interface Box { x: number; y: number; width: number; height: number }
 
 function place(el: HTMLElement, r: Box): boolean {
+  // The panel being dragged keeps the spot under the cursor (a HUD push snapped it back to default).
+  if (dragging && panels.get(dragging) === el) return false;
   const s = el.style;
   const v = [Math.round(r.x), Math.round(r.y), Math.max(1, Math.round(r.width)), Math.max(1, Math.round(r.height))].map((n) => `${n}px`);
   if (s.left === v[0] && s.top === v[1] && s.width === v[2] && s.height === v[3]) return false;

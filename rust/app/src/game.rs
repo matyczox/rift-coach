@@ -322,7 +322,9 @@ pub fn area_name(x: f64, y: f64, red: bool) -> String {
         return format!("rzeka {half}");
     }
     // Below the river (y > x) is the blue side's jungle.
-    let side = if y > x { if red { theirs } else { ours } } else if red { ours } else { theirs };
+    // Below the river (y > x) is the blue jungle: ours on blue, theirs on red.
+    let blue_jungle = y > x;
+    let side = if blue_jungle != red { "nasza" } else { "wroga" };
     let _ = (ours, theirs);
     format!("{side} dżungla {half}")
 }
@@ -386,11 +388,12 @@ fn check_intent(g: &mut Game) {
             !g.field.allies.iter().any(|a| (a.x - x).hypot(a.y - y) < 0.06) && g.field.my_pos.is_none_or(|(mx, my)| (mx - x).hypot(my - y) >= 0.06)
         });
         let visited = it.at_spot_since.is_some() || dwell;
-        let left_ward = covered && nobody_there && (visited || !it.was_covered);
+        let left_ward = covered && nobody_there && visited;
         let _ = dwell;
         // Trinket went from a charge to recharging after the call = a ward was placed.
         let trinket_used = g.field.trinket_used_at > 0.0 && (crate::vision::now_ms() - g.field.trinket_used_at) < (gt - it.since).max(0.0) * 1000.0 + 1000.0;
-        let placed = me.ward_score > it.ward_score_at || left_ward || trinket_used;
+        // Evidence must belong to the requested spot: I was there, then ward points / trinket use / vision left behind.
+        let placed = visited && (me.ward_score > it.ward_score_at || left_ward || trinket_used);
         if placed {
             g.ward_seen.1 = gt;
         }

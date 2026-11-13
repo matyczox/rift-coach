@@ -13,7 +13,7 @@ fn main_ctx(name: &str) -> Value {
     let avail_ad = ["Eclipse", "Voltaic Cyclosword", "Death's Dance", "Sterak's Gage", "Black Cleaver", "Maw of Malmortius", "Guardian Angel", "Serylda's Grudge", "Profane Hydra", "Ravenous Hydra", "Chempunk Chainsword", "Spear of Shojin", "Hexdrinker", "Plated Steelcaps", "Mercury's Treads", "Sundered Sky", "Edge of Night", "Youmuu's Ghostblade"];
     match name {
         // Akali mid, Swiftplay 2026-11-12: vs Yasuo / Briar / Lissandra / Jhin / Talon
-        "akali" => json!({ "time": "13 min", "me": { "champion": "Akali", "class": ["Assassin"], "role": "MIDDLE", "level": 10, "goldNow": 1400, "items": ["Hextech Alternator", "Boots"], "boots": "Boots" },
+        "akali" => json!({ "time": "13 min", "me": { "champion": "Akali", "class": ["Assassin"], "role": "MIDDLE", "level": 10, "goldNow": 1400, "items": ["Hextech Alternator", "Boots"], "boots": "Boots", "componentsInto": { "Hextech Alternator": ["Hextech Rocketbelt", "Riftmaker", "Stormsurge", "Cosmic Drive"] } },
             "enemies": [e("Lissandra", &["Mage"], "MIDDLE", "2/3/3", &["Luden's Echo"], false), e("Yasuo", &["Fighter", "Assassin"], "TOP", "6/2/1", &["Kraken Slayer", "Berserker's Greaves"], true), e("Briar", &["Fighter", "Assassin"], "JUNGLE", "4/4/3", &["Eclipse"], false), e("Jhin", &["Marksman", "Mage"], "BOTTOM", "3/2/2", &["Collector"], false), e("Talon", &["Assassin"], "UTILITY", "2/3/4", &["Youmuu's Ghostblade"], false)],
             "allies": ["Teemo", "Rengar", "Caitlyn", "Lux"], "goldDiff": -1200, "availableItems": avail_ap }),
         // Ambessa top early vs Warwick
@@ -33,7 +33,11 @@ fn main_ctx(name: &str) -> Value {
 
 #[tokio::main]
 async fn main() {
+    let only = std::env::var("GAMES").unwrap_or_default();
     for game in ["akali", "ambessa", "ahri-late", "ambessa-mid"] {
+        if !only.is_empty() && !only.split(',').any(|g| g == game) {
+            continue;
+        }
         let ctx = main_ctx(game);
         for (model, effort) in [("gpt-6.1-sol", Effort::High), ("claude-opus-5-5", Effort::Low)] {
             let call = ModelCall { model: model.into(), effort: Some(effort), system: SYSTEM.into(), schema: schema(), prompt: ctx.to_string(), timeout_ms: Some(240_000), ..Default::default() };

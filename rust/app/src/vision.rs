@@ -774,7 +774,8 @@ pub fn return_eta(p: &PlayerIntel, my_pos: Option<(f64, f64)>, game_t: f64, lost
         _ => [(0.393, 0.570), (0.339, 0.676), (0.246, 0.751)],
     };
     let order_outer = towers[(lost as usize).min(2)];
-    let target = if team == Team::Order { order_outer } else { (1.0 - order_outer.0, 1.0 - order_outer.1) };
+    let mid = !matches!(p.role.as_str(), "TOP" | "BOTTOM" | "UTILITY");
+    let target = if team == Team::Order { order_outer } else if mid { (1.0 - order_outer.0, 1.0 - order_outer.1) } else { (order_outer.1, order_outer.0) };
     let dist = (target.0 - fx).hypot(target.1 - fy) * MAP_UNITS * 1.15;
     let speed = if p.move_speed > 0.0 { p.move_speed } else { 345.0 };
     (dist / speed - homeguard_extra_secs(30.0, game_t)).max(5.0)
@@ -1164,13 +1165,16 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     // Their laner seen on his lane pushing towards our tower (their wave on our side, or him walking at our
     // tower) with none of us near: warn before he is AT the tower.
     for (role, lane) in [("TOP", "top"), ("MIDDLE", "mid"), ("BOTTOM", "bot")] {
-        if intel.game_time < 150.0 || intel.me.as_ref().is_some_and(|m| m.role == role) {
+        if intel.game_time < 150.0 {
             continue;
         }
         let Some(e) = intel.players.iter().find(|p| !p.is_ally && p.role == role && !p.is_dead) else { continue };
         let Some(v) = f.visible_enemies.iter().find(|v| v.champion == e.champion) else { continue };
-        let order_outer = match lane { "top" => (0.066, 0.298), "bot" => (0.706, 0.931), _ => (0.393, 0.570) };
-        let tower = if my_team_t == Team::Order { order_outer } else { (1.0 - order_outer.0, 1.0 - order_outer.1) };
+        // Our first standing tower in that lane (pressure moves inward as towers fall).
+        let lost = intel.lanes.iter().find(|l| l.lane == lane).map_or(0, |l| l.ours_lost) as usize;
+        let towers = match lane { "top" => [(0.066, 0.298), (0.102, 0.549), (0.079, 0.712)], "bot" => [(0.706, 0.931), (0.465, 0.900), (0.288, 0.916)], _ => [(0.393, 0.570), (0.339, 0.676), (0.246, 0.751)] };
+        let order_outer = towers[lost.min(2)];
+        let tower = if my_team_t == Team::Order { order_outer } else if lane == "mid" { (1.0 - order_outer.0, 1.0 - order_outer.1) } else { (order_outer.1, order_outer.0) };
         let d = (v.x - tower.0).hypot(v.y - tower.1);
         // On his lane between the river and our tower (not walking mid, not in his base).
         let on_lane = match lane {

@@ -48,7 +48,14 @@ pub const WARD_SPOTS: &[WardSpot] = &[
 
 pub fn ward_point(spot: &str, red_side: bool) -> Option<(f64, f64)> {
     let p = WARD_SPOTS.iter().find(|s| s.id == spot)?;
-    Some(if red_side && !p.neutral { (1.0 - p.x, 1.0 - p.y) } else { (p.x, p.y) })
+    if !red_side || p.neutral {
+        return Some((p.x, p.y));
+    }
+    // Red side: the jungle is point-symmetric, so a spot is blue's 180° image — but "...-top" on red is
+    // the image of blue's "...-bot" (a 180° turn swaps the sides of the map), and vice versa.
+    let twin = if spot.contains("-top") { spot.replacen("-top", "-bot", 1) } else if spot.contains("-bot") { spot.replacen("-bot", "-top", 1) } else { spot.to_string() };
+    let q = WARD_SPOTS.iter().find(|s| s.id == twin).unwrap_or(p);
+    Some((1.0 - q.x, 1.0 - q.y))
 }
 
 #[cfg(test)]

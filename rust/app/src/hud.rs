@@ -211,7 +211,12 @@ pub fn wave_point(lane: &str, front: f64, red: bool) -> (f64, f64) {
         }
         left -= l;
     }
-    if red { (1.0 - p.0, 1.0 - p.1) } else { p }
+    // Red side: top / bot are the reflection (y, x) of blue's same lane (a 180° turn would swap them).
+    match (red, lane) {
+        (false, _) => p,
+        (true, "mid") => (1.0 - p.0, 1.0 - p.1),
+        (true, _) => (p.1, p.0),
+    }
 }
 
 /// Gold still missing for the first planned item (owned components count), rounded to 10.
@@ -284,6 +289,7 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
     let show_frame = st.vision.show_frame();
     let advice = st.ui.lock().unwrap().last_advice.clone();
     let mut field_line: Option<String> = None;
+    let mut in_game_log = false;
     let pos_unknown = st.game.lock().unwrap().field.my_pos.is_none();
     let mut log_t = 0.0;
     let mut state = {
@@ -362,7 +368,14 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
             now,
         });
         // Positions for the log file (tracker debugging): me, allies, seen enemies, fog guesses.
-        field_line = g.intel.as_ref().filter(|_| g.field.map11).map(|i| {
+        // Built only when it will be logged (every 2 s), not on every 100 ms push.
+        static LAST_FIELD: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        in_game_log = g.intel.is_some() && g.field.map11;
+        let due = (now as u64).saturating_sub(LAST_FIELD.load(std::sync::atomic::Ordering::Relaxed)) >= 1900;
+        if due && in_game_log {
+            LAST_FIELD.store(now as u64, std::sync::atomic::Ordering::Relaxed);
+        }
+        field_line = g.intel.as_ref().filter(|_| g.field.map11 && due).map(|i| {
             let r3 = |v: f64| (v * 1000.0).round() / 1000.0;
             let pos = |u: &crate::vision::SeenUnit| json!([u.champion, r3(u.x), r3(u.y)]);
             let n = k::nearby(g);
@@ -523,15 +536,15 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
         h.last_power = None;
     }
     // Log file: what the overlay shows (on change) and where everyone is (every 2 s), in game only.
-    if field_line.is_some() {
+    if in_game_log {
         let shown = crate::applog::strip(&state).to_string();
         if shown != h.log_hud {
             log::info!(target: "hud", "t={log_t:.0} {shown}");
             h.log_hud = shown;
         }
-        if h.log_field_at.is_none_or(|t| t.elapsed() >= Duration::from_secs(2)) {
+        if let Some(line) = field_line.as_deref() {
             h.log_field_at = Some(Instant::now());
-            log::info!(target: "field", "{}", field_line.as_deref().unwrap_or(""));
+            log::info!(target: "field", "{line}");
         }
     }
     let game = h.game;

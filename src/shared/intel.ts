@@ -183,7 +183,7 @@ export interface TopBarState {
 }
 
 export interface AlertState {
-  kind: 'invade' | 'gank' | 'missing' | 'spike' | 'fed' | 'ally' | 'gank-ask' | 'objective' | 'steal';
+  kind: 'invade' | 'gank' | 'missing' | 'spike' | 'fed' | 'ally' | 'gank-ask' | 'objective' | 'steal' | 'ace';
   text: string;            // ≤ 6 words
   confidence: number;      // 0..1
   expiresAt: number;

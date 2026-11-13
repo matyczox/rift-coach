@@ -36,7 +36,7 @@ function enter(el: HTMLElement, extra?: string): void {
 function alertColor(a: AlertState): 'red' | 'amber' | 'green' {
   switch (a.kind) {
     case 'invade': case 'gank': case 'fed': case 'steal': return 'red';
-    case 'ally': case 'gank-ask': return 'green';
+    case 'ally': case 'gank-ask': case 'ace': return 'green';
     default: return 'amber';
   }
 }
@@ -83,7 +83,7 @@ subscribe(({ state }) => {
   // (Moved here from the power panel: a warning must be seen at a glance, next to the advice.)
   const live = state.visible && state.alert && isLive(state.alert.expiresAt, state.gameTime) ? state.alert : null;
   const dg = state.visible && !state.deathCard ? state.danger : null;
-  const al: AlertState | null = live && ['gank', 'invade', 'missing', 'objective', 'steal'].includes(live.kind)
+  const al: AlertState | null = live && ['gank', 'invade', 'missing', 'objective', 'steal', 'ace', 'spike'].includes(live.kind)
     ? live
     : dg && (dg.label === 'niebezpiecznie' || dg.label === 'uciekaj') && dg.reasons[0]
       ? { kind: 'gank', text: dg.reasons[0], confidence: dg.level, expiresAt: Date.now() + 1000 }

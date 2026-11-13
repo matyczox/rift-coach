@@ -177,7 +177,8 @@ pub struct ReqwestHttp(reqwest::Client);
 
 impl Default for ReqwestHttp {
     fn default() -> Self {
-        ReqwestHttp(reqwest::Client::builder().build().expect("http client"))
+        // No redirects: reqwest would carry the X-Riot-Token header to whatever host it is sent to.
+        ReqwestHttp(reqwest::Client::builder().redirect(reqwest::redirect::Policy::none()).build().expect("http client"))
     }
 }
 

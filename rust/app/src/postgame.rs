@@ -59,7 +59,7 @@ pub async fn finish_game(st: Arc<AppState>) {
         let long = g.match_log.last.as_ref().is_some_and(|l| l.game_time >= 300.0);
         // Reviews only for Summoner's Rift modes (no ARAM / Arena / ...).
         let rift = REVIEW_MODES.contains(&g.match_log.game_mode.as_str());
-        if key.is_empty() || key == g.review_done_for || !long || !rift || st.replay_open() || g.coach.status.state == "not-logged-in" {
+        if key.is_empty() || key == g.review_done_for || !long || !rift || st.replay_open() || g.coach.status.state == "not-logged-in" || !st.settings.lock().unwrap().value().coach.enabled {
             return;
         }
         g.review_done_for = key.clone();

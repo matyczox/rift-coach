@@ -154,8 +154,8 @@ fn hp_fresh(intel: &GameIntel, p: &PlayerIntel) -> Option<f64> {
     }
     match (p.hp_pct, p.hp_seen_at) {
         (Some(h), Some(at)) => {
-            let age = (intel.game_time - at).max(0.0);
-            (age <= 90.0).then(|| (h + 0.006 * age).min(1.0))
+            let age = intel.game_time - at;
+            (-1.0..=90.0).contains(&age).then(|| (h + 0.006 * age.max(0.0)).min(1.0))
         }
         _ => None,
     }
@@ -360,7 +360,8 @@ pub fn power_bar(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dyn Fn(
 /// Power bar for a fight right here: the 1v1 lane estimate plus everyone around me.
 pub fn power_bar_near(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dyn Fn(&str) -> String, near: &Nearby) -> Option<PowerBarState> {
     let me = intel.me.as_ref()?;
-    let opp = lane_opponent(intel)?;
+    // No lane opponent (unassigned roles): the first enemy near me stands in for him.
+    let opp = lane_opponent(intel).or_else(|| near.enemies.iter().find_map(|(c, _)| intel.players.iter().find(|p| &p.champion == c && !p.is_ally && !p.is_dead)))?;
     if me.is_dead {
         return None;
     }
@@ -395,7 +396,10 @@ pub fn power_bar_near(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dy
     // Almost dead = one spell from anyone kills me: allies / gold must not lift it ("2% HP, 57%").
     let my_hp = intel.my_stats.as_ref().filter(|s| s.max_hp > 0.0).map_or(1.0, |s| s.hp / s.max_hp);
     let hp_cap = if my_hp < 0.25 { 0.2 + 1.6 * my_hp } else { 1.0 };
-    let p_me = sigmoid(base + tower + if local { nearby_delta(intel, primary, near) } else { 0.0 }).min(hp_cap);
+    // When the target is "an unnamed enemy bar" (no named enemy near), that one is the 1v1 already.
+    let unknown_is_primary = local && !opp_near && strongest_near.is_none() && near.unknown_enemies > 0;
+    let near_adj = Nearby { unknown_enemies: near.unknown_enemies.saturating_sub(unknown_is_primary as usize), ..near.clone() };
+    let p_me = sigmoid(base + tower + if local { nearby_delta(intel, primary, &near_adj) } else { 0.0 }).min(hp_cap);
     // A NaN (bad screen reading somewhere) made the whole bar vanish (JSON has no NaN): log it, show 50 %.
     let p_me = if p_me.is_finite() {
         p_me

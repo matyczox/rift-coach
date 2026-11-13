@@ -16,8 +16,9 @@ pub fn map_point_for(name: &str, red_side: bool) -> Option<(f64, f64)> {
 
 pub fn map_point(name: &str) -> Option<(f64, f64)> {
     Some(match name {
-        "dragon" => (0.67, 0.70),
-        "baron" | "herald" | "grubs" => (0.33, 0.30),
+        // Same pit centres as the vision / objective code.
+        "dragon" => (0.663, 0.703),
+        "baron" | "herald" | "grubs" => (0.337, 0.296),
         "atakhan" => (0.5, 0.5),
         "top" => (0.10, 0.10),
         "mid" => (0.50, 0.50),
@@ -53,7 +54,7 @@ pub fn local_alerts(intel: &GameIntel, now: f64) -> Vec<Alert> {
     }
     // Baron / Elder windows: shown as a countdown chip (top right), not as an alert.
     if let Some(ace) = &intel.ace {
-        out.push(if ace.team == "ally" { Alert::new("ally", "ACE — push / Baron teraz", 1.0, now + 3000.0) } else { Alert::new("missing", "Wróg zrobił ACE — cofnij się", 1.0, now + 3000.0) });
+        out.push(if ace.team == "ally" { Alert::new("ace", "ACE — push / Baron teraz", 1.0, now + 3000.0) } else { Alert::new("missing", "Wróg zrobił ACE — cofnij się", 1.0, now + 3000.0) });
     }
     for p in &intel.players {
         let s = intel.streaks.get(&p.champion).copied().unwrap_or(0);
@@ -261,8 +262,8 @@ pub fn compose_hud(i: &HudInputs) -> Value {
     };
     // A threat to me (gank / invade) beats "they may be doing Dragon".
     // Kinds the top bar does not show (ally prompts...) must not hide one it does.
-    let rank = |a: &crate::vision::Alert| a.confidence - match a.kind.as_str() { "gank" | "invade" | "missing" | "steal" => 0.0, _ => 0.5 };
-    let alert = i.alerts.iter().filter(|a| a.expires_at > now && matches!(a.kind.as_str(), "gank" | "invade" | "missing" | "steal" | "objective")).max_by(|a, b| rank(a).partial_cmp(&rank(b)).unwrap_or(std::cmp::Ordering::Equal));
+    let rank = |a: &crate::vision::Alert| a.confidence - match a.kind.as_str() { "gank" | "invade" | "missing" | "steal" | "ace" => 0.0, _ => 0.5 };
+    let alert = i.alerts.iter().filter(|a| a.expires_at > now && matches!(a.kind.as_str(), "gank" | "invade" | "missing" | "steal" | "objective" | "ace" | "spike")).max_by(|a, b| rank(a).partial_cmp(&rank(b)).unwrap_or(std::cmp::Ordering::Equal));
     let death_card = match me {
         Some(m) if dead => json!({
             "title": format!("Nie żyjesz · respawn {}", fmt_t(m.respawn_in)),

@@ -235,7 +235,16 @@ fn main() {
                     match ev {
                         live::LiveEvent::State(s) if s != rc_core::types::SourceState::Connected => {
                             st3.ui.lock().unwrap().live_lost_at.get_or_insert_with(std::time::Instant::now);
-                            game::on_live_lost(&st3);
+                            // A transient timeout mid-game must not wipe tracking / coach history: only when
+                            // the Live API stays away for 8 s.
+                            let st4 = st3.clone();
+                            tokio::spawn(async move {
+                                tokio::time::sleep(std::time::Duration::from_secs(8)).await;
+                                let gone = st4.ui.lock().unwrap().live_lost_at.is_some_and(|t| t.elapsed() >= std::time::Duration::from_secs(8));
+                                if gone {
+                                    game::on_live_lost(&st4);
+                                }
+                            });
                         }
                         live::LiveEvent::State(_) => {}
                         live::LiveEvent::Data(d, _) => {

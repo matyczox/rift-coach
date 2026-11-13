@@ -496,7 +496,8 @@ impl Coach {
             self.last_seen.game_key = game_key;
         }
         if let Some(r) = self.trigger(ctx) {
-            if self.pending_reason.is_none() {
+            // A death review wins over a queued live reason (the death edge is consumed now).
+            if self.pending_reason.is_none() || r.starts_with("death") {
                 self.pending_reason = Some(r);
             }
         }
