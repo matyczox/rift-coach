@@ -53,7 +53,7 @@ subscribe(({ state }) => {
   // (Moved here from the power panel: a warning must be seen at a glance, next to the advice.)
   const live = state.visible && state.alert && isLive(state.alert.expiresAt, state.gameTime) ? state.alert : null;
   const dg = state.visible && !state.deathCard ? state.danger : null;
-  const al: AlertState | null = live && ['gank', 'invade', 'missing'].includes(live.kind)
+  const al: AlertState | null = live && ['gank', 'invade', 'missing', 'objective'].includes(live.kind)
     ? live
     : dg && (dg.label === 'niebezpiecznie' || dg.label === 'uciekaj') && dg.reasons[0]
       ? { kind: 'gank', text: dg.reasons[0], confidence: dg.level, expiresAt: Date.now() + 1000 }

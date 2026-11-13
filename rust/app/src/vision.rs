@@ -1063,7 +1063,9 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             f.returns.retain(|(c, _)| *c != opp.champion);
             f.returns.push((opp.champion.clone(), now + eta * 1000.0));
         }
-        if opp.is_dead || f.visible_enemies.iter().any(|e| e.champion == opp.champion) {
+        // Back already: seen on the minimap, or his health bar on my screen (minimap can miss him).
+        let on_screen = opp.onscreen_at.is_some_and(|s| t - s < 2.0);
+        if opp.is_dead || on_screen || f.visible_enemies.iter().any(|e| e.champion == opp.champion) {
             f.returns.retain(|(c, _)| *c != opp.champion);
         }
     }
@@ -1106,6 +1108,35 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         let near_me = |c: &str| f.my_pos.and_then(|p| f.tracker.as_ref().and_then(|tr| tr.mass_near(c, p, 0.11)));
         tracker_alerts(&tracks, f.my_pos, my_team_t, my_role, t, now, &near_me)
     };
+    // Can the enemies be taking an objective right now? Seen at the pit, or likely there in the fog (all
+    // tracker hypotheses): P(at least one there). Shown with a % like a gank warning.
+    if let Some(tr) = f.tracker.as_ref() {
+        const PITS: [(&[&str], (f64, f64)); 2] = [(&["dragon", "elder"], (0.663, 0.703)), (&["baron", "herald", "grubs", "atakhan"], (0.337, 0.296))];
+        let mut best: Option<(f64, String)> = None;
+        for (kinds, pit) in PITS {
+            let Some(o) = intel.objectives.iter().find(|o| kinds.contains(&o.kind) && o.alive) else { continue };
+            let mut miss = 1.0;
+            for p in intel.players.iter().filter(|p| !p.is_ally && !p.is_dead) {
+                let m = match f.visible_enemies.iter().find(|e| e.champion == p.champion) {
+                    Some(e) => if (e.x - pit.0).hypot(e.y - pit.1) < 0.1 { 1.0 } else { 0.0 },
+                    None => tr.mass_near(&p.champion, pit, 0.1).unwrap_or(0.0),
+                };
+                miss *= 1.0 - m.min(0.95);
+            }
+            let p = 1.0 - miss;
+            let name = match o.kind { "dragon" => "Dragon", "elder" => "Elder Dragon", "baron" => "Baron", "herald" => "Herald", "grubs" => "Voidgrubs", _ => "Atakhan" };
+            if p >= 0.5 && best.as_ref().is_none_or(|b| p > b.0) {
+                best = Some((p, format!("Mogą robić {name}")));
+            }
+        }
+        if let Some((p, text)) = best {
+            let al = Alert::new("objective", text, p.min(0.9), now + 3000.0);
+            match f.alerts.iter().position(|x| x.kind == al.kind) {
+                Some(i) => f.alerts[i] = al,
+                None => f.alerts.push(al),
+            }
+        }
+    }
     for a in new_alerts {
         let kind = serde_json::to_value(a.kind).ok().and_then(|v| v.as_str().map(String::from)).unwrap_or_default();
         let al = Alert { kind, text: a.text, confidence: a.confidence, expires_at: a.expires_at };

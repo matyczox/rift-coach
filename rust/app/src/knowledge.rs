@@ -354,7 +354,7 @@ pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
     // Health bar on my screen in the last 1.5 s = right next to me, whatever the minimap shows (portraits
     // hide under mine when we run together).
     if let Some(i) = g.intel.as_ref() {
-        for p in i.players.iter().filter(|p| !p.is_me && !p.is_dead && p.onscreen_at.is_some_and(|t| i.game_time - t <= 1.5)) {
+        for p in i.players.iter().filter(|p| !p.is_me && !p.is_dead && p.onscreen_at.is_some_and(|t| i.game_time - t <= 4.0)) {
             if p.is_ally {
                 n.allies.push(p.champion.clone());
             } else {

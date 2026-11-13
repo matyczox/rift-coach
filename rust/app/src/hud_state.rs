@@ -259,7 +259,9 @@ pub fn compose_hud(i: &HudInputs) -> Value {
         }
         _ => Value::Null,
     };
-    let alert = i.alerts.iter().filter(|a| a.expires_at > now).max_by(|a, b| a.confidence.partial_cmp(&b.confidence).unwrap_or(std::cmp::Ordering::Equal));
+    // A threat to me (gank / invade) beats "they may be doing Dragon".
+    let rank = |a: &crate::vision::Alert| a.confidence - if a.kind == "objective" { 0.5 } else { 0.0 };
+    let alert = i.alerts.iter().filter(|a| a.expires_at > now).max_by(|a, b| rank(a).partial_cmp(&rank(b)).unwrap_or(std::cmp::Ordering::Equal));
     let death_card = match me {
         Some(m) if dead => json!({
             "title": format!("Nie żyjesz · respawn {}", fmt_t(m.respawn_in)),
