@@ -196,16 +196,31 @@ pub fn buy_now(target: &ItemData, items: &std::collections::HashMap<i64, ItemDat
         by_price_desc(&mut todo);
         while !todo.is_empty() {
             let c = todo.remove(0);
-            let p = price(c);
-            if p <= 0.0 {
+            let Some(it) = items.get(&c) else { continue };
+            if it.total <= 0.0 {
                 continue;
             }
-            if gold >= p {
+            // Its own parts I already hold ("Null-Magic Mantle" again while it sat in my inventory):
+            // they count, each owned item once.
+            let mut owned_subs = Vec::new();
+            for &sc in &it.from {
+                if let Some(p) = owned.iter().position(|&o| o == sc) {
+                    owned.remove(p);
+                    owned_subs.push(sc);
+                }
+            }
+            let cost = it.total - owned_subs.iter().map(|&x| price(x)).sum::<f64>();
+            if gold >= cost {
                 out.push(c);
-                gold -= p;
-            } else if let Some(it) = items.get(&c) {
-                // Too expensive as a whole: its own components, biggest first.
-                let mut sub = it.from.clone();
+                gold -= cost;
+            } else {
+                // Too expensive as a whole: its missing components, biggest first.
+                let mut sub: Vec<i64> = it.from.clone();
+                for o in &owned_subs {
+                    if let Some(p) = sub.iter().position(|x| x == o) {
+                        sub.remove(p);
+                    }
+                }
                 by_price_desc(&mut sub);
                 for s in sub.into_iter().rev() {
                     todo.insert(0, s);
@@ -322,6 +337,17 @@ mod tests {
         assert_eq!(buy_now(&rab, &items, &[], 1600.0, true), vec![1058, 1052]);
         // Boots when gold is left over and I have none.
         assert_eq!(buy_now(&rab, &items, &[1026, 1052], 1550.0, true), vec![1058, 1001]);
+        // Nested recipe with a part already owned (Maw: Hexdrinker = Long Sword + Null-Magic Mantle).
+        items.insert(1036, mk(1036, 350.0, vec![]));
+        items.insert(1033, mk(1033, 450.0, vec![]));
+        items.insert(3155, mk(3155, 1300.0, vec![1036, 1033]));
+        items.insert(1037, mk(1037, 875.0, vec![]));
+        items.insert(3156, mk(3156, 3100.0, vec![3155, 1037]));
+        let maw = items[&3156].clone();
+        // Mantle owned, 400 g: the Long Sword, never a second Mantle.
+        assert_eq!(buy_now(&maw, &items, &[1033], 400.0, false), vec![1036]);
+        // Mantle owned, 900 g: Hexdrinker costs only 850 more -> buy it.
+        assert_eq!(buy_now(&maw, &items, &[1033], 900.0, false), vec![3155]);
     }
 
     #[test]

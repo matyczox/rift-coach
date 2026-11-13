@@ -250,6 +250,16 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
                     if let (Some(a), Some(sd)) = (advice.as_mut(), g.static_data.as_ref()) {
                         validate_item(a, &sd.items);
                     }
+                    // The answer comes ~5 s late: a call about an enemy who died meanwhile ("Wejdź na Darius"
+                    // after Darius is dead) is stale — drop the call, keep the rest.
+                    if let (Some(a), Some(i)) = (advice.as_mut(), g.intel.as_ref()) {
+                        let call = a.get("call").and_then(Value::as_str).unwrap_or("").to_lowercase();
+                        let dead = i.players.iter().find(|p| !p.is_ally && p.is_dead && call.contains(&p.champion.to_lowercase()));
+                        if let Some(p) = dead {
+                            log::info!(target: "coach", "stale call dropped ({} is dead): {call}", p.champion);
+                            a["call"] = Value::Null;
+                        }
+                    }
                     if let Some(a) = advice.as_ref() {
                         g.match_log.advice(a);
                         g.intent = intent_of(&g, a);
