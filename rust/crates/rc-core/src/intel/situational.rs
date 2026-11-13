@@ -313,7 +313,15 @@ impl TeamWatcher {
         let j_pos = jungler.and_then(|j| allies.iter().find(|a| a.champion == j.champion));
         let enemy_near_me = visible_enemies.iter().any(|e| (e.x - me.x).hypot(e.y - me.y) < 0.12);
         if let (Some(j), Some(jp)) = (jungler, j_pos) {
-            if (jp.x - me.x).hypot(jp.y - me.y) < 0.18 && enemy_near_me && p_me.unwrap_or(0.5) >= 0.42 && now - self.last_ask > 30_000.0 {
+            // Really coming to my lane: right next to me, or walking at me — not clearing his camp nearby
+            // ("Zaahen obok" while he did Raptors). Not for me as the jungler (I gank, nobody gives me pings).
+            let d = (jp.x - me.x).hypot(jp.y - me.y);
+            let heading = match (jp.vx, jp.vy) {
+                (Some(vx), Some(vy)) => { let sp = vx.hypot(vy); sp > 0.003 && d > 1e-6 && ((me.x - jp.x) * vx + (me.y - jp.y) * vy) / (d * sp) > 0.7 }
+                _ => false,
+            };
+            let ganking = d < 0.08 || (d < 0.18 && heading);
+            if mi.role != "JUNGLE" && ganking && enemy_near_me && p_me.unwrap_or(0.5) >= 0.42 && now - self.last_ask > 30_000.0 {
                 self.last_ask = now;
                 out.push(AlertState { kind: "gank-ask", text: format!("{} obok → pinguj, wchodźcie", j.champion), confidence: 0.8, expires_at: now + 6000.0 });
             }
@@ -444,5 +452,9 @@ mod tests {
         assert_eq!(a.iter().map(|x| x.text.as_str()).collect::<Vec<_>>(), ["Vi obok → pinguj, wchodźcie", "Vi idzie do ciebie"]);
         assert!(w.update(&i, me, &[vi.clone()], &[unit("Zed", 0.55, 0.5)], Some(0.6), 50_000.0).is_empty());
         assert!(w.update(&i, me, &[vi], &[], Some(0.6), 90_000.0).is_empty()); // no enemy near
+        // Standing at his camp 0.12 away (not walking at me): no "obok → pinguj".
+        let camp = SeenUnit { champion: "Vi".into(), x: 0.38, y: 0.5, vx: Some(0.0), vy: Some(0.0) };
+        let mut w2 = TeamWatcher::default();
+        assert!(!w2.update(&i, me, &[camp], &[unit("Zed", 0.55, 0.5)], Some(0.6), 40_000.0).iter().any(|a| a.kind == "gank-ask"));
     }
 }
