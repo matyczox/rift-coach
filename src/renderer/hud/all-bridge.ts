@@ -79,8 +79,9 @@ function layout(m: HudMessage, s: number): void {
   const dw = 380 * s, dh = 380 * s;
   place(panels.get('death')!, { x: W - dw - W * 0.02, y: H * 0.42 - dh / 2, width: dw, height: dh });
   // Power/danger: compact, mid-height, left of the enemy portraits column on the right edge.
-  const pw = 280 * s, ph = 190 * s;
-  place(panels.get('power')!, { x: W - pw - W * 0.075, y: H * 0.5 - ph / 2, width: pw, height: ph });
+  // Gold / CS / lvl: one line right under the game's score (top right), where that kind of info lives.
+  const pw = 900 * s, ph = 64 * s;
+  place(panels.get('power')!, { x: W - pw - 14 * s, y: 74 * s, width: pw, height: ph });
   const lw = 720 * s, lh = 480 * s;
   place(panels.get('loading')!, { x: (W - lw) / 2, y: (H - lh) / 2, width: lw, height: lh });
   const mr = m.minimap ? { x: m.minimap.x * W, y: m.minimap.y * H, width: m.minimap.width * W, height: m.minimap.height * H } : null;
@@ -96,7 +97,8 @@ function layout(m: HudMessage, s: number): void {
   const nw = 300 * s, nh = 200 * s;
   const bw = 250 * s, bh = 230 * s;
   // Pop-ups (objective soon, rival back, buffs): bottom centre right above the coach bar, where the eyes are.
-  place(panels.get('notify')!, { x: (W - 600 * s) / 2, y: H * 0.845 - th - 70 * s, width: 600 * s, height: 70 * s });
+  // Timers / rival back: top right under the gold / CS line (edges only: the centre covered the game).
+  place(panels.get('notify')!, { x: W - 700 * s - 14 * s, y: 74 * s + 64 * s, width: 700 * s, height: 64 * s });
   void nw; void nh;
   place(panels.get('build')!, { x: b.x - bw - 14 * s, y: b.y + b.height - bh, width: bw, height: bh });
   // Panels the player dragged somewhere else (the minimap layer stays on the minimap).
