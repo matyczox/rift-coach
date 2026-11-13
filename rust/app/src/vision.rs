@@ -1358,7 +1358,8 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             let jg_last = my_jg.and_then(|j| my_jg_pos.map(|p| (p.x, p.y)).or_else(|| f.ally_last.get(&j.champion).filter(|(_, _, t)| intel.game_time - t <= 8.0).map(|(x, y, _)| (*x, *y))));
             let ours = jg_last.is_none_or(|(x, y)| (x - camp.x).hypot(y - camp.y) < 0.2);
             let me_there = f.my_pos.is_some_and(|p| (p.0 - camp.x).hypot(p.1 - camp.y) < 0.08);
-            if !ours && !me_there {
+            // Off: a vanished camp icon was an invade 0 of 7 times (our jungler, laners, misreads).
+            if false && !ours && !me_there {
                 f.alerts.push(Alert::new("invade", format!("Invade {}", camp_label(camp.id)), 0.85, now + 6000.0));
             }
         }
@@ -1492,7 +1493,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             }
             if hp.is_some_and(|h| h < 0.35) && !in_base && a.is_empty() {
                 // An enemy from elsewhere in fog within ~0.35 and seen recently: low HP is a free kill for him.
-                let close = tracks.iter().filter(unseen).filter(|tr| t - tr.fog_since.unwrap_or(t) < 30.0 && my_role.is_none_or(|r| r == Role::Unknown || r != tr.role)).filter_map(|tr| tr.estimate.map(|e| ((e.x - me.0).hypot(e.y - me.1), tr))).filter(|(d, _)| *d < 0.35).min_by(|x, y| x.0.total_cmp(&y.0));
+                let close = tracks.iter().filter(unseen).filter(|tr| t - tr.fog_since.unwrap_or(t) < 15.0 && my_role.is_none_or(|r| r == Role::Unknown || r != tr.role)).filter_map(|tr| tr.estimate.map(|e| ((e.x - me.0).hypot(e.y - me.1), tr))).filter(|(d, _)| *d < 0.25).min_by(|x, y| x.0.total_cmp(&y.0));
                 if let Some((_, tr)) = close {
                     a.push(rc_vision::tracker::alerts::AlertState { kind: rc_vision::tracker::alerts::AlertKind::Gank, text: format!("{} blisko", tr.champion), confidence: 0.7, expires_at: now + 4000.0 });
                 }

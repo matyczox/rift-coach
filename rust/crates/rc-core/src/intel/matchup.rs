@@ -323,7 +323,7 @@ pub fn nearby_delta(intel: &GameIntel, opp: &PlayerIntel, near: &Nearby) -> f64 
     }
     for (e, sure) in &near.enemies {
         if let Some(p) = find(e).filter(|p| !p.is_ally && p.champion != opp.champion) {
-            d -= unit_strength(p, avg_lvl, avg_gold, hp_eff(intel, p)) * if *sure { 1.0 } else { 0.6 };
+            d -= unit_strength(p, avg_lvl, avg_gold, hp_eff(intel, p)) * if *sure { 1.0 } else { 0.8 };
         }
     }
     for a in &near.allies_coming {
@@ -404,7 +404,10 @@ pub fn power_bar_near(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dy
     // When the target is "an unnamed enemy bar" (no named enemy near), that one is the 1v1 already.
     let unknown_is_primary = local && !opp_near && strongest_near.is_none() && near.unknown_enemies > 0;
     let near_adj = Nearby { unknown_enemies: near.unknown_enemies.saturating_sub(unknown_is_primary as usize), ..near.clone() };
-    let p_me = sigmoid(base + tower + if local { nearby_delta(intel, primary, &near_adj) } else { 0.0 }).min(hp_cap);
+    // An enemy probably next to me but unseen (fog guess / live gank warning): never "sure win" - the bar
+    // showed 95-100 % until the gank landed.
+    let unseen_cap = if local && near.enemies.iter().any(|(_, sure)| !*sure) { 0.65 } else { 1.0 };
+    let p_me = sigmoid(base + tower + if local { nearby_delta(intel, primary, &near_adj) } else { 0.0 }).min(hp_cap).min(unseen_cap);
     // A NaN (bad screen reading somewhere) made the whole bar vanish (JSON has no NaN): log it, show 50 %.
     let p_me = if p_me.is_finite() {
         p_me

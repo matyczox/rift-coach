@@ -58,7 +58,7 @@ pub fn tracker_alerts(tracks: &[EnemyTrack], me: Option<(f64, f64)>, my_team: Te
             if in_my_jungle {
                 // Same source as the zones drawn on the minimap (all hypotheses), like the gank warning.
                 let p = near_me(&j.champion).map(|m| (m / 0.6).min(1.0)).unwrap_or_else(|| near(j, me, 0.14));
-                if p > 0.45 {
+                if p > 0.6 {
                     out.push(AlertState { kind: AlertKind::Invade, text: format!("{} invade", j.champion), confidence: p.min(0.9), expires_at: now + 4000.0 });
                 }
             }
@@ -67,7 +67,7 @@ pub fn tracker_alerts(tracks: &[EnemyTrack], me: Option<(f64, f64)>, my_team: Te
         // Probability he is near me from all hypotheses ("Nami gank" while the drawn ghost sat in base:
         // one centre and the zones disagreed). Fallback: the centre/radius overlap.
         let best = fog.iter().map(|t| (near_me(&t.champion).map(|m| (m / 0.6).min(1.0)).unwrap_or_else(|| near(t, me, 0.11)), t)).max_by(|a, b| a.0.total_cmp(&b.0));
-        if let Some((p, t)) = best.filter(|b| out.is_empty() && b.0 > 0.5) {
+        if let Some((p, t)) = best.filter(|b| out.is_empty() && b.0 > 0.6) {
             out.push(AlertState { kind: AlertKind::Gank, text: format!("{} gank", t.champion), confidence: p.min(0.9), expires_at: now + 4000.0 });
         }
     }

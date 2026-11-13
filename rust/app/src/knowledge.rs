@@ -510,6 +510,16 @@ pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
             }
         }
     }
+    // A live gank / invade warning about X: X counts as next to me (in fog) for the fight bar too.
+    let now = crate::vision::now_ms();
+    if let Some(i) = g.intel.as_ref() {
+        for a in g.field.alerts.iter().filter(|a| (a.kind == "gank" || a.kind == "invade") && a.expires_at > now) {
+            let Some(c) = i.players.iter().find(|p| !p.is_ally && !p.is_dead && a.text.starts_with(p.champion.as_str())).map(|p| p.champion.clone()) else { continue };
+            if !n.enemies.iter().any(|(e, _)| *e == c) {
+                n.enemies.push((c, false));
+            }
+        }
+    }
     for t in fog_tracks(g) {
         let Some(est) = t.estimate.filter(|_| t.in_fog) else { continue };
         if est.radius < 0.2 && (est.x - mx).hypot(est.y - my) < R + est.radius * 0.5 && !n.enemies.iter().any(|(c, _)| *c == t.champion) {
