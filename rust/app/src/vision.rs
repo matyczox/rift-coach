@@ -893,7 +893,16 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     let my_team = intel.me.as_ref().map(|m| m.team.as_str()).unwrap_or("ORDER");
     let my_team_t = Team::parse(my_team).unwrap_or(Team::Order);
     if let Some(me) = intel.me.as_ref() {
-        if let Some(d) = r.detections.iter().find(|d| d.champion == me.champion) {
+        // My icon: of all detections with my champion on my team, the one nearest to where I just was
+        // (a stray match in our base made me jump base <-> dragon mid-fight and hid the fight bar).
+        let mine: Vec<_> = r.detections.iter().filter(|d| d.champion == me.champion && d.team == my_team_t).collect();
+        let pick = match f.my_pos.filter(|_| now - f.my_pos_at < 3000.0) {
+            Some((px, py)) => mine.iter().min_by(|a, b| (a.x - px).hypot(a.y - py).total_cmp(&(b.x - px).hypot(b.y - py))).copied(),
+            None => mine.first().copied(),
+        };
+        // A jump of more than ~1/3 of the map within 3 s is not walking (recall takes 8 s): ignore it.
+        let pick = pick.filter(|d| f.my_pos.filter(|_| now - f.my_pos_at < 3000.0).is_none_or(|(px, py)| (d.x - px).hypot(d.y - py) < 0.3));
+        if let Some(d) = pick {
             f.my_pos = Some((d.x, d.y));
             f.my_pos_at = now;
         } else if me.is_dead || now - f.my_pos_at > if f.my_pos.is_some_and(|(x, y)| r.detections.iter().any(|d| (d.x - x).hypot(d.y - y) < 0.045)) { 8000.0 } else { 3000.0 } {

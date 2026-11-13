@@ -32,6 +32,8 @@ pub struct Intent {
 
 pub struct Game {
     pub intent: Option<Intent>,
+    /// My ward score and the game time it last went up (= I placed a ward then).
+    pub ward_seen: (i64, f64),
     pub static_data: Option<Arc<StaticData>>,
     pub tracker: IntelTracker,
     pub intel: Option<GameIntel>,
@@ -66,6 +68,7 @@ impl Game {
     pub fn new(data_dir: &std::path::Path) -> Self {
         Game {
             intent: None,
+            ward_seen: (0, -1000.0),
             static_data: None,
             tracker: IntelTracker::default(),
             intel: None,
@@ -211,6 +214,12 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
                     "fogZones": g.field.ghosts.iter().map(|gh| serde_json::json!({ "champ": gh.champion, "best": [r2(gh.x), r2(gh.y), r2(gh.radius)], "unseenSec": gh.age.round(), "otherZones": gh.zones.iter().take(3).map(|z| serde_json::json!([r2(z.x), r2(z.y), r2(z.mass)])).collect::<Vec<_>>() })).collect::<Vec<_>>(),
                     "rivalBackOnLaneInSec": g.field.returns.iter().map(|(c, until)| serde_json::json!({ "champ": c, "sec": ((until - now) / 1000.0).max(0.0).round() })).collect::<Vec<_>>(),
                     "liveWarnings": g.field.toasts.iter().filter(|t| t.expires_at > now).map(|t| t.text.clone()).collect::<Vec<_>>(),
+                    // Do I have a ward to place? Trinket type, Control Ward in inventory, last ward placed.
+                    "myWards": i.me.as_ref().map(|m| {
+                        let has = |id: i64| m.items.iter().any(|it| it.id == id);
+                        let trinket = if has(3340) { "Stealth Ward" } else if has(3364) { "Oracle Lens" } else if has(3363) { "Farsight Alteration" } else { "brak" };
+                        serde_json::json!({ "trinket": trinket, "controlWard": has(2055), "lastWardPlacedSecAgo": if g.ward_seen.1 < 0.0 { serde_json::Value::Null } else { serde_json::json!((i.game_time - g.ward_seen.1).round()) } })
+                    }),
                 })
             }),
             waves: g.field.waves.as_ref().map(crate::vision::waves_json),
@@ -275,6 +284,13 @@ fn intent_of(g: &Game, a: &Value) -> Option<Intent> {
 
 /// Did the player do what the last call said? Then a short confirmation and the next step now.
 fn check_intent(g: &mut Game) {
+    if let Some((ws, t)) = g.intel.as_ref().and_then(|i| i.me.as_ref().map(|m| (m.ward_score, i.game_time))) {
+        if ws > g.ward_seen.0 {
+            g.ward_seen = (ws, t);
+        } else if ws < g.ward_seen.0 {
+            g.ward_seen = (ws, -1000.0); // new game
+        }
+    }
     let Some(it) = g.intent.clone() else { return };
     let Some(intel) = g.intel.as_ref() else { return };
     let Some(me) = intel.me.as_ref() else { return };
@@ -291,7 +307,8 @@ fn check_intent(g: &mut Game) {
             (Some((x, y)), Some((mx, my))) => (mx - x).hypot(my - y) < 0.07,
             _ => false,
         };
-        let placed = at_spot && (me.ward_score > it.ward_score_at || (covered && !it.was_covered));
+        // Ward points went up = a ward placed (the user's rule); the spot getting vision counts only when I stand there.
+        let placed = me.ward_score > it.ward_score_at || (at_spot && covered && !it.was_covered);
         (placed, "Ward postawiony".to_string(), "ward-done")
     } else if let (Some((x, y)), Some((mx, my))) = (it.target, g.field.my_pos) {
         ((mx - x).hypot(my - y) < 0.08, "Jesteś na miejscu".to_string(), "arrived")

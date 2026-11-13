@@ -15,6 +15,7 @@ const BUFF_ICON: Record<string, string> = { baron: 'icons/baron.png', elder: 'ic
 const APPROX = new Set(['herald']);
 
 const guide = document.querySelector<HTMLElement>('#guide');
+const guideLabel = document.querySelector<HTMLElement>('#guide-label');
 
 subscribe(({ state }, clock) => {
   const on = state.visible;
@@ -28,8 +29,15 @@ subscribe(({ state }, clock) => {
       const deg = (Math.atan2((g.y - g.from.y) * 0.8, g.x - g.from.x) * 180) / Math.PI;
       guide.style.transform = `rotate(${deg.toFixed(1)}deg) translateX(5.5rem)`;
       guide.classList.remove('hidden');
+      // What the arrow is for, right under my champion (a bare arrow said nothing).
+      if (guideLabel) {
+        guideLabel.textContent = g.kind === 'ward' ? `Postaw ward: ${g.label ?? ''}` : (g.label ?? 'Idź tutaj');
+        guideLabel.classList.toggle('ward', g.kind === 'ward');
+        guideLabel.classList.remove('hidden');
+      }
     } else {
       guide.classList.add('hidden');
+      guideLabel?.classList.add('hidden');
     }
   }
   // Chips: one per active buff, counting down between pushes.

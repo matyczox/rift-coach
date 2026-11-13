@@ -400,13 +400,17 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
                         hints.push(json!({ "kind": "ward", "x": x, "y": y, "label": crate::hud_state::ward_label(&spot), "expiresAt": now + 3000.0 }));
                     }
                     // Arrow from me to the spot (minimap + the pale one on my champion).
-                    if let (Some(h), Some((mx, my))) = (hints.iter_mut().find(|h| h["kind"] == "ward"), g.field.my_pos) {
-                        h["from"] = json!({ "x": mx, "y": my });
+                    let name = rc_core::wards::WARD_SPOTS.iter().find(|w| w.id == spot).map(|w| w.label).unwrap_or("ward");
+                    if let Some(h) = hints.iter_mut().find(|h| h["kind"] == "ward") {
+                        h["label"] = json!(name);
+                        if let Some((mx, my)) = g.field.my_pos {
+                            h["from"] = json!({ "x": mx, "y": my });
+                        }
                     }
                 }
             }
             if let Some(o) = s.as_object_mut() {
-                o.insert("pin".into(), json!(format!("Ward: {}", crate::hud_state::ward_label(&spot))));
+                o.insert("pin".into(), json!(format!("Postaw ward: {}", rc_core::wards::WARD_SPOTS.iter().find(|w| w.id == spot).map(|w| w.label).unwrap_or("ward"))));
             }
         }
         // Fight worth joining: arrow on the minimap from me to that ally (follows him while he is seen).

@@ -284,3 +284,7 @@ canvas.full { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 #p-notify .chips { flex-direction: column-reverse; }
 /* Urgent alerts: just below my champion (camera-locked centre), above the call bar. */
 .toasts { top: 62%; }
+.guide-label { position: fixed; left: 50%; top: 57%; transform: translateX(-50%); padding: 0.25rem 0.75rem; border-radius: 99rem; background: rgba(10, 14, 20, 0.8); color: #b9ffd9; font-size: 1rem; font-weight: 700; text-shadow: var(--shadow); pointer-events: none; white-space: nowrap; transition: opacity 300ms; }
+.guide-label.ward { color: #ffe7a0; }
+.guide-label.hidden { opacity: 0; }
+.chip.pin { font-size: 1rem; font-weight: 700; }
