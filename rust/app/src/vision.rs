@@ -992,12 +992,15 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         let jungler = |c: &str| intel.players.iter().any(|p| p.champion == c && p.role == "JUNGLE");
         for a in f.allies.iter().filter(|a| a.champion != me_c) {
             let d_me = (a.x - mx).hypot(a.y - my);
-            if !(0.12..0.3).contains(&d_me) {
-                continue;
-            }
             let foes: Vec<&SeenUnit> = f.visible_enemies.iter().filter(|e| (e.x - a.x).hypot(e.y - a.y) < 0.045).collect();
             let friends = f.allies.iter().filter(|b| b.champion != me_c && (b.x - a.x).hypot(b.y - a.y) < 0.045).count();
             let Some(foe) = foes.first() else { continue };
+            // A teamfight (4+ champions in it) anywhere is worth walking to from further away (~half the
+            // map); a small skirmish only when I am close.
+            let teamfight = friends + foes.len() >= 4;
+            if !(0.12..if teamfight { 0.55 } else { 0.3 }).contains(&d_me) {
+                continue;
+            }
             if !(jungler(&a.champion) || foes.iter().any(|e| jungler(&e.champion)) || friends + foes.len() >= 3) {
                 continue;
             }
@@ -1022,10 +1025,11 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             let fog = if fog_foes > 0 { format!(" ({fog_foes} we mgle)") } else { String::new() };
             let _ = (&more, &fog, foe);
             // Plain words: "Pomóż Sona — 2v2 z tobą" / "Nie idź do Sona — 1v3" (was "Sona vs X +1 → pomóż").
-            let (kind, team, text) = if theirs > ours {
-                ("fight-bad", "enemy", format!("Nie idź do {} — {}v{}", a.champion, ours, theirs))
-            } else {
-                ("fight", "ally", format!("Pomóż {} — {}v{} z tobą", a.champion, ours, theirs))
+            let (kind, team, text) = match (theirs > ours, teamfight) {
+                (true, true) => ("fight-bad", "enemy", format!("Teamfight {}v{} — nie idź", ours, theirs)),
+                (true, false) => ("fight-bad", "enemy", format!("Nie idź do {} — {}v{}", a.champion, ours, theirs)),
+                (false, true) => ("fight", "ally", format!("Teamfight → idź, {}v{} z tobą", ours, theirs)),
+                (false, false) => ("fight", "ally", format!("Pomóż {} — {}v{} z tobą", a.champion, ours, theirs)),
             };
             f.toasts.push(Toast { id: now as u64 + 13 + f.toasts.len() as u64, kind: kind.into(), team: team.into(), champion: Some(a.champion.clone()), text, expires_at: now + 6000.0 });
             f.help = (theirs <= ours).then(|| (a.champion.clone(), now + 8000.0));

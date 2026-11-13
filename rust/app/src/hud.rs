@@ -415,6 +415,14 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
                 o.insert("pin".into(), json!(format!("Postaw ward: {}", rc_core::wards::WARD_SPOTS.iter().find(|w| w.id == spot).map(|w| w.label).unwrap_or("ward"))));
             }
         }
+        // "Zaahen invade": show WHERE on the minimap (his most likely spot from the tracker).
+        if let Some(champ) = g.field.alerts.iter().find(|a| a.kind == "invade" && a.expires_at > now).and_then(|a| a.text.strip_suffix(" invade").map(String::from)) {
+            if let (Some(gh), Some(hints)) = (g.field.ghosts.iter().find(|gh| gh.champion == champ), s.get_mut("hints").and_then(Value::as_array_mut)) {
+                if !hints.iter().any(|h| h["kind"] == "invade") {
+                    hints.push(json!({ "kind": "invade", "x": gh.x, "y": gh.y, "label": champ, "expiresAt": now + 2000.0 }));
+                }
+            }
+        }
         // Teamfight at an objective with our people there: arrow from me to the pit.
         if let (Some((label, x, y, until)), Some((mx, my))) = (g.field.help_point.as_ref().filter(|h| h.3 > now), g.field.my_pos) {
             if let Some(hints) = s.get_mut("hints").and_then(Value::as_array_mut) {
