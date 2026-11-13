@@ -191,7 +191,8 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
             covered_ward_spots: covered,
             field: g.intel.as_ref().map(|i| {
                 let r2 = |v: f64| (v * 100.0).round() / 100.0;
-                let pos = |u: &crate::vision::SeenUnit| serde_json::json!({ "champ": u.champion, "x": r2(u.x), "y": r2(u.y) });
+                let red = i.me.as_ref().is_some_and(|m| m.team == "CHAOS");
+                let pos = |u: &crate::vision::SeenUnit| serde_json::json!({ "champ": u.champion, "x": r2(u.x), "y": r2(u.y), "area": area_name(u.x, u.y, red) });
                 let me = i.me.as_ref().map(|m| m.champion.clone()).unwrap_or_default();
                 let near = crate::knowledge::nearby(g);
                 let bar = rc_core::intel::matchup::power_bar_near(i, g.matchup.as_ref(), &|c: &str| c.to_string(), &near);
@@ -201,7 +202,7 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
                 let danger = rc_core::intel::situational::danger_at(i, crate::knowledge::pos(g.field.my_pos), &tracks, &enemies_seen, fight, &crate::knowledge::fed_names(i));
                 let now = crate::vision::now_ms();
                 serde_json::json!({
-                    "me": g.field.my_pos.map(|(x, y)| serde_json::json!({ "x": r2(x), "y": r2(y) })),
+                    "me": g.field.my_pos.map(|(x, y)| serde_json::json!({ "x": r2(x), "y": r2(y), "area": area_name(x, y, red) })),
                     "allies": g.field.allies.iter().filter(|a| a.champion != me).map(pos).collect::<Vec<_>>(),
                     "visibleEnemies": g.field.visible_enemies.iter().map(pos).collect::<Vec<_>>(),
                     "fightHereNow": fight,
@@ -277,6 +278,41 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
             });
         }
     }
+}
+
+/// Where on Summoner's Rift a minimap point is, in words for the coach (it misread raw x/y: "Idź z
+/// Zaahenem na Dragon" while he was at Voidgrubs). Minimap: blue base bottom-left, y down.
+pub fn area_name(x: f64, y: f64, red: bool) -> String {
+    let (ours, theirs) = if red { ("wroga", "nasza") } else { ("nasza", "wroga") };
+    let half = if x + y < 1.0 { "top" } else { "bot" };
+    if x.hypot(1.0 - y) < 0.22 {
+        return if red { "baza wroga".into() } else { "nasza baza".into() };
+    }
+    if (1.0 - x).hypot(y) < 0.22 {
+        return if red { "nasza baza".into() } else { "baza wroga".into() };
+    }
+    if (x - 0.663).hypot(y - 0.703) < 0.07 {
+        return "jama Dragona".into();
+    }
+    if (x - 0.337).hypot(y - 0.296) < 0.07 {
+        return "jama Barona / Voidgrubs".into();
+    }
+    if x < 0.12 || y < 0.12 {
+        return "linia top".into();
+    }
+    if x > 0.88 || y > 0.88 {
+        return "linia bot".into();
+    }
+    if (x + y - 1.0).abs() < 0.07 {
+        return "linia mid".into();
+    }
+    if (x - y).abs() < 0.07 {
+        return format!("rzeka {half}");
+    }
+    // Below the river (y > x) is the blue side's jungle.
+    let side = if y > x { if red { theirs } else { ours } } else if red { ours } else { theirs };
+    let _ = (ours, theirs);
+    format!("{side} dżungla {half}")
 }
 
 /// Ward to place or place to go from a coach call (None when the call has neither).
