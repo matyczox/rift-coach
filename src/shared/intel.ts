@@ -205,6 +205,11 @@ export interface PowerBarState {
   enemy: { champion: string; iconUrl: string; level: number };
   /** Estimated chance I win an all-in right now, 0..1. */
   pMe: number;
+  /** A fight here and now (someone near me), not the lane 1v1 forecast. */
+  local?: boolean;
+  /** My lane's wave in words, and when the rival is back on lane. */
+  wave?: string;
+  rivalBack?: string;
   /** Small line under the bar, e.g. "lvl 5 vs 6 · +450 g". */
   detail: string;
   /** Advice line, e.g. "Silniejszy od 6 lvl → wchodź po ulcie". */

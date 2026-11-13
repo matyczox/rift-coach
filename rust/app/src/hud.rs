@@ -178,7 +178,7 @@ fn wants(st: &Value, has_minimap: bool, now: f64) -> Value {
             || arr("hints").iter().any(|h| is_live(exp(h), gt, now))
             || arr("timers").iter().any(|t| t["secondsLeft"].as_f64().is_some_and(|s| s > 0.0 && s <= 60.0)));
     let high_danger = matches!(st["danger"]["label"].as_str(), Some("niebezpiecznie" | "uciekaj")) && !st["deathCard"].is_object();
-    let topbar = (st["topBar"].is_object() && is_live(exp(&st["topBar"]), gt, now)) || (st["alert"].is_object() && is_live(exp(&st["alert"]), gt, now)) || urgent(&st["objective"]) || high_danger;
+    let topbar = st["power"].is_object() || (st["topBar"].is_object() && is_live(exp(&st["topBar"]), gt, now)) || (st["alert"].is_object() && is_live(exp(&st["alert"]), gt, now)) || urgent(&st["objective"]) || high_danger;
     json!({
         "minimap": minimap,
         "topbar": topbar,
@@ -422,6 +422,26 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
                 if !hints.iter().any(|h| h["kind"] == "invade") {
                     hints.push(json!({ "kind": "invade", "x": gh.x, "y": gh.y, "label": champ, "expiresAt": now + 2000.0 }));
                 }
+            }
+        }
+        // Fight panel extras: my lane's wave state and the rival's return.
+        if let (Some(p), Some(i)) = (s.get_mut("power").and_then(Value::as_object_mut), g.intel.as_ref()) {
+            let lane = match i.me.as_ref().map(|m| m.role.as_str()) { Some("TOP") => Some("top"), Some("MIDDLE") => Some("mid"), Some("BOTTOM") | Some("UTILITY") => Some("bot"), _ => None };
+            let wave = lane.and_then(|l| g.field.waves.as_ref().and_then(|w| w.lanes.iter().find(|x| x.lane == l)).map(|x| x.state.as_str().to_string()));
+            let txt = wave.as_deref().and_then(|w| match w {
+                "crashing" => Some("Fala wbija się w ich wieżę"),
+                "pushing" => Some("Fala po ich stronie"),
+                "even" => Some("Fala na środku"),
+                "our_side" => Some("Fala po naszej stronie"),
+                "under_our_tower" => Some("Ich fala pod naszą wieżą"),
+                "no_wave" => Some("Brak fali"),
+                _ => None,
+            });
+            if let Some(t) = txt {
+                p.insert("wave".into(), json!(t));
+            }
+            if let Some((c, until)) = g.field.returns.first() {
+                p.insert("rivalBack".into(), json!(format!("{c} na linii za {} s", ((until - now) / 1000.0).max(0.0).round())));
             }
         }
         // Teamfight at an objective with our people there: arrow from me to the pit.

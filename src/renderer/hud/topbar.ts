@@ -13,6 +13,13 @@ const obj = $('obj');
 const objVerdict = $('objVerdict');
 const objTxt = $('objTxt');
 let lastObjKey = '';
+const mini = $('mini');
+const miMe = $('miMe') as HTMLImageElement;
+const miEn = $('miEn') as HTMLImageElement;
+const miFill = $('miFill');
+const miPct = $('miPct');
+const miAl = $('miAl');
+const miEnN = $('miEnN');
 
 let lastCall = '';
 let lastAlertKey = '';
@@ -34,6 +41,23 @@ function alertColor(a: AlertState): 'red' | 'amber' | 'green' {
 }
 
 subscribe(({ state }) => {
+  // Mini fight bar right above the call (the full panel stays on the right).
+  const p = state.visible && !state.deathCard ? state.power : null;
+  if (!p) {
+    mini.classList.add('hidden');
+  } else {
+    const v = Math.max(0, Math.min(1, p.pMe));
+    if (miMe.src !== p.me.iconUrl) miMe.src = p.me.iconUrl;
+    if (miEn.src !== p.enemy.iconUrl) miEn.src = p.enemy.iconUrl;
+    miFill.style.width = `${(v * 100).toFixed(1)}%`;
+    miFill.className = v < 0.4 ? 'low' : v < 0.6 ? 'mid' : '';
+    miPct.textContent = `${Math.round(v * 100)}%`;
+    const al = (p.allies ?? []).length, en = (p.enemies ?? []).length;
+    miAl.textContent = al ? `+${al}` : '';
+    miEnN.textContent = en ? `+${en}` : '';
+    mini.classList.toggle('far', !p.local);
+    mini.classList.remove('hidden');
+  }
   const tb = state.visible && state.topBar && isLive(state.topBar.expiresAt, state.gameTime) ? state.topBar : null;
   if (!tb) {
     bar.classList.add('hidden');

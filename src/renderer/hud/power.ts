@@ -102,6 +102,14 @@ subscribe(({ state }) => {
     };
     detail.className = 'card lead pw-stats';
     detail.replaceChildren(stat(ln.gold, 'g'), stat(ln.cs, 'CS'), stat(ln.level, 'lvl'));
+    // Filled out: wave on my lane and the rival's return, one small line each.
+    for (const t of [p.wave, p.rivalBack]) {
+      if (!t) continue;
+      const l = document.createElement('div');
+      l.className = 'pw-extra';
+      l.textContent = t;
+      detail.append(l);
+    }
   } else {
     detail.replaceChildren();
   }
