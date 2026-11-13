@@ -926,7 +926,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             f.my_pos = Some((d.x, d.y));
             f.my_pos_at = now;
             f.my_last_real = Some((d.x, d.y, now));
-        } else if me.is_dead || now - f.my_pos_at > if f.my_pos.is_some_and(|(x, y)| r.detections.iter().any(|d| (d.x - x).hypot(d.y - y) < 0.045)) { 8000.0 } else { 3000.0 } {
+        } else if me.is_dead || now - f.my_pos_at > if f.my_pos.is_some_and(|(x, y)| r.detections.iter().any(|d| (d.x - x).hypot(d.y - y) < 0.045)) { 4000.0 } else { 3000.0 } {
             // (My icon under someone else's in a fight: keep my last spot up to 8 s, not "unknown" —
             // without it the fight bar only counted the one enemy whose health bar had a name.)
             // Unknown, not "where I was": an old position fed alerts, the fight bar and the coach.
@@ -1304,7 +1304,9 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             for p in intel.players.iter().filter(|p| !p.is_ally && !p.is_dead) {
                 let m = match f.visible_enemies.iter().find(|e| e.champion == p.champion) {
                     Some(e) => if (e.x - pit.0).hypot(e.y - pit.1) < 0.1 { 1.0 } else { 0.0 },
-                    None => tr.mass_near(&p.champion, pit, 0.1).unwrap_or(0.0),
+                    // A fog guess counts fully only for their jungler (Smite); laners / support smeared
+                    // near the pit lit "Mogą robić Dragon" for ~1200 frames a game.
+                    None => tr.mass_near(&p.champion, pit, 0.1).unwrap_or(0.0) * if p.role == "JUNGLE" { 1.0 } else { 0.4 },
                 };
                 miss *= 1.0 - m.min(0.95);
             }
@@ -1335,7 +1337,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             if p >= 0.5 && ours_there >= 1 && far {
                 f.help_point = Some((format!("Teamfight przy {name} → idź"), pit.0, pit.1, now + 6000.0));
             }
-            if p >= if showing { 0.25 } else { 0.5 } && best.as_ref().is_none_or(|b| p > b.0) {
+            if p >= if showing { 0.35 } else { 0.6 } && best.as_ref().is_none_or(|b| p > b.0) {
                 best = Some((p, format!("Mogą robić {name}")));
             }
         }
