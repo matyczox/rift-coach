@@ -987,7 +987,14 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         // tower) and he is not seen fighting one of us ("Darius pcha top" while he fought Fizz).
         let wave_ours = f.waves.as_ref().and_then(|w| w.lanes.iter().find(|l| l.lane == lane)).is_some_and(|l| matches!(l.state.as_str(), "our_side" | "under_our_tower"));
         let fighting = f.visible_enemies.iter().find(|v| v.champion == e.champion).is_some_and(|v| f.allies.iter().any(|a| (a.x - v.x).hypot(a.y - v.y) < 0.08));
-        if !wave_ours || fighting || f.allies.iter().any(|a| a.champion == o.champion) {
+        // He must be at that lane: seen there, or the tracker puts him there (seen walking mid = no).
+        let order_outer = match lane { "top" => (0.066, 0.298), "bot" => (0.706, 0.931), _ => (0.393, 0.570) };
+        let lane_pt = if my_team_t == Team::Order { order_outer } else { (1.0 - order_outer.0, 1.0 - order_outer.1) };
+        let at_lane = match f.visible_enemies.iter().find(|v| v.champion == e.champion) {
+            Some(v) => (v.x - lane_pt.0).hypot(v.y - lane_pt.1) < 0.2,
+            None => f.tracker.as_ref().and_then(|tr| tr.mass_near(&e.champion, lane_pt, 0.2)).is_some_and(|m| m > 0.5),
+        };
+        if !wave_ours || !at_lane || fighting || f.allies.iter().any(|a| a.champion == o.champion) {
             continue;
         }
         let enemy_base = if my_team_t == Team::Order { (0.96, 0.04) } else { (0.04, 0.96) };
@@ -1192,12 +1199,14 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             }
             let p = 1.0 - miss;
             let name = match o.kind { "dragon" => "Dragon", "elder" => "Elder Dragon", "baron" => "Baron", "herald" => "Herald", "grubs" => "Voidgrubs", _ => "Atakhan" };
-            if p >= 0.5 && best.as_ref().is_none_or(|b| p > b.0) {
+            // Shown from 50 %, then kept down to 25 % (it flickered on/off around the threshold).
+            let showing = f.alerts.iter().any(|x| x.kind == "objective" && x.expires_at > now && x.text.ends_with(name));
+            if p >= if showing { 0.25 } else { 0.5 } && best.as_ref().is_none_or(|b| p > b.0) {
                 best = Some((p, format!("Mogą robić {name}")));
             }
         }
         if let Some((p, text)) = best {
-            let al = Alert::new("objective", text, p.min(0.9), now + 3000.0);
+            let al = Alert::new("objective", text, p.min(0.9), now + 6000.0);
             match f.alerts.iter().position(|x| x.kind == al.kind) {
                 Some(i) => f.alerts[i] = al,
                 None => f.alerts.push(al),
