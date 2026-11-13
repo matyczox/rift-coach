@@ -1251,7 +1251,14 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         // Someone of us next to him now, or a moment ago (icon hidden under his): no warning.
         let guarded = f.allies.iter().any(|a| (a.x - v.x).hypot(a.y - v.y) < 0.18)
             || f.ally_last.values().any(|(x, y, t)| intel.game_time - t <= 6.0 && (x - v.x).hypot(y - v.y) < 0.18)
-            || f.my_pos.is_some_and(|(x, y)| (x - v.x).hypot(y - v.y) < 0.18);
+            || f.my_pos.is_some_and(|(x, y)| (x - v.x).hypot(y - v.y) < 0.18)
+            // Someone of us at our tower (bot duo icons overlap and go undetected next to him).
+            || f.allies.iter().any(|a| (a.x - tower.0).hypot(a.y - tower.1) < 0.12)
+            // Laning phase: our laner(s) of that lane alive and not seen far away = plain laning, not a push.
+            || (intel.game_time < 840.0 && intel.players.iter().filter(|p| p.is_ally && !p.is_dead && (p.role == role || (role == "BOTTOM" && p.role == "UTILITY"))).any(|p| {
+                let far = f.allies.iter().find(|a| a.champion == p.champion).map(|a| (a.x, a.y)).or_else(|| f.ally_last.get(&p.champion).filter(|(_, _, t)| intel.game_time - t <= 10.0).map(|(x, y, _)| (*x, *y)));
+                far.is_none_or(|(x, y)| (x - tower.0).hypot(y - tower.1) < 0.35)
+            }));
         // Their wave really on our side; walking at our tower alone is not a push (lane start).
         let _ = heading;
         if guarded || !wave_ours {

@@ -430,7 +430,10 @@ fn check_intent(g: &mut Game) {
         // Evidence must belong to the requested spot: I was there, then ward points / trinket use / vision left behind.
         // Not the ward score: it grows by itself while older wards live and when killing wards ("Ward
         // postawiony" without a ward). Vision left behind counts only if the spot had none before.
-        let placed = visited && ((left_ward && !it.was_covered) || trinket_used);
+        // Only once I walked away and the spot still has vision (a ward is there). The trinket switching to
+        // "recharging" at the spot alone said "Ward postawiony" without a ward; it only helps when the spot
+        // already had vision before (then vision alone proves nothing).
+        let placed = visited && left_ward && (!it.was_covered || trinket_used);
         if placed {
             g.ward_seen.1 = gt;
         }
