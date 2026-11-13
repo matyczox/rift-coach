@@ -46,7 +46,7 @@ function render(b: BuildPanelState): void {
 
 subscribe(({ state }) => {
   const b = state.visible ? state.build : null;
-  setOn(root, !!b && b.items.length > 0);
+  setOn(root, !!b && (b.items.length > 0 || (b.buyNow?.length ?? 0) > 0));
   if (!b) return;
   const key = JSON.stringify([b.items[0] ?? null, b.buyNow ?? null]);
   if (key !== lastKey) { lastKey = key; render(b); }

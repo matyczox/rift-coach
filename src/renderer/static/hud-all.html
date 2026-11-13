@@ -19,7 +19,9 @@
 <div class="panel" id="p-loading"><div class="wrap fade" id="root"><div class="card loading"><div class="head"><span>Przeciwnicy</span><span class="right" id="note"></span></div><div class="rows" id="rows"></div></div></div></div>
 <div class="panel" id="p-power"><div class="wrap fade" id="root"><div class="card power"><div class="dg hidden" id="danger"><div class="dg-top"><span class="dg-label" id="dgLabel"></span><span class="dg-meter" id="dgMeter"><i></i><i></i><i></i><i></i></span></div><div class="dg-why" id="dgWhy"></div></div><div id="pw"><div class="pw-row"><img id="meIcon" class="pw-icon" alt=""><span class="pw-near" id="meNear"></span><span class="pw-me">Ty</span><div class="pw-bar"><div class="pw-fill" id="fill"><span id="pct"></span></div></div><span class="pw-near" id="enNear"></span><img id="enIcon" class="pw-icon" alt=""></div><div class="pw-advice" id="advice"></div></div></div><div class="card lead hidden" id="detail"></div></div></div>
 <div class="panel" id="p-build"><div class="wrap bottom fade" id="root"><div class="card build"><div class="bd-phase" id="phase"></div><div class="bd-rows" id="rows"></div></div></div></div>
-<div class="panel" id="p-notify"><div class="notify"><div id="chips" class="chips"></div><div id="toasts" class="toasts"></div></div></div>
+<div class="panel" id="p-notify"><div class="notify"><div id="chips" class="chips"></div></div></div>
 <script src="hud-all.js"></script>
+<!-- Alerts: own full-window layer (a panel clips and shifts position:fixed children) -->
+<div id="toasts-layer" class="toasts"></div>
 </body>
 </html>

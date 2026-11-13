@@ -890,7 +890,12 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     f.occluded_since.retain(|k, _| !k.starts_with("ally:") || kept.contains(k));
     f.visible_enemies = r.detections.iter().filter(|d| d.team != my_team_t).map(|d| with_vel(&f.visible_enemies, d)).collect();
     // Enemy pushing a lane on our half with none of us near -> toast (once per champion+lane / 60 s).
-    for (champ, lane) in unguarded_pushes(&f.visible_enemies, &f.allies, my_team_t) {
+    // Me too, by my own position (my icon can be missing from the detections: "pcha mid" while I stood mid).
+    let mut guards = f.allies.clone();
+    if let Some((x, y)) = f.my_pos {
+        guards.push(SeenUnit { champion: String::new(), x, y, vx: 0.0, vy: 0.0 });
+    }
+    for (champ, lane) in unguarded_pushes(&f.visible_enemies, &guards, my_team_t) {
         let key = format!("{champ}@{lane}");
         if f.push_seen.iter().any(|(k, at)| *k == key && now - at < 60000.0) {
             continue;

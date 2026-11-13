@@ -4,7 +4,8 @@ import { $, subscribe } from './common';
 import { fmtClock } from './types';
 
 const chips = $('chips');
-const toasts = $('toasts');
+// Alerts live in their own full-window layer (outside the panel, which clips).
+const toasts = document.querySelector<HTMLElement>('#toasts-layer') ?? $('toasts');
 const live = new Map<number, HTMLElement>();
 
 const BUFF_NAME: Record<string, string> = { baron: 'Baron', elder: 'Elder Dragon', herald: 'Eye of the Herald' };

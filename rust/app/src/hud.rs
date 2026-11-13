@@ -182,7 +182,7 @@ fn wants(st: &Value, has_minimap: bool, now: f64) -> Value {
         "death": st["deathCard"].is_object(),
         "loading": st["loadingCard"].is_object(),
         "power": (st["power"].is_object() || st["danger"].is_object() || st["alert"].is_object() || st["objective"].is_object()) && !st["deathCard"].is_object(),
-        "build": st["build"]["items"].as_array().is_some_and(|a| !a.is_empty()),
+        "build": st["build"]["items"].as_array().is_some_and(|a| !a.is_empty()) || st["build"]["buyNow"].as_array().is_some_and(|a| !a.is_empty()),
         "notify": !arr("toasts").is_empty() || !arr("buffs").is_empty() || !arr("returns").is_empty(),
     })
 }
@@ -190,7 +190,7 @@ fn wants(st: &Value, has_minimap: bool, now: f64) -> Value {
 /// "Kup teraz" for the build panel: only when I can shop (dead, in my base, or the first 90 s), from my
 /// gold and the next planned item's recipe.
 fn buy_now_json(g: &crate::game::Game) -> Option<Value> {
-    let (intel, sd, build) = (g.intel.as_ref()?, g.static_data.as_ref()?, g.build.as_ref()?);
+    let (intel, sd) = (g.intel.as_ref()?, g.static_data.as_ref()?);
     let me = intel.me.as_ref()?;
     let gold = intel.my_stats.as_ref()?.gold;
     let base = if me.team == "CHAOS" { (0.96, 0.04) } else { (0.04, 0.96) };
@@ -198,11 +198,27 @@ fn buy_now_json(g: &crate::game::Game) -> Option<Value> {
     if !(me.is_dead || in_base || intel.game_time < 90.0) || gold < 300.0 {
         return None;
     }
-    let want = build.items.first()?.name.to_lowercase();
-    let target = sd.items.values().find(|i| i.name.to_lowercase() == want || i.name_en.as_ref().is_some_and(|n| n.to_lowercase() == want))?;
-    let owned: Vec<i64> = me.items.iter().map(|i| i.id).collect();
-    let has_boots = me.items.iter().any(|i| sd.items.get(&i.id).is_some_and(|d| d.tags.iter().any(|t| t == "Boots")));
-    let ids = rc_core::build_advisor::buy_now(target, &sd.items, &owned, gold, !has_boots && intel.game_time > 4.0 * 60.0);
+    let plan_first = g.build.as_ref().and_then(|b| b.items.first()).map(|i| i.name.to_lowercase());
+    let target = plan_first.as_ref().and_then(|want| sd.items.values().find(|i| i.name.to_lowercase() == *want || i.name_en.as_ref().is_some_and(|n| n.to_lowercase() == *want)));
+    // Game start, nothing bought yet: the starter (Doran's + potions / jungle pet / World Atlas), not a
+    // full item ("pokazywało przedmiot, a nie pierścień z potkami").
+    let bought_anything = me.items.iter().any(|i| sd.items.get(&i.id).is_some_and(|d| d.total >= 300.0));
+    let ids = if !bought_anything && intel.game_time < 180.0 {
+        let tag = |t: &str| target.is_some_and(|d| d.tags.iter().any(|x| x == t));
+        let (start, pots): (i64, usize) = match me.role.as_str() {
+            "UTILITY" => (3865, 2),
+            "JUNGLE" => (if tag("SpellDamage") { 1102 } else if tag("Armor") || tag("Health") && !tag("Damage") { 1103 } else { 1101 }, 1),
+            _ if tag("SpellDamage") => (1056, 2),
+            "TOP" if (tag("Armor") || tag("Health")) && !tag("Damage") => (1054, 1),
+            _ => (1055, 1),
+        };
+        std::iter::once(start).chain(std::iter::repeat_n(2003, pots)).filter(|id| sd.items.contains_key(id)).collect()
+    } else {
+        let Some(target) = target else { return None };
+        let owned: Vec<i64> = me.items.iter().map(|i| i.id).collect();
+        let has_boots = me.items.iter().any(|i| sd.items.get(&i.id).is_some_and(|d| d.tags.iter().any(|t| t == "Boots")));
+        rc_core::build_advisor::buy_now(target, &sd.items, &owned, gold, !has_boots && intel.game_time > 4.0 * 60.0)
+    };
     if ids.is_empty() {
         return None;
     }
@@ -285,12 +301,17 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
             show_frame,
             recording,
             power,
-            build: g.build.as_ref().and_then(|b| serde_json::to_value(b).ok()).map(|mut v| {
-                if let (Some(list), Some(o)) = (buy_now_json(g), v.as_object_mut()) {
-                    o.insert("buyNow".into(), list);
+            // No plan yet (game start): the panel still shows the starter to buy.
+            build: match (g.build.as_ref().and_then(|b| serde_json::to_value(b).ok()), buy_now_json(g)) {
+                (Some(mut v), buy) => {
+                    if let (Some(list), Some(o)) = (buy, v.as_object_mut()) {
+                        o.insert("buyNow".into(), list);
+                    }
+                    Some(v)
                 }
-                v
-            }),
+                (None, Some(list)) => Some(json!({ "phase": "start", "updatedAt": now, "items": [], "buyNow": list })),
+                (None, None) => None,
+            },
             danger,
             objective,
             fed,
