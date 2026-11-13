@@ -284,7 +284,14 @@ fn check_intent(g: &mut Game) {
     }
     let (done, text, reason) = if let Some(spot) = &it.ward_spot {
         let covered = crate::vision::covered_spots(intel, &g.field).iter().any(|s| s == spot);
-        let placed = me.ward_score > it.ward_score_at || (covered && !it.was_covered);
+        // Only when I stand at the spot: the spot getting vision (an ally walking by) or ward score
+        // going up elsewhere said "Ward postawiony" without a ward.
+        let red = me.team == "CHAOS";
+        let at_spot = match (rc_core::wards::ward_point(spot, red), g.field.my_pos) {
+            (Some((x, y)), Some((mx, my))) => (mx - x).hypot(my - y) < 0.07,
+            _ => false,
+        };
+        let placed = at_spot && (me.ward_score > it.ward_score_at || (covered && !it.was_covered));
         (placed, "Ward postawiony".to_string(), "ward-done")
     } else if let (Some((x, y)), Some((mx, my))) = (it.target, g.field.my_pos) {
         ((mx - x).hypot(my - y) < 0.08, "Jesteś na miejscu".to_string(), "arrived")
