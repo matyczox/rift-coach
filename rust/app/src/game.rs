@@ -188,12 +188,29 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
                 let r2 = |v: f64| (v * 100.0).round() / 100.0;
                 let pos = |u: &crate::vision::SeenUnit| serde_json::json!({ "champ": u.champion, "x": r2(u.x), "y": r2(u.y) });
                 let me = i.me.as_ref().map(|m| m.champion.clone()).unwrap_or_default();
-                let fight = rc_core::intel::matchup::power_bar_near(i, g.matchup.as_ref(), &|c: &str| c.to_string(), &crate::knowledge::nearby(g)).filter(|p| p.local).map(|p| r2(p.p_me));
+                let near = crate::knowledge::nearby(g);
+                let bar = rc_core::intel::matchup::power_bar_near(i, g.matchup.as_ref(), &|c: &str| c.to_string(), &near);
+                let fight = bar.as_ref().filter(|p| p.local).map(|p| r2(p.p_me));
+                let tracks = crate::knowledge::fog_tracks(g);
+                let enemies_seen = crate::knowledge::seen(&g.field.visible_enemies);
+                let danger = rc_core::intel::situational::danger_at(i, crate::knowledge::pos(g.field.my_pos), &tracks, &enemies_seen, fight, &crate::knowledge::fed_names(i));
+                let now = crate::vision::now_ms();
                 serde_json::json!({
                     "me": g.field.my_pos.map(|(x, y)| serde_json::json!({ "x": r2(x), "y": r2(y) })),
                     "allies": g.field.allies.iter().filter(|a| a.champion != me).map(pos).collect::<Vec<_>>(),
                     "visibleEnemies": g.field.visible_enemies.iter().map(pos).collect::<Vec<_>>(),
                     "fightHereNow": fight,
+                    // Same as the player's fight bar: who is next to me, towers, its own one-line advice.
+                    "nearMe": {
+                        "allies": near.allies, "enemies": near.enemies.iter().map(|(c, seen)| if *seen { c.clone() } else { format!("{c} (mgła)") }).collect::<Vec<_>>(),
+                        "unnamedEnemyBars": near.unknown_enemies, "underEnemyTower": near.me_under_enemy_tower, "underMyTower": near.me_under_my_tower,
+                        "barTarget": bar.as_ref().filter(|p| p.local).map(|p| p.enemy.champion.clone()), "barAdvice": bar.as_ref().map(|p| p.advice.clone()),
+                    },
+                    "danger": danger.map(|d| serde_json::json!({ "label": d.label, "reasons": d.reasons })),
+                    // Where each fogged enemy may be: the tracker's hypotheses (zones with probability).
+                    "fogZones": g.field.ghosts.iter().map(|gh| serde_json::json!({ "champ": gh.champion, "best": [r2(gh.x), r2(gh.y), r2(gh.radius)], "unseenSec": gh.age.round(), "otherZones": gh.zones.iter().take(3).map(|z| serde_json::json!([r2(z.x), r2(z.y), r2(z.mass)])).collect::<Vec<_>>() })).collect::<Vec<_>>(),
+                    "rivalBackOnLaneInSec": g.field.returns.iter().map(|(c, until)| serde_json::json!({ "champ": c, "sec": ((until - now) / 1000.0).max(0.0).round() })).collect::<Vec<_>>(),
+                    "liveWarnings": g.field.toasts.iter().filter(|t| t.expires_at > now).map(|t| t.text.clone()).collect::<Vec<_>>(),
                 })
             }),
             waves: g.field.waves.as_ref().map(crate::vision::waves_json),

@@ -222,6 +222,8 @@ export interface PowerBarState {
 export interface BuildPanelState {
   /** What to buy right now (dead / in base): the whole next item or its affordable components. */
   buyNow?: Array<{ name: string; iconUrl: string; cost: number }>;
+  /** Gold still missing for the next item (its components I own counted); 0 = can buy it now. */
+  missingGold?: number | null;
   items: Array<{ name: string; iconUrl: string; why: string; cost: number | null }>;
   /** e.g. "wczesna gra", "środek gry", "późna gra" */
   phase: string;

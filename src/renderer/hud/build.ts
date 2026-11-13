@@ -25,21 +25,25 @@ function render(b: BuildPanelState): void {
     img.onerror = () => { img.style.visibility = 'hidden'; };
     const main = el('div', 'bd-main');
     main.append(el('div', 'bd-name', it.name));
-    row.append(img, main, el('div', 'bd-cost', it.cost != null ? String(it.cost) : ''));
+    const miss = b.missingGold;
+    main.append(el('div', `bd-sub${miss === 0 ? ' ready' : ''}`, miss == null ? (it.cost != null ? `${it.cost} g` : '') : miss === 0 ? 'Stać cię teraz' : `Brakuje ${miss} g`));
+    row.append(img, main);
     return row;
   }));
   // Shopping now (dead / in base): what the gold buys towards it.
   const buy = b.buyNow ?? [];
   if (buy.length) {
     const box = el('div', 'bd-buy');
-    box.append(el('div', 'bd-buy-label', 'Kup teraz'));
-    const icons = el('div', 'bd-buy-icons');
+    const total = buy.reduce((a, it) => a + (it.cost || 0), 0);
+    box.append(el('div', 'bd-buy-label', `Kup teraz · ${total} g`));
     for (const it of buy) {
+      const r = el('div', 'bd-buy-row');
       const im = el('img', '');
-      im.alt = it.name; im.title = it.name; im.src = it.iconUrl;
-      icons.append(im);
+      im.alt = ''; im.src = it.iconUrl;
+      im.onerror = () => { im.style.visibility = 'hidden'; };
+      r.append(im, el('span', 'bd-buy-name', it.name), el('span', 'bd-buy-cost', String(it.cost)));
+      box.append(r);
     }
-    box.append(icons);
     rows.append(box);
   }
 }
@@ -48,6 +52,6 @@ subscribe(({ state }) => {
   const b = state.visible ? state.build : null;
   setOn(root, !!b && (b.items.length > 0 || (b.buyNow?.length ?? 0) > 0));
   if (!b) return;
-  const key = JSON.stringify([b.items[0] ?? null, b.buyNow ?? null]);
+  const key = JSON.stringify([b.items[0] ?? null, b.buyNow ?? null, b.missingGold ?? null]);
   if (key !== lastKey) { lastKey = key; render(b); }
 });

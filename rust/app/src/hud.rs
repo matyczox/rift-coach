@@ -211,6 +211,18 @@ fn wave_point(lane: &str, front: f64, red: bool) -> (f64, f64) {
     if red { (1.0 - p.0, 1.0 - p.1) } else { p }
 }
 
+/// Gold still missing for the first planned item (owned components count), rounded to 10.
+fn missing_gold(g: &crate::game::Game) -> Option<f64> {
+    let (intel, sd, build) = (g.intel.as_ref()?, g.static_data.as_ref()?, g.build.as_ref()?);
+    let me = intel.me.as_ref()?;
+    let want = build.items.first()?.name.to_lowercase();
+    let t = sd.items.values().find(|i| i.name.to_lowercase() == want || i.name_en.as_ref().is_some_and(|n| n.to_lowercase() == want))?;
+    let mut own: Vec<i64> = me.items.iter().map(|i| i.id).collect();
+    let have: f64 = t.from.iter().filter(|c| match own.iter().position(|o| o == *c) { Some(p) => { own.remove(p); true } None => false }).map(|c| sd.items.get(c).map_or(0.0, |i| i.total)).sum();
+    let gold = intel.my_stats.as_ref()?.gold;
+    Some(((t.total - have - gold).max(0.0) / 10.0).round() * 10.0)
+}
+
 fn buy_now_json(g: &crate::game::Game) -> Option<Value> {
     let (intel, sd) = (g.intel.as_ref()?, g.static_data.as_ref()?);
     let me = intel.me.as_ref()?;
@@ -326,8 +338,11 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
             // No plan yet (game start): the panel still shows the starter to buy.
             build: match (g.build.as_ref().and_then(|b| serde_json::to_value(b).ok()), buy_now_json(g)) {
                 (Some(mut v), buy) => {
-                    if let (Some(list), Some(o)) = (buy, v.as_object_mut()) {
-                        o.insert("buyNow".into(), list);
+                    if let Some(o) = v.as_object_mut() {
+                        if let Some(list) = buy {
+                            o.insert("buyNow".into(), list);
+                        }
+                        o.insert("missingGold".into(), missing_gold(g).map_or(Value::Null, |m| json!(m)));
                     }
                     Some(v)
                 }

@@ -91,7 +91,7 @@ function layout(m: HudMessage, s: number): void {
   // Notifications: top-right corner, under the score / FPS line.
   const nw = 300 * s, nh = 260 * s;
   place(panels.get('notify')!, { x: W - nw - W * 0.006, y: H * 0.06, width: nw, height: nh });
-  const bw = 190 * s, bh = 150 * s;
+  const bw = 250 * s, bh = 230 * s;
   place(panels.get('build')!, { x: b.x - bw - 14 * s, y: b.y + b.height - bh, width: bw, height: bh });
   // Panels the player dragged somewhere else (the minimap layer stays on the minimap).
   for (const kind of DRAGGABLE) {
