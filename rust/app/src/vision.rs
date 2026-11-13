@@ -160,6 +160,8 @@ pub struct Field {
     pub my_pos: Option<(f64, f64)>,
     /// When my portrait was last seen (Date.now() ms): the position expires after a few seconds.
     pub my_pos_at: f64,
+    /// Last trusted spot of my icon (kept when my_pos goes unknown): (x, y, Date.now() ms).
+    pub my_last_real: Option<(f64, f64, f64)>,
     /// Last vision result (Date.now() ms): when vision stops, everything spatial expires.
     pub last_vision_at: f64,
     /// CommunityDragon was unreachable at roster load (square icons in use): retry at this time (ms).
@@ -211,6 +213,7 @@ impl Field {
             alerts: Vec::new(),
             my_pos: None,
             my_pos_at: 0.0,
+            my_last_real: None,
             last_vision_at: 0.0,
             icon_retry_at: 0.0,
             recall_seen: Vec::new(),
@@ -907,9 +910,18 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         };
         // A jump of more than ~1/3 of the map within 3 s is not walking (recall takes 8 s): ignore it.
         let pick = pick.filter(|d| f.my_pos.filter(|_| now - f.my_pos_at < 3000.0).is_none_or(|(px, py)| (d.x - px).hypot(d.y - py) < 0.3));
+        // A stray "me" on our fountain while I was fighting far away: only after a death, or once a
+        // recall (8 s) could have happened since my last real spot.
+        let fountain = if my_team_t == Team::Order { (0.04, 0.96) } else { (0.96, 0.04) };
+        let just_respawned = f.prev_dead.contains(&me.champion);
+        let pick = pick.filter(|d| {
+            let at_fountain = (d.x - fountain.0).hypot(d.y - fountain.1) < 0.12;
+            !at_fountain || just_respawned || f.my_last_real.is_none_or(|(x, y, at)| (d.x - x).hypot(d.y - y) < 0.3 || now - at > 8500.0)
+        });
         if let Some(d) = pick {
             f.my_pos = Some((d.x, d.y));
             f.my_pos_at = now;
+            f.my_last_real = Some((d.x, d.y, now));
         } else if me.is_dead || now - f.my_pos_at > if f.my_pos.is_some_and(|(x, y)| r.detections.iter().any(|d| (d.x - x).hypot(d.y - y) < 0.045)) { 8000.0 } else { 3000.0 } {
             // (My icon under someone else's in a fight: keep my last spot up to 8 s, not "unknown" —
             // without it the fight bar only counted the one enemy whose health bar had a name.)
