@@ -47,13 +47,17 @@ pub fn tracker_alerts(tracks: &[EnemyTrack], me: Option<(f64, f64)>, my_team: Te
         if d >= r + e.radius {
             return 0.0;
         }
-        ((r + e.radius - d) / (2.0 * r.min(e.radius) + 1e-6)).clamp(0.0, 1.0)
+        let overlap = ((r + e.radius - d) / (2.0 * r.min(e.radius) + 1e-6)).clamp(0.0, 1.0);
+        // A huge uncertain circle (radius 0.45 at game start) touching me is not "he is next to me": scale by
+        // the share of his circle my reach covers (it said "Kha'Zix invade" at 75% while he was in base).
+        if e.radius > r { overlap * (r / e.radius).powi(2) } else { overlap }
     };
     if let Some(me) = me {
         let in_my_jungle = if my_team == Team::Order { me.0 + me.1 > 0.98 && me.0 < 0.62 && me.1 > 0.38 } else { me.0 + me.1 < 1.02 && me.0 > 0.38 && me.1 < 0.62 };
         if let Some(j) = fog.iter().find(|t| t.role == Role::Jungle) {
             if in_my_jungle {
-                let p = near(j, me, 0.14);
+                // Same source as the zones drawn on the minimap (all hypotheses), like the gank warning.
+                let p = near_me(&j.champion).map(|m| (m / 0.6).min(1.0)).unwrap_or_else(|| near(j, me, 0.14));
                 if p > 0.45 {
                     out.push(AlertState { kind: AlertKind::Invade, text: format!("{} invade", j.champion), confidence: p.min(0.9), expires_at: now + 4000.0 });
                 }

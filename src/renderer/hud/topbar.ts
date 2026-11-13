@@ -92,9 +92,8 @@ subscribe(({ state }) => {
   const dg = state.visible && !state.deathCard ? state.danger : null;
   const al: AlertState | null = live && ['gank', 'invade', 'missing', 'objective', 'steal', 'ace', 'spike'].includes(live.kind)
     ? live
-    : dg && (dg.label === 'niebezpiecznie' || dg.label === 'uciekaj') && dg.reasons[0]
-      ? { kind: 'gank', text: dg.reasons[0], confidence: dg.level, expiresAt: Date.now() + 1000 }
-      : null;
+    : null; // no danger reason as a red alert ('Brand blisko' = my lane rival next to me, nothing new)
+  void dg;
   // A % only means something for a gank / invade guess; on a danger reason ("Mało HP (2%)") it confused.
   const showConf = !!live && al === live && ['gank', 'invade', 'steal', 'objective'].includes(al.kind);
   // A real gank / invade / steal (not a danger reason): red pulsing screen edge and a solid red pill.
