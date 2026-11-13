@@ -415,6 +415,12 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
                 o.insert("pin".into(), json!(format!("Postaw ward: {}", rc_core::wards::WARD_SPOTS.iter().find(|w| w.id == spot).map(|w| w.label).unwrap_or("ward"))));
             }
         }
+        // Teamfight at an objective with our people there: arrow from me to the pit.
+        if let (Some((label, x, y, until)), Some((mx, my))) = (g.field.help_point.as_ref().filter(|h| h.3 > now), g.field.my_pos) {
+            if let Some(hints) = s.get_mut("hints").and_then(Value::as_array_mut) {
+                hints.push(json!({ "kind": "move", "x": x, "y": y, "from": { "x": mx, "y": my }, "label": label, "expiresAt": until }));
+            }
+        }
         // Fight worth joining: arrow on the minimap from me to that ally (follows him while he is seen).
         if let (Some((ally, until)), Some((mx, my))) = (g.field.help.as_ref().filter(|h| h.1 > now), g.field.my_pos) {
             if let (Some(a), Some(hints)) = (g.field.allies.iter().find(|a| a.champion == *ally), s.get_mut("hints").and_then(Value::as_array_mut)) {

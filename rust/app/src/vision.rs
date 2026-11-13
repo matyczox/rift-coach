@@ -146,6 +146,8 @@ pub struct Field {
     pub fight_seen: Vec<(String, f64)>,
     /// Go help this ally (fight worth joining): (ally, until Date.now() ms) -> arrow on the minimap.
     pub help: Option<(String, f64)>,
+    /// Teamfight at an objective pit with our people there: (label, x, y, until Date.now() ms) -> arrow.
+    pub help_point: Option<(String, f64, f64, f64)>,
     /// Last fight toast: (toast id, enemies in it) - dropped once they are all dead.
     pub fight_toast: Option<(u64, Vec<String>)>,
     /// Lane opponent walking back to lane: (champion, ETA as Date.now() ms).
@@ -205,6 +207,7 @@ impl Field {
             near_seen: Default::default(),
             help: None,
             fight_toast: None,
+            help_point: None,
             prev_dead: Vec::new(),
             tracker,
             camps: CampTracker::default(),
@@ -266,6 +269,7 @@ impl Field {
         self.near_seen.clear();
         self.help = None;
         self.fight_toast = None;
+        self.help_point = None;
         self.prev_dead.clear();
         self.ghosts.clear();
         self.my_pos = None;
@@ -1016,8 +1020,14 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             let theirs = seen_foes + fog_foes;
             let more = if theirs > 1 { format!(" +{}", theirs - 1) } else { String::new() };
             let fog = if fog_foes > 0 { format!(" ({fog_foes} we mgle)") } else { String::new() };
-            let (kind, team, call) = if theirs > ours { ("fight-bad", "enemy", "nie idź, za dużo ich") } else if theirs == ours { ("fight", "ally", "pomóż, wyrównane") } else { ("fight", "ally", "pomóż") };
-            f.toasts.push(Toast { id: now as u64 + 13 + f.toasts.len() as u64, kind: kind.into(), team: team.into(), champion: Some(a.champion.clone()), text: format!("{} vs {}{more}{fog} → {call}", a.champion, foe.champion), expires_at: now + 6000.0 });
+            let _ = (&more, &fog, foe);
+            // Plain words: "Pomóż Sona — 2v2 z tobą" / "Nie idź do Sona — 1v3" (was "Sona vs X +1 → pomóż").
+            let (kind, team, text) = if theirs > ours {
+                ("fight-bad", "enemy", format!("Nie idź do {} — {}v{}", a.champion, ours, theirs))
+            } else {
+                ("fight", "ally", format!("Pomóż {} — {}v{} z tobą", a.champion, ours, theirs))
+            };
+            f.toasts.push(Toast { id: now as u64 + 13 + f.toasts.len() as u64, kind: kind.into(), team: team.into(), champion: Some(a.champion.clone()), text, expires_at: now + 6000.0 });
             f.help = (theirs <= ours).then(|| (a.champion.clone(), now + 8000.0));
             let id = f.toasts.last().map(|t| t.id).unwrap_or(0);
             f.fight_toast = Some((id, f.visible_enemies.iter().filter(|e| (e.x - a.x).hypot(e.y - a.y) < AREA).map(|e| e.champion.clone()).collect()));
@@ -1298,6 +1308,12 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             let name = match o.kind { "dragon" => "Dragon", "elder" => "Elder Dragon", "baron" => "Baron", "herald" => "Herald", "grubs" => "Voidgrubs", _ => "Atakhan" };
             // Shown from 50 %, then kept down to 25 % (it flickered on/off around the threshold).
             let showing = f.alerts.iter().any(|x| x.kind == "objective" && x.expires_at > now && x.text.ends_with(name));
+            // Our people at the pit too = a teamfight there: arrow to go (up to ~half the map away).
+            let ours_there = f.allies.iter().filter(|a| (a.x - pit.0).hypot(a.y - pit.1) < 0.12).count();
+            let far = f.my_pos.is_some_and(|(x, y)| { let d = (x - pit.0).hypot(y - pit.1); d > 0.1 && d < 0.55 });
+            if p >= 0.5 && ours_there >= 1 && far {
+                f.help_point = Some((format!("Teamfight przy {name} → idź"), pit.0, pit.1, now + 6000.0));
+            }
             if p >= if showing { 0.25 } else { 0.5 } && best.as_ref().is_none_or(|b| p > b.0) {
                 best = Some((p, format!("Mogą robić {name}")));
             }
