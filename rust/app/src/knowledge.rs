@@ -245,7 +245,8 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
     g.build_busy = true;
     // Who asked: same game + same champion when the answer comes back, or it is dropped.
     let asked_for = build_session(intel);
-    let p = pick(live_model, Task::Build, g.backends);
+    // Build plan: the profile's model (Opus low when Claude is there), not the live-call model.
+    let p = rc_core::llm::profiles::profile_for(g.backends).map(|n| rc_core::llm::profiles::profile(n, Task::Build)).unwrap_or_else(|| pick(live_model, Task::Build, g.backends));
     let st = st.clone();
     st.rt.clone().spawn(async move {
         let version = sd.version.clone();

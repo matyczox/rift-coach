@@ -36,7 +36,9 @@ const MIXED: Row = [
     p("gpt-6.1-terra", Effort::High),
     p("claude-opus-5-5", Effort::Low),
     p("claude-opus-5-5", Effort::Medium),
-    p("gpt-6.1-terra", Effort::High),
+    // Build: Opus low (2026-11-13 test, Ahri vs Sion/Urgot/Wukong/Ashe/Milio: Opus gave Zhonya ->
+    // Shadowflame -> Rabadon in 6 s; Terra / Sol xhigh both pushed Liandry's + Void Staff).
+    p("claude-opus-5-5", Effort::Low),
     p("claude-opus-5-5", Effort::Low),
     p("gpt-6.1-terra", Effort::High),
 ];
@@ -44,7 +46,7 @@ const CLAUDE: Row = [
     p("claude-sonnet-5-5", Effort::Medium),
     p("claude-opus-5-5", Effort::Low),
     p("claude-opus-5-5", Effort::Medium),
-    p("claude-sonnet-5-5", Effort::Medium),
+    p("claude-opus-5-5", Effort::Low),
     p("claude-opus-5-5", Effort::Low),
     p("claude-sonnet-5-5", Effort::Medium),
 ];
