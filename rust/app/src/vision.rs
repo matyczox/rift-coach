@@ -133,6 +133,8 @@ pub struct Field {
     pub push_seen: Vec<(String, f64)>,
     /// Ally fights announced: (ally, Date.now() ms).
     pub fight_seen: Vec<(String, f64)>,
+    /// Go help this ally (fight worth joining): (ally, until Date.now() ms) -> arrow on the minimap.
+    pub help: Option<(String, f64)>,
     /// Lane opponent walking back to lane: (champion, ETA as Date.now() ms).
     pub returns: Vec<(String, f64)>,
     /// Enemies dead in the last frame (respawn detection).
@@ -181,6 +183,7 @@ impl Field {
             returns: Vec::new(),
             push_seen: Vec::new(),
             fight_seen: Vec::new(),
+            help: None,
             prev_dead: Vec::new(),
             tracker,
             camps: CampTracker::default(),
@@ -234,6 +237,7 @@ impl Field {
         self.returns.clear();
         self.push_seen.clear();
         self.fight_seen.clear();
+        self.help = None;
         self.prev_dead.clear();
         self.ghosts.clear();
         self.my_pos = None;
@@ -943,6 +947,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             let fog = if fog_foes > 0 { format!(" ({fog_foes} we mgle)") } else { String::new() };
             let (kind, team, call) = if theirs > ours { ("fight-bad", "enemy", "nie idź, za dużo ich") } else if theirs == ours { ("fight", "ally", "pomóż, wyrównane") } else { ("fight", "ally", "pomóż") };
             f.toasts.push(Toast { id: now as u64 + 13 + f.toasts.len() as u64, kind: kind.into(), team: team.into(), champion: Some(a.champion.clone()), text: format!("{} vs {}{more}{fog} → {call}", a.champion, foe.champion), expires_at: now + 6000.0 });
+            f.help = (theirs <= ours).then(|| (a.champion.clone(), now + 8000.0));
             break;
         }
     }

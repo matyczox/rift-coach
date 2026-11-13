@@ -337,6 +337,12 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
             .to_string()
         });
         log_t = g.intel.as_ref().map(|i| i.game_time).unwrap_or(0.0);
+        // Fight worth joining: arrow on the minimap from me to that ally (follows him while he is seen).
+        if let (Some((ally, until)), Some((mx, my))) = (g.field.help.as_ref().filter(|h| h.1 > now), g.field.my_pos) {
+            if let (Some(a), Some(hints)) = (g.field.allies.iter().find(|a| a.champion == *ally), s.get_mut("hints").and_then(Value::as_array_mut)) {
+                hints.push(json!({ "kind": "move", "x": a.x, "y": a.y, "from": { "x": mx, "y": my }, "label": format!("Pomóż {ally}"), "expiresAt": until }));
+            }
+        }
         if let Some(o) = s.as_object_mut() {
             let gt = g.intel.as_ref().map(|i| i.game_time).unwrap_or(0.0);
             o.insert("toasts".into(), Value::Array(g.field.toasts.iter().map(|t| serde_json::json!({ "id": t.id, "kind": t.kind, "team": t.team, "text": t.text, "iconUrl": t.champion.as_deref().map(&icon), "expiresAt": t.expires_at })).collect()));
