@@ -679,13 +679,15 @@ pub fn return_eta(p: &PlayerIntel, my_pos: Option<(f64, f64)>, game_t: f64) -> f
     use rc_vision::tracker::{enemy::homeguard_extra_secs, predictor::fountain_of, MAP_UNITS};
     let team = Team::parse(&p.team).unwrap_or(Team::Chaos);
     let (fx, fy) = fountain_of(team);
-    let lane = match p.role.as_str() {
-        "TOP" => (0.13, 0.18),
-        "BOTTOM" | "UTILITY" => (0.82, 0.87),
-        _ => (0.5, 0.5),
+    let _ = my_pos;
+    // "Na linii" = at his own outer tower of that lane (where he meets the wave), ORDER side; CHAOS
+    // is the point mirror. (Was my position: from my side of the lane it came out far too long.)
+    let order_outer = match p.role.as_str() {
+        "TOP" => (0.066, 0.298),
+        "BOTTOM" | "UTILITY" => (0.706, 0.931),
+        _ => (0.393, 0.570),
     };
-    let (bx, by) = fountain_of(team.other());
-    let target = my_pos.filter(|&(x, y)| (x - bx).hypot(y - by) > 0.2).unwrap_or(lane);
+    let target = if team == Team::Order { order_outer } else { (1.0 - order_outer.0, 1.0 - order_outer.1) };
     let dist = (target.0 - fx).hypot(target.1 - fy) * MAP_UNITS * 1.15;
     let speed = if p.move_speed > 0.0 { p.move_speed } else { 345.0 };
     (dist / speed - homeguard_extra_secs(30.0, game_t)).max(5.0)
@@ -1058,14 +1060,21 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     if let Some(opp) = lane_opponent(intel) {
         let backed = new_recalls.contains(&opp.champion);
         let respawned = !opp.is_dead && f.prev_dead.contains(&opp.champion);
-        if backed || respawned {
+        let counting = f.returns.iter().any(|(c, _)| *c == opp.champion);
+        if opp.is_dead && opp.respawn_in > 0.0 {
+            // Dead: respawn timer + walk, refreshed every frame from the game's own timer (it was set
+            // only once he respawned, seconds late, and then counted too long).
+            let eta = opp.respawn_in + return_eta(opp, f.my_pos, t);
+            f.returns.retain(|(c, _)| *c != opp.champion);
+            f.returns.push((opp.champion.clone(), now + eta * 1000.0));
+        } else if backed || (respawned && !counting) {
             let eta = return_eta(opp, f.my_pos, t);
             f.returns.retain(|(c, _)| *c != opp.champion);
             f.returns.push((opp.champion.clone(), now + eta * 1000.0));
         }
         // Back already: seen on the minimap, or his health bar on my screen (minimap can miss him).
         let on_screen = opp.onscreen_at.is_some_and(|s| t - s < 2.0);
-        if opp.is_dead || on_screen || f.visible_enemies.iter().any(|e| e.champion == opp.champion) {
+        if !opp.is_dead && (on_screen || f.visible_enemies.iter().any(|e| e.champion == opp.champion)) {
             f.returns.retain(|(c, _)| *c != opp.champion);
         }
     }
