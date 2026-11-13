@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod applog;
+mod seed;
 mod bridge;
 mod game;
 mod game_icons;
@@ -163,7 +164,8 @@ fn main() {
             let (live_shared, mut live_rx) = live::spawn(&rt, live::POLL_MS);
             let (lcu_client, lcu_shared, mut lcu_rx) = lcu::spawn(&rt);
             let replay_api = replay::spawn_state_poller(&rt);
-            let settings = SettingsStore::open(&data_dir);
+            let mut settings = SettingsStore::open(&data_dir);
+            seed::apply(&data_dir, &mut settings);
             let vision_hub = vision::VisionHub::new(settings.value().minimap_fps.max(1) as f64, vision::calibration_from_settings(settings.value().calibration.as_ref()));
             let st = Arc::new(AppState {
                 version: app.package_info().version.to_string(),

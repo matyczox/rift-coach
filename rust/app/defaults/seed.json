@@ -1,0 +1,415 @@
+{
+ "note": "Rift Coach starter data from the author's setup: matchup / rune research and the overlay layout. Written into the user data folder on first run when missing. No API keys, no player profile.",
+ "createdAt": "2026-11-13T03:08:51.483Z",
+ "matchups": {
+  "16.22-MIDDLE-Ahri-vs-Ahri.json": {
+   "patch": "16.22",
+   "me": "Ahri",
+   "enemy": "Ahri",
+   "role": "MIDDLE",
+   "winRate": null,
+   "curve": [
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0
+   ],
+   "mySpikes": [
+    "2: druga umiejętność",
+    "3: dostęp do Q, W i E",
+    "6: pierwsza ranga R",
+    "11 i 16: kolejne rangi R",
+    "Ukończenie pierwszego przedmiotu AP"
+   ],
+   "enemySpikes": [
+    "2: druga umiejętność",
+    "3: dostęp do Q, W i E",
+    "6: pierwsza ranga R",
+    "11 i 16: kolejne rangi R",
+    "Ukończenie pierwszego przedmiotu AP"
+   ],
+   "tips": [
+    "Handluj po uniknięciu wrogiego E; trafienie własnym E ułatwia Q.",
+    "Stój za stworami, by blokowały E; unikaj obu trafień wrogiego Q.",
+    "Zachowaj R na unik E. Kit: https://wiki.leagueoflegends.com/en-us/Ahri"
+   ],
+   "createdAt": 1794536435045.1355
+  },
+  "16.22-MIDDLE-Ahri-vs-Kayle.json": {
+   "patch": "16.22",
+   "me": "Ahri",
+   "enemy": "Kayle",
+   "role": "MIDDLE",
+   "winRate": 0.491,
+   "curve": [
+    0.1,
+    0.35,
+    0.5,
+    0.5,
+    0.55,
+    0.25,
+    0.25,
+    0.2,
+    0.2,
+    0.15,
+    -0.1,
+    -0.15,
+    -0.2,
+    -0.25,
+    -0.3,
+    -0.55,
+    -0.6,
+    -0.65
+   ],
+   "mySpikes": [
+    "Poziom 2: Q i W",
+    "Poziom 3: urok i pełne combo",
+    "Poziom 6: doskok z R",
+    "Pierwszy przedmiot AP"
+   ],
+   "enemySpikes": [
+    "Poziom 6: zasięg i R",
+    "Poziom 11: fale z ataków",
+    "Poziom 16: większy zasięg",
+    "Nashor's Tooth"
+   ],
+   "tips": [
+    "Przed 6 poziomem nękaj Kayle, gdy podchodzi do minionów.",
+    "Unikaj długiej wymiany, gdy Kayle ma pełne ładunki pasywki.",
+    "Sprowokuj R Kayle i zachowaj główne obrażenia na koniec jej ochrony."
+   ],
+   "createdAt": 1794528511816.6116
+  },
+  "16.22-MIDDLE-Ahri-vs-Sion.json": {
+   "patch": "16.22",
+   "me": "Ahri",
+   "enemy": "Sion",
+   "role": "MIDDLE",
+   "winRate": 0.486,
+   "curve": [
+    0.2,
+    0.25,
+    0.35,
+    0.3,
+    0.3,
+    0.4,
+    0.35,
+    0.3,
+    0.25,
+    0.2,
+    0.25,
+    0.2,
+    0.15,
+    0.1,
+    0.05,
+    0.1,
+    0.05,
+    0
+   ],
+   "mySpikes": [
+    "2–3: Q, W i E",
+    "6, 11, 16: ulepszenia R",
+    "Liandry i penetracja magii"
+   ],
+   "enemySpikes": [
+    "2–3: spowolnienie E i naładowane Q",
+    "6: inicjacja z R",
+    "Hollow Radiance i kumulowane HP",
+    "11, 16: ulepszenia R"
+   ],
+   "tips": [
+    "Nękaj z dystansu; [LUM.GG](https://lum.gg/lol/champions/sion/counters/mid): 368 gier.",
+    "Unikaj E przez stwory; przerwij ładowane Q urokiem, gdy nie możesz zejść.",
+    "Po jego Q wymieniaj obrażenia; krzywa to ostrożny szacunek, zależny od buildu."
+   ],
+   "createdAt": 1794536536920.1094
+  },
+  "16.22-MIDDLE-Ahri-vs-Xerath.json": {
+   "patch": "16.22",
+   "me": "Ahri",
+   "enemy": "Xerath",
+   "role": "MIDDLE",
+   "winRate": 0.498,
+   "curve": [
+    -0.3,
+    -0.25,
+    -0.2,
+    -0.2,
+    -0.15,
+    0.3,
+    0.3,
+    0.3,
+    0.35,
+    0.35,
+    0.4,
+    0.4,
+    0.4,
+    0.4,
+    0.4,
+    0.45,
+    0.45,
+    0.45
+   ],
+   "mySpikes": [
+    "Poziom 3: pełne kombo",
+    "Poziomy 6, 11, 16: R",
+    "Pierwszy przedmiot AP",
+    "Krzywa: ostrożny szacunek 1v1",
+    "WR: LeagueOfGraphs, 2301 gier"
+   ],
+   "enemySpikes": [
+    "Poziomy 2–3: poke i ogłuszenie",
+    "Poziom 6: R z dużego zasięgu",
+    "Poziomy 11 i 16: wzmocnione R",
+    "Pierwszy przedmiot AP"
+   ],
+   "tips": [
+    "Przed 6 unikaj Q i W; traduj, gdy Xerath zużyje umiejętności.",
+    "Po 6 wejdź R po chybionym E; zachowaj E na pewny strzał.",
+    "Poradnik: https://matchupcoach.gg/matchup/mid/ahri-vs-xerath/"
+   ],
+   "createdAt": 1794530675343.9927
+  },
+  "16.22-MIDDLE-Akali-vs-Sion.json": {
+   "patch": "16.22",
+   "me": "Akali",
+   "enemy": "Sion",
+   "role": "MIDDLE",
+   "winRate": 0.459,
+   "curve": [
+    -0.1,
+    0.05,
+    0.2,
+    0.25,
+    0.25,
+    0.35,
+    0.3,
+    0.25,
+    0.2,
+    0.15,
+    0.2,
+    0.1,
+    0.05,
+    0,
+    -0.05,
+    0,
+    -0.05,
+    -0.1
+   ],
+   "mySpikes": [
+    "Poz. 2: Q i E lub W",
+    "Poz. 3–4: pełny zestaw i 2. punkt Q",
+    "Poz. 6, 11, 16: kolejne poziomy R",
+    "Liandry; penetracja odporności na magię",
+    "Krzywa to ostrożny szacunek 1v1"
+   ],
+   "enemySpikes": [
+    "Poz. 3: Q, W i E",
+    "Poz. 6, 11, 16: kolejne poziomy R",
+    "W: rosnące zdrowie za zabijanie",
+    "Odporność na magię i przedmioty HP"
+   ],
+   "tips": [
+    "Unikaj Q Siona i handluj po jego użyciu: https://redd.it/tgqjeq",
+    "W dymie unikaj obszarowych Q i W; po zabiciu odskocz od jego pasywu.",
+    "WR: 231 gier Emerald+: https://mobalytics.gg/lol/champions/akali/counters/mid/vs-sion"
+   ],
+   "createdAt": 1794526632431.0508
+  },
+  "16.22-MIDDLE-Ambessa-vs-Xerath.json": {
+   "patch": "16.22",
+   "me": "Ambessa",
+   "enemy": "Xerath",
+   "role": "MIDDLE",
+   "winRate": 0.7143,
+   "curve": [
+    -0.4,
+    -0.2,
+    0.05,
+    0.1,
+    0.15,
+    0.4,
+    0.4,
+    0.4,
+    0.45,
+    0.45,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.5,
+    0.55,
+    0.55,
+    0.55
+   ],
+   "mySpikes": [
+    "Poz. 2–3: doskoki i pełne combo",
+    "Poz. 6: R ułatwia doskok",
+    "Poz. 11 i 16: kolejne poziomy R",
+    "Pierwszy przedmiot obrażeń",
+    "LoLalytics: 7 gier, Emerald+"
+   ],
+   "enemySpikes": [
+    "Poz. 1: zasięg i poke",
+    "Poz. 2–3: spowolnienie i ogłuszenie",
+    "Poz. 6: R do dobijania z dystansu",
+    "Pierwszy przedmiot AP"
+   ],
+   "tips": [
+    "Unikaj E Xeratha; po jego użyciu szukaj wymiany.",
+    "Doskokami unikaj Q i W, a tarczę W wykorzystuj na obrażenia.",
+    "Po 6. poziomie szukaj wejścia R, gdy możesz dosięgnąć Xeratha."
+   ],
+   "createdAt": 1794534276975.822
+  },
+  "16.22-TOP-Ambessa-vs-Warwick.json": {
+   "patch": "16.22",
+   "me": "Ambessa",
+   "enemy": "Warwick",
+   "role": "TOP",
+   "winRate": 0.44,
+   "curve": [
+    -0.3,
+    -0.1,
+    0.1,
+    0.1,
+    0.1,
+    -0.3,
+    -0.3,
+    -0.3,
+    -0.3,
+    -0.2,
+    -0.2,
+    -0.2,
+    -0.2,
+    -0.2,
+    -0.2,
+    -0.2,
+    -0.2,
+    -0.2
+   ],
+   "mySpikes": [
+    "Lvl 2-3: Q+E, krótki trade",
+    "Lvl 3: pełny zestaw umiejętności",
+    "Profane Hydra (1. przedmiot)",
+    "Serpent's Fang przeciw tarczom/healowi",
+    "Lvl 11 i 16: ulepszenie R"
+   ],
+   "enemySpikes": [
+    "Lvl 1: pasywny heal i dobry all-in",
+    "Lvl 6: R z długim CC",
+    "Lvl 9-11: sustain W i Q",
+    "Item z Grievous Wounds/Bruiser",
+    "Gank z jungli przy pushu"
+   ],
+   "tips": [
+    "Trade krótko na lvl 2-3, gdy Warwick nie ma HP. Nie wchodź w długi all-in.",
+    "Nie wchodź w walkę po jego R na lvl 6, trzymaj E na ucieczkę. Wtedy możesz się wycofać.",
+    "Weź Ignite lub kup Grievous Wounds wcześnie. Pilnuj wave'a, bo Warwick dobrze gankuje."
+   ],
+   "createdAt": 1794451649537
+  }
+ },
+ "runes": {
+  "runes-16.22-Ahri-ARAMBRAKROLI-none.json": {
+   "primaryStyleId": 8100,
+   "subStyleId": 8200,
+   "selectedPerkIds": [
+    8112,
+    8143,
+    8140,
+    8106,
+    8226,
+    8210,
+    5008,
+    5008,
+    5001
+   ],
+   "label": "Ahri aram/brak roli",
+   "laneOpponent": null,
+   "why": "Na patchu 16.22 [OP.GG](https://op.gg/lol/modes/aram/Ahri/build) podaje dla Electrocute z Sorcery 51,89% win rate i 33,70% pick rate, a [Mobalytics](https://mobalytics.gg/lol/champions/ahri/aram-builds?_lang=en_us) rekomenduje tę stronę na podstawie 3855 gier; nie udało się potwierdzić filtra Emerald+ ani Platinum+ dla tej próbki ARAM. Nie zmieniam run pod przeciwników, ponieważ ich skład nie jest jeszcze znany."
+  },
+  "runes-16.22-Akali-ARAMBRAKROLI-none.json": {
+   "primaryStyleId": 8000,
+   "subStyleId": 8400,
+   "selectedPerkIds": [
+    8010,
+    8009,
+    9105,
+    8299,
+    8444,
+    8451,
+    5008,
+    5008,
+    5001
+   ],
+   "label": "Akali aram/brak roli",
+   "laneOpponent": null,
+   "why": "W [danych ARAM dla patcha 16.22](https://lum.gg/lol/champions/akali/aram-mayhem), pochodzących z OP.GG, ta strona run ma 43,0% wygranych w 5247 grach i 18,3% popularności; nie udało się jednak potwierdzić filtra Platinum+ ani porównać pełnych statystyk keystone’ów przy progu 5%. Nie zmieniam run pod przeciwników, ponieważ ich skład jest nieznany."
+  },
+  "runes-16.22-Ambessa-ARAMBRAKROLI-none.json": {
+   "primaryStyleId": 8000,
+   "subStyleId": 8100,
+   "selectedPerkIds": [
+    8010,
+    9111,
+    9105,
+    8299,
+    8143,
+    8135,
+    5008,
+    5008,
+    5001
+   ],
+   "label": "Ambessa aram/brak roli",
+   "laneOpponent": null,
+   "why": "[Mobalytics](https://mobalytics.gg/lol/champions/ambessa/aram-builds) dla ARAM na patchu 16.22 podaje 15 416 meczów i rekomenduje tę stronę run, ale nie potwierdza filtra rangi; osobno [ggez.gg](https://ggez.gg/champion/Ambessa/runes?queue=aram&role=TOP) dla Emerald+ pokazuje Conqueror z 47,3% winrate i 92,8% pickrate w próbie 2 589 gier. Nie zmieniam run pod przeciwników, ponieważ ich skład nie jest jeszcze znany."
+  },
+  "runes-16.22-KogMaw-ARAMBRAKROLI-none.json": {
+   "primaryStyleId": 8100,
+   "subStyleId": 8000,
+   "selectedPerkIds": [
+    8128,
+    8139,
+    8140,
+    8135,
+    8009,
+    8014,
+    5008,
+    5008,
+    5001
+   ],
+   "label": "Kog'Maw aram/brak roli",
+   "laneOpponent": null,
+   "why": "W danych [ggez.gg](https://ggez.gg/champion/KogMaw/runes?queue=aram&role=NONE) dla ARAM, Emerald+ i patcha 16.22 strona z Dark Harvest miała 52,1% wygranych w 679 grach i 23,7% wyborów, wobec 48,3% w 1002 grach dla strony z Lethal Tempo; cała próbka obejmowała 2973 gry. Nie zmieniam run pod przeciwników, ponieważ ich skład jest nieznany."
+  }
+ },
+ "hudLayout": {
+  "power": {
+   "x": 0.883984375,
+   "y": 0.5347222222222222
+  },
+  "death": {
+   "x": 0.855078125,
+   "y": 0.45069444444444445
+  },
+  "build": {
+   "x": 0.7515625,
+   "y": 0.7701388888888889
+  }
+ }
+}

@@ -126,6 +126,32 @@ pub struct Toast {
     pub expires_at: f64,
 }
 
+/// What an enemy jungler / support did so far this game (learned live, reset each game).
+#[derive(Clone, Debug, Default)]
+pub struct Habit {
+    /// Sightings by map side: [top side, mid, bot side].
+    pub side: [u32; 3],
+    /// Ganks seen per lane ("top" | "mid" | "bot").
+    pub ganks: std::collections::HashMap<&'static str, u32>,
+    /// First sighting in the first 2 minutes: (area name, game time) = where he started.
+    pub start: Option<(String, f64)>,
+    /// Last gank counted per lane (game time), to count one gank once.
+    pub last_gank: std::collections::HashMap<&'static str, f64>,
+}
+
+impl Habit {
+    /// "ganki: bot 3, mid 1; czas: bot 55%, top 30%, mid 15%; start: wroga dżungla top" for the coach.
+    pub fn summary(&self) -> String {
+        let total: u32 = self.side.iter().sum::<u32>().max(1);
+        let mut g: Vec<(&&str, &u32)> = self.ganks.iter().collect();
+        g.sort_by(|a, b| b.1.cmp(a.1));
+        let ganks = if g.is_empty() { "brak".to_string() } else { g.iter().map(|(l, n)| format!("{l} {n}")).collect::<Vec<_>>().join(", ") };
+        let pct = |i: usize| (self.side[i] as f64 * 100.0 / total as f64).round();
+        let start = self.start.as_ref().map(|(a, t)| format!("; start: {a} ({}:{:02})", (*t as i64) / 60, (*t as i64) % 60)).unwrap_or_default();
+        format!("ganki: {ganks}; czas: top {}%, mid {}%, bot {}%{start}", pct(0), pct(1), pct(2))
+    }
+}
+
 /// Per-game vision state (lives in `Game`, under the same lock as the intel).
 pub struct Field {
     pub toasts: Vec<Toast>,
@@ -137,6 +163,8 @@ pub struct Field {
     pub enemy_bars: (usize, f64),
     /// Lane pushes warned: "champion@lane" -> stage (1 coming, 2 near our tower, 3 hitting it).
     pub push_stage: std::collections::HashMap<String, u8>,
+    /// Enemy jungler / support habits learned this game.
+    pub habits: std::collections::HashMap<String, Habit>,
     /// Allies last seen on the minimap: champion -> (x, y, game time). An ally standing on an enemy
     /// hides under his icon, so "nobody there" needs a few seconds of memory.
     pub ally_last: std::collections::HashMap<String, (f64, f64, f64)>,
@@ -166,6 +194,14 @@ pub struct Field {
     pub my_last_real: Option<(f64, f64, f64)>,
     /// Last time my icon sat in the middle of the camera box (camera locked on me): Date.now() ms.
     pub cam_locked_at: f64,
+    /// Last time my icon was seen AWAY from the camera box centre (camera unlocked / panned).
+    pub cam_unlocked_at: f64,
+    /// Trinket read from the HUD: (has a charge, Date.now() ms of the reading).
+    pub trinket: Option<(bool, f64)>,
+    /// Last time the trinket went from ready to recharging (= I placed a ward), Date.now() ms.
+    pub trinket_used_at: f64,
+    /// Where my position came from on the last frame: icon | camera | held | none (for the log).
+    pub pos_src: &'static str,
     /// Last vision result (Date.now() ms): when vision stops, everything spatial expires.
     pub last_vision_at: f64,
     /// CommunityDragon was unreachable at roster load (square icons in use): retry at this time (ms).
@@ -204,6 +240,7 @@ impl Field {
             fight_seen: Vec::new(),
             invade_guess: (0.0, 0.0),
             ally_last: Default::default(),
+            habits: Default::default(),
             push_stage: Default::default(),
             enemy_bars: (0, 0.0),
             near_seen: Default::default(),
@@ -220,6 +257,10 @@ impl Field {
             my_pos_at: 0.0,
             my_last_real: None,
             cam_locked_at: 0.0,
+            cam_unlocked_at: 0.0,
+            trinket: None,
+            trinket_used_at: 0.0,
+            pos_src: "none",
             last_vision_at: 0.0,
             icon_retry_at: 0.0,
             recall_seen: Vec::new(),
@@ -267,6 +308,7 @@ impl Field {
         self.fight_seen.clear();
         self.invade_guess = (0.0, 0.0);
         self.ally_last.clear();
+        self.habits.clear();
         self.push_stage.clear();
         self.enemy_bars = (0, 0.0);
         self.near_seen.clear();
@@ -893,6 +935,13 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     if let Some(bars) = &r.hp_allies {
         apply_ally_hp(&mut guard, bars);
     }
+    if let Some(ready) = r.trinket_ready {
+        let now = now_ms();
+        if guard.field.trinket.is_some_and(|(was, _)| was) && !ready {
+            guard.field.trinket_used_at = now;
+        }
+        guard.field.trinket = Some((ready, now));
+    }
     if let Some(frames) = &r.team_frames {
         apply_team_frames(&mut guard, frames);
     }
@@ -929,19 +978,26 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             f.my_pos = Some((d.x, d.y));
             f.my_pos_at = now;
             f.my_last_real = Some((d.x, d.y, now));
-            if r.camera.is_some_and(|(cx, cy)| (cx - d.x).hypot(cy - d.y) < 0.05) {
-                f.cam_locked_at = now;
+            f.pos_src = "icon";
+            match r.camera.map(|(cx, cy)| (cx - d.x).hypot(cy - d.y)) {
+                Some(dist) if dist < 0.05 => f.cam_locked_at = now,
+                Some(dist) if dist > 0.09 => f.cam_unlocked_at = now,
+                _ => {}
             }
-        } else if let Some((cx, cy)) = r.camera.filter(|_| !me.is_dead && now - f.cam_locked_at < 30000.0) {
+        } else if let Some((cx, cy)) = r.camera.filter(|_| !me.is_dead && now - f.cam_locked_at < 30000.0 && f.cam_locked_at > f.cam_unlocked_at) {
             // My icon hidden (under others in a fight): with the camera locked on me (seen in the last
             // 30 s) the camera box centre IS my position.
             f.my_pos = Some((cx, cy));
             f.my_pos_at = now;
+            f.pos_src = "camera";
         } else if me.is_dead || now - f.my_pos_at > if f.my_pos.is_some_and(|(x, y)| r.detections.iter().any(|d| (d.x - x).hypot(d.y - y) < 0.045)) { 4000.0 } else { 3000.0 } {
             // (My icon under someone else's in a fight: keep my last spot up to 8 s, not "unknown" —
             // without it the fight bar only counted the one enemy whose health bar had a name.)
             // Unknown, not "where I was": an old position fed alerts, the fight bar and the coach.
             f.my_pos = None;
+            f.pos_src = "none";
+        } else {
+            f.pos_src = "held";
         }
     }
     let prev_allies = std::mem::take(&mut f.allies);
@@ -967,6 +1023,33 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     f.visible_enemies = r.detections.iter().filter(|d| d.team != my_team_t).map(|d| with_vel(&f.visible_enemies, d)).collect();
     for a in &f.allies {
         f.ally_last.insert(a.champion.clone(), (a.x, a.y, intel.game_time));
+    }
+    // Learn their jungler's / support's habits live: which side he spends time on, where he started,
+    // which lane he ganks ("ciągle gankuje bota") — fed to the coach and to the gank warning.
+    {
+        let red = my_team_t == Team::Chaos;
+        for p in intel.players.iter().filter(|p| !p.is_ally && (p.role == "JUNGLE" || p.role == "UTILITY")) {
+            let Some(e) = f.visible_enemies.iter().find(|e| e.champion == p.champion) else { continue };
+            let h = f.habits.entry(p.champion.clone()).or_default();
+            let s = e.x + e.y;
+            h.side[if s < 0.85 { 0 } else if s > 1.15 { 2 } else { 1 }] += 1;
+            if h.start.is_none() && intel.game_time < 120.0 {
+                h.start = Some((crate::game::area_name(e.x, e.y, red), intel.game_time));
+            }
+            // A gank: he is right next to one of our laners standing on a lane, with their laner there too.
+            for a in &f.allies {
+                if (a.x - e.x).hypot(a.y - e.y) > 0.07 {
+                    continue;
+                }
+                let area = crate::game::area_name(a.x, a.y, red);
+                let lane: &'static str = match area.as_str() { "linia top" => "top", "linia mid" => "mid", "linia bot" => "bot", _ => continue };
+                if h.last_gank.get(lane).is_some_and(|t| intel.game_time - t < 40.0) {
+                    continue;
+                }
+                h.last_gank.insert(lane, intel.game_time);
+                *h.ganks.entry(lane).or_insert(0) += 1;
+            }
+        }
     }
     if let Some((mx, my)) = f.my_pos {
         for e in f.visible_enemies.iter().filter(|e| (e.x - mx).hypot(e.y - my) < 0.15) {
@@ -1301,7 +1384,9 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     }
     let my_role = intel.me.as_ref().map(|m| rc_vision::tracker::Role::parse(&m.role));
     let new_alerts = {
-        let near_me = |c: &str| f.my_pos.and_then(|p| f.tracker.as_ref().and_then(|tr| tr.mass_near(c, p, 0.11)));
+        let my_lane: Option<&'static str> = intel.me.as_ref().and_then(|m| match m.role.as_str() { "TOP" => Some("top"), "MIDDLE" => Some("mid"), "BOTTOM" | "UTILITY" => Some("bot"), _ => None });
+        let habit_boost = |c: &str| my_lane.and_then(|l| f.habits.get(c).and_then(|h| h.ganks.get(l))).map_or(1.0, |n| (1.0 + 0.15 * *n as f64).min(1.5));
+        let near_me = |c: &str| f.my_pos.and_then(|p| f.tracker.as_ref().and_then(|tr| tr.mass_near(c, p, 0.11))).map(|m| (m * habit_boost(c)).min(1.0));
         tracker_alerts(&tracks, f.my_pos, my_team_t, my_role, t, now, &near_me)
     };
     // Can the enemies be taking an objective right now? Seen at the pit, or likely there in the fog (all

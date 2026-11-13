@@ -98,6 +98,51 @@ pub fn camera_center(img: &Rgba) -> Option<(f64, f64)> {
     bestv.map(|(x, y, _)| (x, y))
 }
 
+/// Trinket slot (Stealth Ward) in the bottom HUD: Some(true) = has a charge (white count digit in the
+/// slot's bottom-right corner), Some(false) = recharging (big white countdown in the middle), None =
+/// no trinket / not readable. Measured on 2560x1440, default HUD scale: slot top-left at
+/// (0.6145 W, 0.916 H), side 0.0236 H. (Checked on recorded frames: ready corner 0.21-0.23 white,
+/// recharging centre 0.17-0.22 white, empty slot dark.)
+pub fn trinket_ready(frame: &Rgba) -> Option<bool> {
+    let (w, h) = (frame.width as f64, frame.height as f64);
+    if w < 640.0 || h < 360.0 || frame.data.len() < frame.width * frame.height * 4 {
+        return None;
+    }
+    let side = (0.0236 * h).round().max(10.0) as usize;
+    let (x0, y0) = ((0.6145 * w) as usize, (0.916 * h) as usize);
+    if x0 + side >= frame.width || y0 + side >= frame.height {
+        return None;
+    }
+    let (mut cw, mut cn, mut kw, mut kn, mut lum) = (0usize, 0usize, 0usize, 0usize, 0f64);
+    for dy in 0..side {
+        for dx in 0..side {
+            let o = ((y0 + dy) * frame.width + x0 + dx) * 4;
+            let (r, g, b) = (frame.data[o], frame.data[o + 1], frame.data[o + 2]);
+            let wh = r > 190 && g > 190 && b > 190;
+            lum += (r as f64 + g as f64 + b as f64) / 3.0;
+            let (fx, fy) = (dx as f64 / side as f64, dy as f64 / side as f64);
+            if fx > 0.2 && fx < 0.8 && fy > 0.25 && fy < 0.7 {
+                cn += 1;
+                cw += wh as usize;
+            }
+            if fx > 0.7 && fy > 0.65 {
+                kn += 1;
+                kw += wh as usize;
+            }
+        }
+    }
+    let (center, corner) = (cw as f64 / cn.max(1) as f64, kw as f64 / kn.max(1) as f64);
+    let lum = lum / (side * side) as f64;
+    if corner >= 0.12 {
+        Some(true)
+    } else if center >= 0.12 {
+        Some(false)
+    } else {
+        let _ = lum;
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -218,10 +218,14 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
                     "rivalBackOnLaneInSec": g.field.returns.iter().map(|(c, until)| serde_json::json!({ "champ": c, "sec": ((until - now) / 1000.0).max(0.0).round() })).collect::<Vec<_>>(),
                     "liveWarnings": g.field.toasts.iter().filter(|t| t.expires_at > now).map(|t| t.text.clone()).collect::<Vec<_>>(),
                     // Do I have a ward to place? Trinket type, Control Ward in inventory, last ward placed.
+                    // Learned this game: their jungler / support habits (ganks per lane, side, start).
+                    "enemyHabits": g.field.habits.iter().map(|(c, h)| (c.clone(), serde_json::json!(h.summary()))).collect::<serde_json::Map<_, _>>(),
                     "myWards": i.me.as_ref().map(|m| {
                         let has = |id: i64| m.items.iter().any(|it| it.id == id);
                         let trinket = if has(3340) { "Stealth Ward" } else if has(3364) { "Oracle Lens" } else if has(3363) { "Farsight Alteration" } else { "brak" };
-                        serde_json::json!({ "trinket": trinket, "controlWard": has(2055), "lastWardPlacedSecAgo": if g.ward_seen.1 < 0.0 { serde_json::Value::Null } else { serde_json::json!((i.game_time - g.ward_seen.1).round()) } })
+                        // Read from the HUD trinket slot: true = a charge ready, false = recharging (no ward now).
+                        let ready = g.field.trinket.filter(|(_, at)| now - at < 5000.0).map(|(r, _)| r);
+                        serde_json::json!({ "trinket": trinket, "trinketReady": ready, "controlWard": has(2055), "lastWardPlacedSecAgo": if g.ward_seen.1 < 0.0 { serde_json::Value::Null } else { serde_json::json!((i.game_time - g.ward_seen.1).round()) } })
                     }),
                 })
             }),
@@ -374,7 +378,9 @@ fn check_intent(g: &mut Game) {
         let visited = it.at_spot_since.is_some() || dwell;
         let left_ward = covered && nobody_there && (visited || !it.was_covered);
         let _ = dwell;
-        let placed = me.ward_score > it.ward_score_at || left_ward;
+        // Trinket went from a charge to recharging after the call = a ward was placed.
+        let trinket_used = g.field.trinket_used_at > 0.0 && (crate::vision::now_ms() - g.field.trinket_used_at) < (gt - it.since).max(0.0) * 1000.0 + 1000.0;
+        let placed = me.ward_score > it.ward_score_at || left_ward || trinket_used;
         if placed {
             g.ward_seen.1 = gt;
         }

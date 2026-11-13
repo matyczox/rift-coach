@@ -376,6 +376,8 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
                 "enemies": g.field.visible_enemies.iter().map(pos).collect::<Vec<_>>(),
                 "ghosts": serde_json::to_value(&g.field.ghosts).map(|v| crate::applog::strip(&v)).unwrap_or(Value::Null),
                 "near": near,
+                "posSrc": g.field.pos_src,
+                "trinketReady": g.field.trinket.map(|t| t.0),
             })
             .to_string()
         });
@@ -448,6 +450,40 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
         if let (Some((label, x, y, until)), Some((mx, my))) = (g.field.help_point.as_ref().filter(|h| h.3 > now), g.field.my_pos) {
             if let Some(hints) = s.get_mut("hints").and_then(Value::as_array_mut) {
                 hints.push(json!({ "kind": "move", "x": x, "y": y, "from": { "x": mx, "y": my }, "label": label, "expiresAt": until }));
+            }
+        }
+        // Plan ahead (local, no AI delay) when no ward is pinned: 15-90 s before an objective, what to do
+        // with my wave and vision ("Dragon za 0:55 → wyczyść falę, ward rzeka bot, idź"); otherwise a good
+        // moment to back ("Back: stać cię na Shadowflame, fala wepchnięta").
+        if s.get("pin").is_none_or(|p| p.is_null()) {
+            if let Some(i) = g.intel.as_ref().filter(|i| i.me.as_ref().is_some_and(|m| !m.is_dead)) {
+                let gt = i.game_time;
+                let lane = i.me.as_ref().and_then(|m| match m.role.as_str() { "TOP" => Some("top"), "MIDDLE" => Some("mid"), "BOTTOM" | "UTILITY" => Some("bot"), _ => None });
+                let wave = lane.and_then(|l| g.field.waves.as_ref().and_then(|w| w.lanes.iter().find(|x| x.lane == l)).map(|x| x.state.as_str()));
+                let pushed = matches!(wave, Some("crashing") | Some("pushing"));
+                let ward_ready = g.field.trinket.is_some_and(|(r, at)| r && now - at < 5000.0);
+                let next = i.objectives.iter().filter(|o| matches!(o.kind, "dragon" | "elder" | "baron" | "grubs" | "herald") && !o.alive).filter_map(|o| o.spawns_at.map(|t| (o, t - gt))).filter(|(_, d)| (15.0..=90.0).contains(d)).min_by(|a, b| a.1.total_cmp(&b.1));
+                let plan = if let Some((o, d)) = next {
+                    let name = match o.kind { "dragon" => "Dragon", "elder" => "Elder Dragon", "baron" => "Baron", "grubs" => "Voidgrubs", _ => "Herald" };
+                    let river = if matches!(o.kind, "dragon" | "elder") { "rzeka bot" } else { "rzeka top" };
+                    let mut steps: Vec<String> = Vec::new();
+                    if lane.is_some() && !pushed {
+                        steps.push("wyczyść falę".into());
+                    }
+                    if ward_ready {
+                        steps.push(format!("ward {river}"));
+                    }
+                    steps.push("idź".into());
+                    Some(format!("{name} za {}:{:02} → {}", (d as i64) / 60, (d as i64) % 60, steps.join(", ")))
+                } else if missing_gold(g) == Some(0.0) && pushed {
+                    let item = g.build.as_ref().and_then(|b| b.items.first()).map(|x| x.name.clone()).unwrap_or_default();
+                    Some(format!("Back: stać cię na {item}, fala wepchnięta"))
+                } else {
+                    None
+                };
+                if let (Some(p), Some(o)) = (plan, s.as_object_mut()) {
+                    o.insert("pin".into(), json!(p));
+                }
             }
         }
         // Fight worth joining: arrow on the minimap from me to that ally (follows him while he is seen).
