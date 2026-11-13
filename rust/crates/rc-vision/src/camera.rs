@@ -51,6 +51,11 @@ fn col_run(img: &Rgba, x: usize) -> (usize, usize) {
 /// Uses the two horizontal edges (long white runs in two rows with the same x span); when the box
 /// is cut by the map edge, the two vertical edges instead.
 pub fn camera_center(img: &Rgba) -> Option<(f64, f64)> {
+    camera_rect(img).map(|(x0, y0, x1, y1)| ((x0 + x1) / 2.0, (y0 + y1) / 2.0))
+}
+
+/// The camera rectangle (left, top, right, bottom) as minimap fractions = what the screen shows.
+pub fn camera_rect(img: &Rgba) -> Option<(f64, f64, f64, f64)> {
     let (w, h) = (img.width, img.height);
     if w < 64 || h < 64 || img.data.len() < w * h * 4 {
         return None;
@@ -58,7 +63,7 @@ pub fn camera_center(img: &Rgba) -> Option<(f64, f64)> {
     let min_len = (w as f64 * 0.10) as usize;
     let rows: Vec<(usize, usize, usize)> = (0..h).filter_map(|y| { let (s, l) = row_run(img, y); (l >= min_len).then_some((y, s, l)) }).collect();
     // Pair a top and a bottom edge: same span (±4 px), 6–40 % of the height apart.
-    let mut best: Option<(f64, f64, usize)> = None;
+    let mut best: Option<(f64, f64, f64, f64, usize)> = None;
     for (i, &(y1, s1, l1)) in rows.iter().enumerate() {
         for &(y2, s2, l2) in rows.iter().skip(i + 1) {
             let gap = y2 - y1;
@@ -69,17 +74,17 @@ pub fn camera_center(img: &Rgba) -> Option<(f64, f64)> {
                 continue;
             }
             let score = l1.min(l2);
-            if best.is_none_or(|b| score > b.2) {
-                best = Some(((s1 as f64 + l1 as f64 / 2.0) / w as f64, (y1 + y2) as f64 / 2.0 / h as f64, score));
+            if best.is_none_or(|b| score > b.4) {
+                best = Some((s1 as f64 / w as f64, y1 as f64 / h as f64, (s1 + l1) as f64 / w as f64, y2 as f64 / h as f64, score));
             }
         }
     }
-    if let Some((x, y, _)) = best {
-        return Some((x, y));
+    if let Some((x0, y0, x1, y1, _)) = best {
+        return Some((x0, y0, x1, y1));
     }
     let min_len_v = (h as f64 * 0.06) as usize;
     let cols: Vec<(usize, usize, usize)> = (0..w).filter_map(|x| { let (s, l) = col_run(img, x); (l >= min_len_v).then_some((x, s, l)) }).collect();
-    let mut bestv: Option<(f64, f64, usize)> = None;
+    let mut bestv: Option<(f64, f64, f64, f64, usize)> = None;
     for (i, &(x1, s1, l1)) in cols.iter().enumerate() {
         for &(x2, s2, l2) in cols.iter().skip(i + 1) {
             let gap = x2 - x1;
@@ -90,12 +95,12 @@ pub fn camera_center(img: &Rgba) -> Option<(f64, f64)> {
                 continue;
             }
             let score = l1.min(l2);
-            if bestv.is_none_or(|b| score > b.2) {
-                bestv = Some(((x1 + x2) as f64 / 2.0 / w as f64, (s1 as f64 + l1 as f64 / 2.0) / h as f64, score));
+            if bestv.is_none_or(|b| score > b.4) {
+                bestv = Some((x1 as f64 / w as f64, s1 as f64 / h as f64, x2 as f64 / w as f64, (s1 + l1) as f64 / h as f64, score));
             }
         }
     }
-    bestv.map(|(x, y, _)| (x, y))
+    bestv.map(|(x0, y0, x1, y1, _)| (x0, y0, x1, y1))
 }
 
 /// Trinket slot (Stealth Ward) in the bottom HUD: Some(true) = has a charge (white count digit in the
@@ -141,6 +146,60 @@ pub fn trinket_ready(frame: &Rgba) -> Option<bool> {
         let _ = lum;
         None
     }
+}
+
+/// My own champion's health bar (green) on screen -> where I stand, screen fractions (feet ~0.135 H
+/// under the bar's top). Simple and own: several rows of green HP fill starting at the same x in the
+/// middle of the screen (the generic bar reader expects the enemy / ally frame and missed it). The HP
+/// fill can be short (low HP); its LEFT edge is what we trust, the bar is ~125 px wide at 1440p.
+pub fn my_bar(frame: &Rgba) -> Option<(f64, f64)> {
+    let (w, h) = (frame.width, frame.height);
+    if w < 640 || h < 360 || frame.data.len() < w * h * 4 {
+        return None;
+    }
+    let s = h as f64 / 1440.0;
+    let min_run = (14.0 * s).round().max(6.0) as usize;
+    let green = |x: usize, y: usize| {
+        let o = (y * w + x) * 4;
+        let (r, g, b) = (frame.data[o] as i32, frame.data[o + 1] as i32, frame.data[o + 2] as i32);
+        g >= 140 && g - r >= 50 && g - b >= 60
+    };
+    // (row, run start) of every long green run.
+    let mut runs: Vec<(usize, usize)> = Vec::new();
+    // Middle of the screen only: the side panels (ally portraits have green HP bars too) and the
+    // bottom HUD are left out.
+    let (xa, xb) = (w * 18 / 100, w * 80 / 100);
+    for y in (h * 8 / 100..h * 78 / 100).step_by(2) {
+        let mut x = xa;
+        while x < xb {
+            if green(x, y) {
+                // The fill is cut by thin dark tick marks every ~100 HP: allow gaps of up to 3 px.
+                let start = x;
+                let mut end = x;
+                while x < xb && (green(x, y) || (x + 3 < xb && (1..=3).any(|k| green(x + k, y)))) {
+                    if green(x, y) {
+                        end = x;
+                    }
+                    x += 1;
+                }
+                let len = end + 1 - start;
+                if len >= min_run && len <= (140.0 * s) as usize {
+                    runs.push((y, start));
+                }
+                continue;
+            }
+            x += 1;
+        }
+    }
+    // Clusters: rows within ~14 px with the same start (±3 px); the best has the most rows.
+    let mut best: Option<(usize, usize, usize)> = None; // (top row, start, rows)
+    for &(y, x0) in &runs {
+        let rows = runs.iter().filter(|&&(y2, x2)| y2 >= y && y2 <= y + (14.0 * s) as usize && x2.abs_diff(x0) <= 3).count();
+        if rows >= 3 && best.is_none_or(|b| rows > b.2) {
+            best = Some((y, x0, rows));
+        }
+    }
+    best.map(|(y, x0, _)| ((x0 as f64 + 62.0 * s) / w as f64, (y as f64 + 0.135 * h as f64) / h as f64))
 }
 
 #[cfg(test)]

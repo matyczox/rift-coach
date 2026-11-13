@@ -13,6 +13,8 @@ use std::collections::HashSet;
 pub enum BarColor {
     Red,
     Blue,
+    /// My own champion's bar (green).
+    Green,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -67,6 +69,11 @@ const BOX_B: f64 = 21.0;
 fn is_red(r: u8, g: u8, b: u8) -> bool {
     let (r, g, b) = (r as i32, g as i32, b as i32);
     r >= 110 && r - g >= 60 && r - b >= 60
+}
+#[inline]
+fn is_green(r: u8, g: u8, b: u8) -> bool {
+    let (r, g, b) = (r as i32, g as i32, b as i32);
+    g >= 140 && g - r >= 50 && g - b >= 60
 }
 #[inline]
 fn is_blue(r: u8, g: u8, b: u8) -> bool {
@@ -148,7 +155,7 @@ impl Ctx<'_> {
 pub fn read_health_bars(frame: &Rgba, opts: &ReadOptions) -> Vec<HealthBar> {
     let (w, h) = (frame.width as i32, frame.height as i32);
     let s = opts.screen_height.unwrap_or(frame.height) as f64 / REF_H;
-    let ctx = Ctx { w, h, data: &frame.data, fill: if opts.enemy_color == BarColor::Red { is_red } else { is_blue } };
+    let ctx = Ctx { w, h, data: &frame.data, fill: match opts.enemy_color { BarColor::Red => is_red, BarColor::Blue => is_blue, BarColor::Green => is_green } };
     let fill_h = FILL_H * s;
     let step = ((fill_h / 2.0).floor() as i32).max(2);
     let inner_w = rnd(INNER_W * s);

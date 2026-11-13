@@ -196,6 +196,8 @@ pub struct Field {
     pub cam_locked_at: f64,
     /// Last time my icon was seen AWAY from the camera box centre (camera unlocked / panned).
     pub cam_unlocked_at: f64,
+    /// Size of the camera rectangle when fully on the minimap (w, h); at the map edge it is cut off.
+    pub cam_size: (f64, f64),
     /// Trinket read from the HUD: (has a charge, Date.now() ms of the reading).
     pub trinket: Option<(bool, f64)>,
     /// Last time the trinket went from ready to recharging (= I placed a ward), Date.now() ms.
@@ -258,6 +260,7 @@ impl Field {
             my_last_real: None,
             cam_locked_at: 0.0,
             cam_unlocked_at: 0.0,
+            cam_size: (0.268, 0.15),
             trinket: None,
             trinket_used_at: 0.0,
             pos_src: "none",
@@ -984,6 +987,16 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
                 Some(dist) if dist > 0.09 => f.cam_unlocked_at = now,
                 _ => {}
             }
+        } else if let (Some((sx, sy)), Some((x0, y0, x1, y1)), false) = (r.me_screen, r.camera_rect, me.is_dead) {
+            // My green bar on screen + the camera rectangle (= what the screen shows) -> my spot on the
+            // map, whatever the camera does (locked or not). A box cut by the map edge gets its usual size
+            // back from the side that is still there.
+            let (cw, ch) = f.cam_size;
+            let (x0, x1) = if x0 <= 0.01 && x1 - x0 < cw * 0.95 { (x1 - cw, x1) } else if x1 >= 0.99 && x1 - x0 < cw * 0.95 { (x0, x0 + cw) } else { (x0, x1) };
+            let (y0, y1) = if y0 <= 0.01 && y1 - y0 < ch * 0.95 { (y1 - ch, y1) } else if y1 >= 0.99 && y1 - y0 < ch * 0.95 { (y0, y0 + ch) } else { (y0, y1) };
+            f.my_pos = Some((x0 + sx * (x1 - x0), y0 + sy * (y1 - y0)));
+            f.my_pos_at = now;
+            f.pos_src = "screen";
         } else if let Some((cx, cy)) = r.camera.filter(|_| !me.is_dead && now - f.cam_locked_at < 30000.0 && f.cam_locked_at > f.cam_unlocked_at) {
             // My icon hidden (under others in a fight): with the camera locked on me (seen in the last
             // 30 s) the camera box centre IS my position.
@@ -999,6 +1012,9 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         } else {
             f.pos_src = "held";
         }
+    }
+    if let Some((x0, y0, x1, y1)) = r.camera_rect.filter(|(x0, y0, x1, y1)| *x0 > 0.01 && *y0 > 0.01 && *x1 < 0.99 && *y1 < 0.99) {
+        f.cam_size = (x1 - x0, y1 - y0);
     }
     let prev_allies = std::mem::take(&mut f.allies);
     f.allies = r.detections.iter().filter(|d| d.team == my_team_t).map(|d| with_vel(&prev_allies, d)).collect();
