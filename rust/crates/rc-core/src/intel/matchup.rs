@@ -155,7 +155,7 @@ fn hp_fresh(intel: &GameIntel, p: &PlayerIntel) -> Option<f64> {
     match (p.hp_pct, p.hp_seen_at) {
         (Some(h), Some(at)) => {
             let age = intel.game_time - at;
-            (-1.0..=90.0).contains(&age).then(|| (h + 0.006 * age.max(0.0)).min(1.0))
+            (-1.0..=20.0).contains(&age).then(|| (h + 0.006 * age.max(0.0)).min(1.0))
         }
         _ => None,
     }

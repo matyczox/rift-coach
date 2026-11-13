@@ -887,7 +887,19 @@ fn apply_ally_hp(g: &mut Game, bars: &[HealthBar]) {
         _ => true,
     };
     let cands: Vec<ChampionCandidate> = intel.players.iter().filter(|p| p.is_ally && !p.is_me && !p.is_dead && close(&p.champion)).map(|p| ChampionCandidate { champion: p.champion.clone(), level: p.level.max(0) as u32, screen: None }).collect();
-    for (bar, c) in bars.iter().zip(match_bars_to_champions(bars, &cands, &MatchOptions::default())) {
+    let matched = match_bars_to_champions(bars, &cands, &MatchOptions::default());
+    let named: Vec<String> = matched.iter().flatten().cloned().collect();
+    // One bar left without a name and exactly one other enemy next to me on the minimap: it is his
+    // (Kha'Zix at 10% HP read as nobody, so the fight bar assumed him healthy: 40% on a sure kill).
+    let free: Vec<&HealthBar> = bars.iter().zip(matched.iter()).filter(|(_, c)| c.is_none()).map(|(b, _)| b).collect();
+    if let ([bar], Some(me)) = (free.as_slice(), field.my_pos) {
+        let near: Vec<&SeenUnit> = field.visible_enemies.iter().filter(|e| (e.x - me.0).hypot(e.y - me.1) < 0.1 && !named.contains(&e.champion)).collect();
+        if near.len() == 1 {
+            tracker.set_hp(&near[0].champion, bar.pct, intel.game_time);
+            tracker.set_onscreen(&near[0].champion, intel.game_time);
+        }
+    }
+    for (bar, c) in bars.iter().zip(matched) {
         if let Some(c) = c {
             tracker.set_hp(&c, bar.pct, intel.game_time);
             tracker.set_onscreen(&c, intel.game_time);
@@ -1341,7 +1353,10 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         if side == my_team {
             let my_jg = intel.players.iter().find(|p| p.is_ally && !p.is_me && p.role == "JUNGLE");
             let my_jg_pos = my_jg.and_then(|j| f.allies.iter().find(|a| a.champion == j.champion));
-            let ours = my_jg_pos.is_some_and(|p| (p.x - camp.x).hypot(p.y - camp.y) < 0.08);
+            // Ours unless our jungler is seen (now or the last 8 s) far from that camp: his icon is often
+            // hidden at the camp ("Invade Red" when he took it himself).
+            let jg_last = my_jg.and_then(|j| my_jg_pos.map(|p| (p.x, p.y)).or_else(|| f.ally_last.get(&j.champion).filter(|(_, _, t)| intel.game_time - t <= 8.0).map(|(x, y, _)| (*x, *y))));
+            let ours = jg_last.is_none_or(|(x, y)| (x - camp.x).hypot(y - camp.y) < 0.2);
             let me_there = f.my_pos.is_some_and(|p| (p.0 - camp.x).hypot(p.1 - camp.y) < 0.08);
             if !ours && !me_there {
                 f.alerts.push(Alert::new("invade", format!("Invade {}", camp_label(camp.id)), 0.85, now + 6000.0));
