@@ -1059,7 +1059,18 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     // Teamplay prompts (gank ask, follow-up, ...).
     let (allies_s, enemies_s) = (crate::knowledge::seen(&f.allies), crate::knowledge::seen(&f.visible_enemies));
     for a in team_watcher.update(intel, crate::knowledge::pos(f.my_pos), &allies_s, &enemies_s, p_me, now) {
-        f.alerts.push(crate::game::alert_of(a));
+        let al = crate::game::alert_of(a);
+        // Team prompts ("Teemo obok → pinguj, wchodźcie", "MF idzie do ciebie"): shown as a green alert
+        // under my champion (the top bar never showed these kinds). Same text at most every 20 s.
+        if matches!(al.kind.as_str(), "gank-ask" | "ally") {
+            let key = format!("team:{}", al.text);
+            if !f.push_seen.iter().any(|(k, at)| *k == key && now - at < 20000.0) {
+                f.push_seen.retain(|(k, _)| *k != key);
+                f.push_seen.push((key, now));
+                f.toasts.push(Toast { id: now as u64 + 23 + f.toasts.len() as u64, kind: "fight".into(), team: "ally".into(), champion: None, text: al.text.clone(), expires_at: now + 5000.0 });
+            }
+        }
+        f.alerts.push(al);
     }
     f.mask = r.fog_mask.clone();
     f.mask_grid = r.fog_grid;
