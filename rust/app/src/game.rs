@@ -62,6 +62,9 @@ pub struct Game {
     pub build: Option<rc_core::build_advisor::BuildPanelState>,
     /// Game + champion the build plan belongs to (a plan from the last game showed Doran's Blade on Ahri).
     pub build_key: String,
+    /// Last game time seen by the build check (a rollback = new game) and when the first item last changed (ms).
+    pub build_seen_t: f64,
+    pub build_first_at: f64,
     pub build_busy: bool,
     // ---- post-game ----
     pub match_log: MatchLog,
@@ -94,6 +97,8 @@ impl Game {
             build_trigger: BuildTrigger::default(),
             build: None,
             build_key: String::new(),
+            build_seen_t: 0.0,
+            build_first_at: 0.0,
             build_busy: false,
             match_log: MatchLog::new(),
             obs: ObsRecorder::default(),

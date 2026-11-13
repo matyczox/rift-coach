@@ -220,8 +220,13 @@ fn build_session(intel: &GameIntel) -> String {
 pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64) {
     let (Some(sd), Some(_)) = (g.static_data.clone(), g.intel.as_ref()) else { return };
     // A new game / champion: the old plan goes (a Practice Tool restart keeps the Live API up).
-    let key = build_session(g.intel.as_ref().unwrap());
-    if key != g.build_key {
+    // My champion + a game-time rollback (new game): the player list flickered in the Live API and reset the
+    // plan every few minutes (Luden -> Stormsurge -> Gunblade).
+    let gi = g.intel.as_ref().unwrap();
+    let key = format!("{}|{}", gi.me.as_ref().map(|m| m.champion.as_str()).unwrap_or(""), if gi.game_time < 60.0 { "start" } else { "" });
+    let rolled_back = gi.game_time + 60.0 < g.build_seen_t;
+    g.build_seen_t = gi.game_time;
+    if (key != g.build_key && !key.ends_with("|start")) || rolled_back {
         g.build = None;
         g.build_key = key;
     }
@@ -352,6 +357,23 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
                         }
                     }
                 }
+                // The first item holds 150 s (unless bought): the model flipped it every answer.
+                if let (Some(first), true) = (prev.first().cloned(), locked.is_none()) {
+                    let fresh = now - g.build_first_at < 150_000.0;
+                    let owned_first = intel.me.as_ref().is_some_and(|m| m.items.iter().any(|i| sd.items.get(&i.id).is_some_and(|d| d.name.eq_ignore_ascii_case(&first) || d.name_en.as_deref().is_some_and(|e| e.eq_ignore_ascii_case(&first)))));
+                    if fresh && !owned_first && b.items.first().is_some_and(|it| !it.name.eq_ignore_ascii_case(&first)) {
+                        match b.items.iter().position(|it| it.name.eq_ignore_ascii_case(&first)) {
+                            Some(p) => { let it = b.items.remove(p); b.items.insert(0, it); }
+                            None => {
+                                if let Some(d) = sd.items.values().find(|d| d.name.eq_ignore_ascii_case(&first) || d.name_en.as_deref().is_some_and(|e| e.eq_ignore_ascii_case(&first))) {
+                                    b.items.insert(0, rc_core::build_advisor::BuildItem { name: d.name_en.clone().unwrap_or(d.name.clone()), icon_url: format!("https://ddragon.leagueoflegends.com/cdn/{}/img/item/{}.png", sd.version, d.id), why: String::new(), cost: Some(d.total) });
+                                    b.items.truncate(3);
+                                }
+                            }
+                        }
+                    }
+                }
+                let first_changed = g.build.as_ref().and_then(|o| o.items.first()).map(|i| i.name.clone()) != b.items.first().map(|i| i.name.clone());
                 // Full inventory: the plan is a swap. Say what goes (the cheapest finished item, never boots).
                 if let Some(me) = intel.me.as_ref() {
                     let used = me.items.iter().filter(|i| sd.items.get(&i.id).is_none_or(|d| !d.tags.iter().any(|t| t == "Trinket"))).count();
@@ -366,6 +388,9 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
                 // An answer with nothing left replaces the old plan too (it may hold bought items).
                 log::info!(target: "build", "plan {:?} (prev {:?})", b.items.iter().map(|i| &i.name).collect::<Vec<_>>(), prev);
                 g.build = if b.items.is_empty() { None } else { Some(b) };
+                if first_changed {
+                    g.build_first_at = now;
+                }
             }
             Err(e) => log::warn!(target: "build", "error {e}"),
         }

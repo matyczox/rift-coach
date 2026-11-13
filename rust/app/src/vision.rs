@@ -793,6 +793,15 @@ pub fn return_eta(p: &PlayerIntel, my_pos: Option<(f64, f64)>, game_t: f64, lost
 /// Visible enemies standing in a lane on OUR half of the map with no ally (me included) within ~1/4
 /// of the map: (champion, "top" | "mid" | "bot"). Coordinates are mirrored for red side so that our
 /// base is always bottom-left (reflected across the diagonal, which keeps top lane = top).
+/// Distance of a point from a lane line (top: left / top edges, bot: bottom / right edges, mid: diagonal).
+fn visible_lane_dist(lane: &str, x: f64, y: f64) -> f64 {
+    match lane {
+        "top" => (x.min(y) - 0.07).abs(),
+        "bot" => ((1.0 - x).min(1.0 - y) - 0.07).abs(),
+        _ => (x + y - 1.0).abs() / std::f64::consts::SQRT_2,
+    }
+}
+
 pub fn unguarded_pushes(enemies: &[SeenUnit], allies: &[SeenUnit], my_team: Team) -> Vec<(String, &'static str)> {
     let flip = my_team == Team::Chaos;
     let mut out = Vec::new();
@@ -1133,7 +1142,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     }
     let pushes = if intel.game_time > 150.0 { unguarded_pushes(&f.visible_enemies, &guards, my_team_t) } else { Vec::new() };
     // Forget enemies no longer in our base (the 2 s count restarts).
-    f.base_seen.retain(|c, _| pushes.iter().any(|(pc, l)| pc == c && *l == "nexus"));
+    f.base_seen.retain(|c, _| pushes.iter().any(|(pc, l)| pc == c && *l == "nexus" || *c == format!("{pc}@{l}")));
     for (champ, lane) in pushes {
         let role = match lane { "top" => "TOP", "bot" => "BOTTOM", "mid" => "MIDDLE", _ => "" };
         if !role.is_empty() && intel.players.iter().any(|p| p.champion == champ && p.role == role) {
@@ -1145,7 +1154,24 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         }
         f.push_seen.retain(|(k, _)| *k != key);
         f.push_seen.push((key, now));
+        // Laning phase: our laner(s) of that lane alive and not seen far away = plain laning.
+        let lane_role = match lane { "top" => "TOP", "mid" => "MIDDLE", "bot" => "BOTTOM", _ => "" };
+        if !lane_role.is_empty() && intel.game_time < 840.0 && intel.players.iter().filter(|p| p.is_ally && !p.is_dead && (p.role == lane_role || (lane_role == "BOTTOM" && p.role == "UTILITY"))).any(|p| {
+            let at = f.allies.iter().find(|a| a.champion == p.champion).map(|a| (a.x, a.y)).or_else(|| f.ally_last.get(&p.champion).filter(|(_, _, t)| intel.game_time - t <= 10.0).map(|(x, y, _)| (*x, *y)));
+            at.is_none_or(|(x, y)| visible_lane_dist(lane, x, y) < 0.2)
+        }) {
+            f.push_seen.retain(|(k, _)| *k != format!("{champ}@{lane}"));
+            continue;
+        }
         let text = if lane == "nexus" { format!("{champ} w bazie — broń") } else { format!("{champ} pcha {lane}") };
+        if lane != "nexus" {
+            // Seen there 2 s (one misread icon: "Vex pcha top" while it was Tryndamere).
+            let since = *f.base_seen.entry(format!("{champ}@{lane}")).or_insert(intel.game_time);
+            if intel.game_time - since < 2.0 {
+                f.push_seen.retain(|(k, _)| *k != format!("{champ}@{lane}"));
+                continue;
+            }
+        }
         if lane == "nexus" {
             // Only after he stays in our base 2 s (one misread icon said "Mordekaiser w bazie").
             let since = *f.base_seen.entry(champ.clone()).or_insert(intel.game_time);
