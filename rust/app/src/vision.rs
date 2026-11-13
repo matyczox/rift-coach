@@ -131,6 +131,8 @@ pub struct Field {
     pub toasts: Vec<Toast>,
     /// Unguarded lane pushes announced: ("champion@lane", Date.now() ms).
     pub push_seen: Vec<(String, f64)>,
+    /// Enemies seen near me on the minimap: champion -> last game time (kept 3 s for the fight bar).
+    pub near_seen: std::collections::HashMap<String, f64>,
     /// Enemy health bars on my screen in the last read: (count, game time). Unnamed ones count too.
     pub enemy_bars: (usize, f64),
     /// Ally fights announced: (ally, Date.now() ms).
@@ -186,6 +188,7 @@ impl Field {
             push_seen: Vec::new(),
             fight_seen: Vec::new(),
             enemy_bars: (0, 0.0),
+            near_seen: Default::default(),
             help: None,
             prev_dead: Vec::new(),
             tracker,
@@ -241,6 +244,7 @@ impl Field {
         self.push_seen.clear();
         self.fight_seen.clear();
         self.enemy_bars = (0, 0.0);
+        self.near_seen.clear();
         self.help = None;
         self.prev_dead.clear();
         self.ghosts.clear();
@@ -905,6 +909,12 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     }
     f.occluded_since.retain(|k, _| !k.starts_with("ally:") || kept.contains(k));
     f.visible_enemies = r.detections.iter().filter(|d| d.team != my_team_t).map(|d| with_vel(&f.visible_enemies, d)).collect();
+    if let Some((mx, my)) = f.my_pos {
+        for e in f.visible_enemies.iter().filter(|e| (e.x - mx).hypot(e.y - my) < 0.15) {
+            f.near_seen.insert(e.champion.clone(), intel.game_time);
+        }
+    }
+    f.near_seen.retain(|_, t| intel.game_time - *t <= 3.0);
     // Enemy pushing a lane on our half with none of us near -> toast (once per champion+lane / 60 s).
     // Me too, by my own position (my icon can be missing from the detections: "pcha mid" while I stood mid).
     let mut guards = f.allies.clone();

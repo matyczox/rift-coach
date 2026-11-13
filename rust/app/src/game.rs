@@ -279,7 +279,9 @@ fn check_intent(g: &mut Game) {
     }
     g.intent = None;
     let now = now_ms();
-    g.field.toasts.push(crate::vision::Toast { id: now as u64 + 31, kind: "done".into(), team: "ally".into(), champion: None, text: format!("✓ {text}"), expires_at: now + 3000.0 });
+    if reason == "ward-done" {
+        g.field.toasts.push(crate::vision::Toast { id: now as u64 + 31, kind: "done".into(), team: "ally".into(), champion: None, text: format!("✓ {text}"), expires_at: now + 3000.0 });
+    }
     g.coach.request_followup(reason);
 }
 

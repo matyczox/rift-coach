@@ -400,6 +400,15 @@ pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
     n.me_under_enemy_tower = in_range(mx, my, false);
     n.me_under_my_tower = in_range(mx, my, true);
     n.enemies_under_tower = g.field.visible_enemies.iter().filter(|e| (e.x - mx).hypot(e.y - my) < R && in_range(e.x, e.y, false)).map(|e| e.champion.clone()).collect();
+    // Near me a moment ago (icon flickered off the minimap): still in the fight.
+    if let Some(i) = g.intel.as_ref() {
+        for (c, _) in g.field.near_seen.iter() {
+            let alive = i.players.iter().any(|p| p.champion == *c && !p.is_ally && !p.is_dead);
+            if alive && !n.enemies.iter().any(|(e, _)| e == c) {
+                n.enemies.push((c.clone(), true));
+            }
+        }
+    }
     for t in fog_tracks(g) {
         let Some(est) = t.estimate.filter(|_| t.in_fog) else { continue };
         if est.radius < 0.2 && (est.x - mx).hypot(est.y - my) < R + est.radius * 0.5 && !n.enemies.iter().any(|(c, _)| *c == t.champion) {
