@@ -288,3 +288,6 @@ canvas.full { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .guide-label.ward { color: #ffe7a0; }
 .guide-label.hidden { opacity: 0; }
 .chip.pin { font-size: 1rem; font-weight: 700; }
+/* Guide arrow stays off the champions: smaller, further out, fainter; its text lives in the pinned chip / toast, not over the fight. */
+.guide { width: 6rem; height: 2rem; margin: -1rem 0 0 -3rem; opacity: 0.4; }
+.guide-label { display: none; }

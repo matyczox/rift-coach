@@ -28,6 +28,8 @@ pub struct Intent {
     pub since: f64,
     pub ward_score_at: i64,
     pub was_covered: bool,
+    /// Game time I arrived at the ward spot (standing there a moment = ward placed).
+    pub at_spot_since: Option<f64>,
 }
 
 pub struct Game {
@@ -285,11 +287,11 @@ fn intent_of(g: &Game, a: &Value) -> Option<Intent> {
     let call = a.get("call").and_then(Value::as_str).unwrap_or("").to_string();
     if let Some(spot) = a.get("ward").and_then(|w| w.get("spot")).and_then(Value::as_str) {
         let covered = crate::vision::covered_spots(intel, &g.field).iter().any(|s| s == spot);
-        return Some(Intent { ward_spot: Some(spot.to_string()), target: None, label: call, since: intel.game_time, ward_score_at: me.ward_score, was_covered: covered });
+        return Some(Intent { ward_spot: Some(spot.to_string()), target: None, label: call, since: intel.game_time, ward_score_at: me.ward_score, was_covered: covered, at_spot_since: None });
     }
     let target = a.get("mapHint").and_then(|m| m.get("target")).and_then(Value::as_str)?;
     let p = crate::hud_state::map_point_for(target, red)?;
-    Some(Intent { ward_spot: None, target: Some(p), label: call, since: intel.game_time, ward_score_at: me.ward_score, was_covered: false })
+    Some(Intent { ward_spot: None, target: Some(p), label: call, since: intel.game_time, ward_score_at: me.ward_score, was_covered: false, at_spot_since: None })
 }
 
 /// Did the player do what the last call said? Then a short confirmation and the next step now.
@@ -318,7 +320,18 @@ fn check_intent(g: &mut Game) {
             _ => false,
         };
         // Ward points went up = a ward placed (the user's rule); the spot getting vision counts only when I stand there.
-        let placed = me.ward_score > it.ward_score_at || (at_spot && covered && !it.was_covered);
+        // The API ward score is rounded and grows slowly (it almost never moved on placing): standing at
+        // the spot for 2.5 s counts as placed too.
+        let gt = intel.game_time;
+        let since = if at_spot { it.at_spot_since.or(Some(gt)) } else { None };
+        let dwell = since.is_some_and(|s0| gt - s0 >= 2.5);
+        if let Some(i2) = g.intent.as_mut() {
+            i2.at_spot_since = since;
+        }
+        let placed = me.ward_score > it.ward_score_at || dwell || (at_spot && covered && !it.was_covered);
+        if placed {
+            g.ward_seen.1 = gt;
+        }
         (placed, "Ward postawiony".to_string(), "ward-done")
     } else if let (Some((x, y)), Some((mx, my))) = (it.target, g.field.my_pos) {
         ((mx - x).hypot(my - y) < 0.08, "Jesteś na miejscu".to_string(), "arrived")

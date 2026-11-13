@@ -27,7 +27,7 @@ subscribe(({ state }, clock) => {
     guide.classList.toggle('ward', g?.kind === 'ward');
     if (g && g.from && Math.hypot(g.x - g.from.x, g.y - g.from.y) > 0.04) {
       const deg = (Math.atan2((g.y - g.from.y) * 0.8, g.x - g.from.x) * 180) / Math.PI;
-      guide.style.transform = `rotate(${deg.toFixed(1)}deg) translateX(5.5rem)`;
+      guide.style.transform = `rotate(${deg.toFixed(1)}deg) translateX(9rem)`;
       guide.classList.remove('hidden');
       // What the arrow is for, right under my champion (a bare arrow said nothing).
       if (guideLabel) {

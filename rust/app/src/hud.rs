@@ -316,7 +316,8 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
                         let in_base = g.field.my_pos.is_some_and(|(x, y)| (x - base.0).hypot(y - base.1) < 0.15);
                         // (No longer hidden in base: the user wants it there too.)
                         let _ = in_base;
-                        if i.game_time < 75.0 {
+                        // Shown from the start (the user asked; it was hidden for the first 75 s).
+                        if false {
                             None
                         } else {
                             rc_core::intel::matchup::power_bar_near(i, g.matchup.as_ref(), &icon, &k::nearby(g)).and_then(|p| serde_json::to_value(p).ok())
