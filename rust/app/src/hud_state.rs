@@ -44,14 +44,17 @@ pub fn local_alerts(intel: &GameIntel, now: f64) -> Vec<Alert> {
             continue;
         }
         let Some(s) = p.spikes.first() else { continue };
-        if intel.game_time - s.at > 45.0 {
+        // Only right after it happened (the alert was rebuilt every tick for 45 s: "Brand ma Zhonya's" over and over).
+        if intel.game_time - s.at > 4.0 {
             continue;
         }
         let behind = if s.kind == "level" { me.level < p.level } else { me.completed_items < p.completed_items };
         if behind {
             // "Brand: poziom 16 100%" said nothing: what changed, in game words, no %.
             let text = if s.kind == "level" { format!("{} {}: mocniejsze R", p.champion, s.label.replace("poziom ", "lvl ")) } else { format!("{} ma {}", p.champion, s.label) };
-            out.push(Alert::new("spike", text, 1.0, now + 4000.0));
+            // Off: enemy item / level alerts were noise ("po co alert o przedmiocie wroga"). The coach and
+            // the fight bar already use the spike.
+            let _ = (text, now);
         }
     }
     // Baron / Elder windows: shown as a countdown chip (top right), not as an alert.

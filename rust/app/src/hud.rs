@@ -243,6 +243,12 @@ fn buy_now_json(g: &crate::game::Game) -> Option<Value> {
     if !(me.is_dead || in_base || recalling || intel.game_time < 90.0) || gold < 300.0 {
         return None;
     }
+    // No free slot and nothing to finish: nothing to "buy now" (it listed an item there was no room for).
+    let used = me.items.iter().filter(|i| sd.items.get(&i.id).is_none_or(|d| !d.tags.iter().any(|t| t == "Trinket"))).count();
+    let has_component = me.items.iter().any(|i| sd.items.get(&i.id).is_some_and(|d| !d.completed && d.total >= 300.0 && !d.tags.iter().any(|t| t == "Trinket" || t == "Consumable")));
+    if used >= 6 && !has_component {
+        return None;
+    }
     let plan_first = g.build.as_ref().and_then(|b| b.items.first()).map(|i| i.name.to_lowercase());
     let target = plan_first.as_ref().and_then(|want| sd.items.values().find(|i| i.name.to_lowercase() == *want || i.name_en.as_ref().is_some_and(|n| n.to_lowercase() == *want)));
     // Game start, nothing bought yet: the starter (Doran's + potions / jungle pet / World Atlas), not a

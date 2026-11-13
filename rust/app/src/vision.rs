@@ -194,6 +194,8 @@ pub struct Field {
     pub my_last_real: Option<(f64, f64, f64)>,
     /// My recent positions (game seconds, x, y), ~1 per second, last 15 s: where I am heading (roam).
     pub my_trail: Vec<(f64, f64, f64)>,
+    /// Enemies seen inside our base: since when (game seconds), for the "X w bazie" warning.
+    pub base_seen: std::collections::HashMap<String, f64>,
     /// Last time my icon sat in the middle of the camera box (camera locked on me): Date.now() ms.
     pub cam_locked_at: f64,
     /// Last time my icon was seen AWAY from the camera box centre (camera unlocked / panned).
@@ -263,6 +265,7 @@ impl Field {
             my_pos_at: 0.0,
             my_last_real: None,
             my_trail: Vec::new(),
+            base_seen: Default::default(),
             cam_locked_at: 0.0,
             cam_unlocked_at: 0.0,
             cam_size: (0.268, 0.15),
@@ -1117,6 +1120,8 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         }
     }
     let pushes = if intel.game_time > 150.0 { unguarded_pushes(&f.visible_enemies, &guards, my_team_t) } else { Vec::new() };
+    // Forget enemies no longer in our base (the 2 s count restarts).
+    f.base_seen.retain(|c, _| pushes.iter().any(|(pc, l)| pc == c && *l == "nexus"));
     for (champ, lane) in pushes {
         let role = match lane { "top" => "TOP", "bot" => "BOTTOM", "mid" => "MIDDLE", _ => "" };
         if !role.is_empty() && intel.players.iter().any(|p| p.champion == champ && p.role == role) {
@@ -1129,6 +1134,14 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         f.push_seen.retain(|(k, _)| *k != key);
         f.push_seen.push((key, now));
         let text = if lane == "nexus" { format!("{champ} w bazie — broń") } else { format!("{champ} pcha {lane}") };
+        if lane == "nexus" {
+            // Only after he stays in our base 2 s (one misread icon said "Mordekaiser w bazie").
+            let since = *f.base_seen.entry(champ.clone()).or_insert(intel.game_time);
+            if intel.game_time - since < 2.0 {
+                f.push_seen.retain(|(k, _)| *k != format!("{champ}@{lane}"));
+                continue;
+            }
+        }
         f.toasts.push(Toast { id: now as u64 + 7 + f.toasts.len() as u64, kind: "push".into(), team: "enemy".into(), champion: Some(champ.clone()), text, expires_at: now + 5000.0 });
     }
     // An ally fighting somewhere I can reach (jungler vs invader, skirmish): "go help" right away,

@@ -283,6 +283,11 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
     if let (false, Some(o)) = (prev.is_empty(), ctx.as_object_mut()) {
         o.insert("currentPlan".into(), serde_json::json!(prev));
     }
+    // Free item slots (6 minus everything but the trinket): with none, a new item replaces one.
+    let slots_used = intel.me.as_ref().map_or(0, |m| m.items.iter().filter(|i| sd.items.get(&i.id).is_none_or(|d| !d.tags.iter().any(|t| t == "Trinket"))).count());
+    if let Some(mo) = ctx.get_mut("me").and_then(serde_json::Value::as_object_mut) {
+        mo.insert("freeSlots".into(), serde_json::json!(6usize.saturating_sub(slots_used)));
+    }
     let locked = rc_core::build_advisor::committed(&sd.items, &owned_ids).map(|t| (t.name.clone(), t.id, t.total));
     if let (Some(t), Some(o)) = (rc_core::build_advisor::in_progress(&prev, &sd.items, &owned_ids).map(|t| t.name.clone()).or_else(|| locked.as_ref().map(|l| l.0.clone())), ctx.as_object_mut()) {
         o.insert("finishFirst".into(), serde_json::json!(t));
@@ -335,6 +340,17 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
                         None => {
                             b.items.insert(0, rc_core::build_advisor::BuildItem { name: name.clone(), icon_url: format!("https://ddragon.leagueoflegends.com/cdn/{}/img/item/{}.png", sd.version, id), why: String::new(), cost: Some(*total) });
                             b.items.truncate(3);
+                        }
+                    }
+                }
+                // Full inventory: the plan is a swap. Say what goes (the cheapest finished item, never boots).
+                if let Some(me) = intel.me.as_ref() {
+                    let used = me.items.iter().filter(|i| sd.items.get(&i.id).is_none_or(|d| !d.tags.iter().any(|t| t == "Trinket"))).count();
+                    let has_component = me.items.iter().any(|i| sd.items.get(&i.id).is_some_and(|d| !d.completed && d.total >= 300.0 && !d.tags.iter().any(|t| t == "Trinket" || t == "Consumable")));
+                    if used >= 6 && !has_component {
+                        let weakest = me.items.iter().filter_map(|i| sd.items.get(&i.id)).filter(|d| d.completed && !d.tags.iter().any(|t| t == "Boots" || t == "Trinket")).min_by(|a, b| a.total.total_cmp(&b.total)).map(|d| d.name.clone());
+                        if let Some(w) = weakest {
+                            b.phase = format!("pełny eq · zamień {w}");
                         }
                     }
                 }
