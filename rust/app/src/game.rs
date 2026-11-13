@@ -359,12 +359,22 @@ fn check_intent(g: &mut Game) {
         // The API ward score is rounded and grows slowly (it almost never moved on placing): standing at
         // the spot for 2.5 s counts as placed too.
         let gt = intel.game_time;
-        let since = if at_spot { it.at_spot_since.or(Some(gt)) } else { None };
+        // Remember that I was at the spot (kept after I leave, for the "ward left behind" check).
+        let since = if at_spot { it.at_spot_since.or(Some(gt)) } else { it.at_spot_since };
         let dwell = since.is_some_and(|s0| gt - s0 >= 2.5);
         if let Some(i2) = g.intent.as_mut() {
             i2.at_spot_since = since;
         }
-        let placed = me.ward_score > it.ward_score_at || dwell || (at_spot && covered && !it.was_covered);
+        // Best signal: the spot still has vision while none of us stands there = a ward is there (I
+        // walked to it and left it behind). Standing there is only a hint now (no ward = no vision after).
+        let spot_pt = rc_core::wards::ward_point(spot, red);
+        let nobody_there = spot_pt.is_some_and(|(x, y)| {
+            !g.field.allies.iter().any(|a| (a.x - x).hypot(a.y - y) < 0.06) && g.field.my_pos.is_none_or(|(mx, my)| (mx - x).hypot(my - y) >= 0.06)
+        });
+        let visited = it.at_spot_since.is_some() || dwell;
+        let left_ward = covered && nobody_there && (visited || !it.was_covered);
+        let _ = dwell;
+        let placed = me.ward_score > it.ward_score_at || left_ward;
         if placed {
             g.ward_seen.1 = gt;
         }

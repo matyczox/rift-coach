@@ -1315,6 +1315,23 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             // Our people at the pit too = a teamfight there: arrow to go (up to ~half the map away).
             let ours_there = f.allies.iter().filter(|a| (a.x - pit.0).hypot(a.y - pit.1) < 0.12).count();
             let far = f.my_pos.is_some_and(|(x, y)| { let d = (x - pit.0).hypot(y - pit.1); d > 0.1 && d < 0.55 });
+            // We are taking it (2+ of us at the pit) and their jungler (Smite) may be close: steal risk.
+            if ours_there >= 2 {
+                if let Some(j) = intel.players.iter().find(|p| !p.is_ally && !p.is_dead && p.role == "JUNGLE") {
+                    let m = match f.visible_enemies.iter().find(|e| e.champion == j.champion) {
+                        Some(e) => if (e.x - pit.0).hypot(e.y - pit.1) < 0.18 { 1.0 } else { 0.0 },
+                        None => tr.mass_near(&j.champion, pit, 0.18).unwrap_or(0.0),
+                    };
+                    if m >= 0.35 {
+                        let al = Alert::new("objective", format!("{} może ukraść {name}", j.champion), m.min(0.9), now + 4000.0);
+                        match f.alerts.iter().position(|x| x.kind == "objective") {
+                            Some(i) => f.alerts[i] = al,
+                            None => f.alerts.push(al),
+                        }
+                        continue;
+                    }
+                }
+            }
             if p >= 0.5 && ours_there >= 1 && far {
                 f.help_point = Some((format!("Teamfight przy {name} → idź"), pit.0, pit.1, now + 6000.0));
             }

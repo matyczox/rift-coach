@@ -259,7 +259,9 @@ impl BuildTrigger {
         // My items >= 400 g only: potions / wards / starter changes asked again 3 times in 15 s at game
         // start (Malignance -> Luden's -> Malignance). And at most once per 45 s.
         let key = format!("{}|{}|{}", me.items.iter().filter(|i| i.price >= 400.0).map(|i| i.id.to_string()).collect::<Vec<_>>().join(","), enemies.join(","), me.is_dead);
-        let changed = key != self.last_key && (self.last_key.is_empty() || now - self.last_at > 45_000.0);
+        // My own purchase (items >= 400 g) asks right away; other changes at most every 45 s.
+        let mine_changed = key.split('|').next() != self.last_key.split('|').next();
+        let changed = key != self.last_key && (self.last_key.is_empty() || mine_changed || now - self.last_at > 45_000.0);
         if changed || now - self.last_at > 180_000.0 {
             self.last_key = key;
             self.last_at = now;
