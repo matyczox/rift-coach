@@ -638,6 +638,7 @@ pub(crate) mod tests {
             lanes: vec![],
             streaks: BTreeMap::new(),
             ace: None,
+            dragon_soul: None,
             my_stats: Some(MyStats { gold: 500.0, hp: 1000.0, max_hp: 1000.0, ad: 60.0, ap: 0.0, armor: 30.0, mr: 30.0, move_speed: 345.0, resource_type: "MANA".into(), resource_pct: Some(1.0), resource_value: Some(1000.0), overheated: false }),
         }
     }

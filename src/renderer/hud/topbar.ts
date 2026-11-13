@@ -10,6 +10,7 @@ const alert = $('alert');
 const alertTxt = $('alertTxt');
 const alertConf = $('alertConf');
 const edge = document.querySelector<HTMLElement>('#danger-edge');
+const banner = document.querySelector<HTMLElement>('#obj-banner');
 const obj = $('obj');
 const objVerdict = $('objVerdict');
 const objTxt = $('objTxt');
@@ -90,14 +91,54 @@ subscribe(({ state }) => {
   // (Moved here from the power panel: a warning must be seen at a glance, next to the advice.)
   const live = state.visible && state.alert && isLive(state.alert.expiresAt, state.gameTime) ? state.alert : null;
   const dg = state.visible && !state.deathCard ? state.danger : null;
-  const al: AlertState | null = live && ['gank', 'invade', 'missing', 'objective', 'steal', 'ace', 'spike'].includes(live.kind)
+  let al: AlertState | null = live && ['gank', 'invade', 'missing', 'objective', 'steal', 'ace', 'spike'].includes(live.kind)
     ? live
     : null; // no danger reason as a red alert ('Brand blisko' = my lane rival next to me, nothing new)
   void dg;
   // A % only means something for a gank / invade guess; on a danger reason ("Mało HP (2%)") it confused.
   const showConf = !!live && al === live && ['gank', 'invade', 'steal', 'objective'].includes(al.kind);
+  // Objective warnings ('Mogą robić Dragon', 'X może ukraść Dragon'): a big banner at the top centre,
+  // not one more small pill at the bottom.
+  const objAl = !!al && al === live && (al.kind === 'objective' || al.kind === 'steal');
+  if (banner) {
+    banner.classList.toggle('hidden', !objAl);
+    banner.classList.toggle('steal', !!al && al.kind === 'steal');
+    if (objAl && al) {
+      // Like the game's objective banner: the dragon (tinted by its element), the text, the dragon
+      // score and SOUL POINT when a team sits on 3.
+      const dr = state.dragons;
+      const isDragon = /dragon/i.test(al.text) && !/elder/i.test(al.text);
+      const soulPoint = dr && isDragon ? (dr.theirs >= 3 ? 'their' : dr.ours >= 3 ? 'our' : null) : null;
+      const k = [al.text, dr?.ours, dr?.theirs, dr?.soul, soulPoint].join('|');
+      if (banner.dataset.k !== k) {
+        banner.dataset.k = k;
+        const icon = document.createElement('img');
+        icon.alt = '';
+        icon.src = /baron/i.test(al.text) ? 'icons/baron.png' : /herald|grubs/i.test(al.text) ? 'icons/riftherald.png' : 'icons/dragon_elder.png';
+        icon.className = 'ob-icon' + (isDragon ? ' el-' + (dr?.soul ?? 'none').toLowerCase() : '');
+        const txt = document.createElement('span');
+        txt.className = 'ob-text';
+        txt.textContent = al.text;
+        const parts: HTMLElement[] = [icon, txt];
+        if (isDragon && dr) {
+          const sc = document.createElement('span');
+          sc.className = 'ob-score';
+          sc.innerHTML = `<b class="us">${dr.ours}</b>:<b class="them">${dr.theirs}</b>`;
+          parts.push(sc);
+        }
+        if (soulPoint) {
+          const sp = document.createElement('span');
+          sp.className = 'ob-soul ' + soulPoint;
+          sp.textContent = soulPoint === 'their' ? 'ICH SOUL POINT' : 'NASZ SOUL POINT';
+          parts.push(sp);
+        }
+        banner.replaceChildren(...parts);
+      }
+    }
+  }
+  if (objAl) al = null;
   // A real gank / invade / steal (not a danger reason): red pulsing screen edge and a solid red pill.
-  const threat = !!live && al === live && ['gank', 'invade', 'steal'].includes(al.kind);
+  const threat = !!al && al === live && ['gank', 'invade', 'steal'].includes(al.kind);
   edge?.classList.toggle('hidden', !threat);
   alert.classList.toggle('live', threat);
   if (!al) {

@@ -582,6 +582,8 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
                 }
             }
             o.insert("mapTimers".into(), Value::Array(mt));
+            // Dragon banner (like the game's): dragons per team and the rift's element once known.
+            o.insert("dragons".into(), g.intel.as_ref().map_or(Value::Null, |i| json!({ "ours": i.ally.dragons.len(), "theirs": i.enemy.dragons.len(), "soul": i.dragon_soul })));
             o.insert("buffs".into(), Value::Array(g.intel.as_ref().map(|i| i.buffs.iter().map(|b| serde_json::json!({ "kind": b.kind, "team": b.team, "secondsLeft": (b.until - gt).max(0.0).round() })).collect()).unwrap_or_default()));
         }
         s

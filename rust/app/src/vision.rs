@@ -1494,7 +1494,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
                 // An enemy from elsewhere in fog within ~0.35 and seen recently: low HP is a free kill for him.
                 let close = tracks.iter().filter(unseen).filter(|tr| t - tr.fog_since.unwrap_or(t) < 30.0 && my_role.is_none_or(|r| r == Role::Unknown || r != tr.role)).filter_map(|tr| tr.estimate.map(|e| ((e.x - me.0).hypot(e.y - me.1), tr))).filter(|(d, _)| *d < 0.35).min_by(|x, y| x.0.total_cmp(&y.0));
                 if let Some((_, tr)) = close {
-                    a.push(rc_vision::tracker::alerts::AlertState { kind: rc_vision::tracker::alerts::AlertKind::Gank, text: format!("Mało HP — {} blisko", tr.champion), confidence: 0.7, expires_at: now + 4000.0 });
+                    a.push(rc_vision::tracker::alerts::AlertState { kind: rc_vision::tracker::alerts::AlertKind::Gank, text: format!("{} blisko", tr.champion), confidence: 0.7, expires_at: now + 4000.0 });
                 }
             }
         }

@@ -285,6 +285,8 @@ export interface HudState {
   buffs?: Array<{ kind: 'baron' | 'elder' | 'herald'; team: 'ally' | 'enemy'; secondsLeft: number }>;
   /** Objectives spawning within 90 s. */
   objTimers?: Array<{ kind: string; label: string; secondsLeft: number }>;
+  /** Dragons taken per team and the rift's element (3rd dragon's type) once known. */
+  dragons?: { ours: number; theirs: number; soul: string | null } | null;
   /** Trinket has a charge (read from the HUD slot). */
   trinketReady?: boolean;
   /** Camp / inhibitor respawn countdowns on the minimap. */

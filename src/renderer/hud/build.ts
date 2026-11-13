@@ -28,22 +28,28 @@ function render(b: BuildPanelState): void {
     row.append(img, main);
     return row;
   }));
-  // Just the item. The one exception: basic Boots still to buy (cheap, easy to forget).
-  const boots = (b.buyNow ?? []).find((it) => it.name === 'Boots' || it.name === 'Buty');
-  if (boots) {
-    const r = el('div', 'bd-buy-row');
-    const im = el('img', '');
-    im.alt = ''; im.src = boots.iconUrl;
-    im.onerror = () => { im.style.visibility = 'hidden'; };
-    r.append(im, el('span', 'bd-buy-name', '+ ' + boots.name));
-    rows.append(r);
+  // Shopping now (dead / in base / recalling): what the gold buys towards it.
+  const buy = b.buyNow ?? [];
+  if (buy.length) {
+    const box = el('div', 'bd-buy');
+    const total = buy.reduce((a, it) => a + (it.cost || 0), 0);
+    box.append(el('div', 'bd-buy-label', `Kup teraz · ${total} g`));
+    for (const it of buy) {
+      const r = el('div', 'bd-buy-row');
+      const im = el('img', '');
+      im.alt = ''; im.src = it.iconUrl;
+      im.onerror = () => { im.style.visibility = 'hidden'; };
+      r.append(im, el('span', 'bd-buy-name', it.name), el('span', 'bd-buy-cost', String(it.cost)));
+      box.append(r);
+    }
+    rows.append(box);
   }
 }
 
 subscribe(({ state }) => {
   const b = state.visible ? state.build : null;
-  setOn(root, !!b && b.items.length > 0);
+  setOn(root, !!b && (b.items.length > 0 || (b.buyNow?.length ?? 0) > 0));
   if (!b) return;
-  const key = JSON.stringify([b.items[0] ?? null, (b.buyNow ?? []).some((it) => it.name === 'Boots' || it.name === 'Buty')]);
+  const key = JSON.stringify([b.items[0] ?? null, b.buyNow ?? null]);
   if (key !== lastKey) { lastKey = key; render(b); }
 });

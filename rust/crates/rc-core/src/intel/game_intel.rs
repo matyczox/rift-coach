@@ -172,6 +172,8 @@ pub struct GameIntel {
     pub buffs: Vec<Buff>,
     pub streaks: BTreeMap<String, i64>,
     pub ace: Option<Ace>,
+    /// Element of the rift after the map change: the 3rd dragon's type (every later dragon is the same).
+    pub dragon_soul: Option<String>,
     pub my_stats: Option<MyStats>,
     /// Per lane: towers lost by each side and inhibitors down (with respawn time).
     pub lanes: Vec<LaneState>,
@@ -440,6 +442,7 @@ impl IntelTracker {
             buffs: ev.buffs,
             streaks: ev.streaks,
             ace: ev.ace,
+            dragon_soul: ev.dragon_soul,
             lanes: ev.lanes,
             my_stats: me_idx.map(|_| MyStats {
                 gold: js_round(ap.current_gold),
@@ -472,6 +475,7 @@ struct EventsOut {
     streaks: BTreeMap<String, i64>,
     ace: Option<Ace>,
     lanes: Vec<LaneState>,
+    dragon_soul: Option<String>,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -491,6 +495,7 @@ fn events(
     let (mut ally, mut enemy) = (blank(), blank());
     let mut recent: Vec<Recent> = Vec::new();
     let (mut last_dragon, mut last_baron): (Option<f64>, Option<f64>) = (None, None);
+    let mut dragon_order: Vec<String> = Vec::new();
     let (mut herald_taken, mut grubs_taken, mut atakhan_taken, mut elder_unlocked) = (false, 0, false, false);
     let mut inhibs: Vec<(f64, bool, &'static str)> = Vec::new();
     // (lane, our tower) for every destroyed lane tower.
@@ -570,6 +575,7 @@ fn events(
                     recent.insert(0, Recent { at, text: format!("Elder Dragon: {who}") });
                     continue;
                 }
+                dragon_order.push(ty.clone());
                 if let Some(x) = sd!() {
                     x.dragons.push(ty.clone());
                     if x.dragons.len() >= 4 {
@@ -690,6 +696,7 @@ fn events(
         .collect();
     recent.truncate(10);
     EventsOut {
+        dragon_soul: dragon_order.get(2).cloned(),
         lanes,
         ally,
         enemy,
