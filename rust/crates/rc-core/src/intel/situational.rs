@@ -167,7 +167,13 @@ pub fn danger_at(intel: &GameIntel, me: Option<Pos>, tracks: &[FogTrack], visibl
             continue;
         }
         let is_fed = fed.contains(&e.champion);
-        let w = (1.0 - d / 0.14) * if is_fed { 1.6 } else { 1.0 } * 0.45 * shield;
+        // His HP from his health bar (seen in the last 10 s): at 1/12 HP he is barely a threat.
+        let hp = intel.players.iter().find(|p| p.champion == e.champion).and_then(|p| match (p.hp_pct, p.hp_seen_at) {
+            (Some(h), Some(at)) if intel.game_time - at <= 10.0 => Some(h),
+            _ => None,
+        });
+        let hp_w = hp.map_or(1.0, |h| 0.25 + 0.75 * h.clamp(0.0, 1.0));
+        let w = (1.0 - d / 0.14) * if is_fed { 1.6 } else { 1.0 } * 0.45 * shield * hp_w;
         score += w;
         reasons.push((w, format!("{} blisko{}", e.champion, if is_fed { " (fed)" } else { "" })));
     }

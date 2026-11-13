@@ -971,34 +971,31 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             break;
         }
     }
-    // Their laner pushing a lane nobody holds: our laner of that lane is dead (respawn > 10 s) and theirs
-    // is alive and not seen in his base -> warn now, not once he already hits our tower.
+    // Their laner seen on his lane pushing towards our tower (their wave on our side, or him walking at our
+    // tower) with none of us near: warn before he is AT the tower.
     for (role, lane) in [("TOP", "top"), ("MIDDLE", "mid"), ("BOTTOM", "bot")] {
         if intel.me.as_ref().is_some_and(|m| m.role == role) {
             continue;
         }
-        let ours = intel.players.iter().find(|p| p.is_ally && p.role == role);
-        let theirs = intel.players.iter().find(|p| !p.is_ally && p.role == role && !p.is_dead);
-        let (Some(o), Some(e)) = (ours, theirs) else { continue };
-        if !(o.is_dead && o.respawn_in > 10.0) {
-            continue;
-        }
-        // Only when the wave really comes our way (minimap dots: their wave on our side / under our
-        // tower) and he is not seen fighting one of us ("Darius pcha top" while he fought Fizz).
-        let wave_ours = f.waves.as_ref().and_then(|w| w.lanes.iter().find(|l| l.lane == lane)).is_some_and(|l| matches!(l.state.as_str(), "our_side" | "under_our_tower"));
-        let fighting = f.visible_enemies.iter().find(|v| v.champion == e.champion).is_some_and(|v| f.allies.iter().any(|a| (a.x - v.x).hypot(a.y - v.y) < 0.08));
-        // He must be at that lane: seen there, or the tracker puts him there (seen walking mid = no).
+        let Some(e) = intel.players.iter().find(|p| !p.is_ally && p.role == role && !p.is_dead) else { continue };
+        let Some(v) = f.visible_enemies.iter().find(|v| v.champion == e.champion) else { continue };
         let order_outer = match lane { "top" => (0.066, 0.298), "bot" => (0.706, 0.931), _ => (0.393, 0.570) };
-        let lane_pt = if my_team_t == Team::Order { order_outer } else { (1.0 - order_outer.0, 1.0 - order_outer.1) };
-        let at_lane = match f.visible_enemies.iter().find(|v| v.champion == e.champion) {
-            Some(v) => (v.x - lane_pt.0).hypot(v.y - lane_pt.1) < 0.2,
-            None => f.tracker.as_ref().and_then(|tr| tr.mass_near(&e.champion, lane_pt, 0.2)).is_some_and(|m| m > 0.5),
+        let tower = if my_team_t == Team::Order { order_outer } else { (1.0 - order_outer.0, 1.0 - order_outer.1) };
+        let d = (v.x - tower.0).hypot(v.y - tower.1);
+        // On his lane between the river and our tower (not walking mid, not in his base).
+        let on_lane = match lane {
+            "top" => if my_team_t == Team::Order { v.x < 0.2 || v.y < 0.2 } else { v.x > 0.8 || v.y > 0.8 },
+            "bot" => if my_team_t == Team::Order { v.x > 0.8 || v.y > 0.8 } else { v.x < 0.2 || v.y < 0.2 },
+            _ => (v.x - (1.0 - v.y)).abs() < 0.08,
         };
-        if !wave_ours || !at_lane || fighting || f.allies.iter().any(|a| a.champion == o.champion) {
+        if !on_lane || d > 0.35 {
             continue;
         }
-        let enemy_base = if my_team_t == Team::Order { (0.96, 0.04) } else { (0.04, 0.96) };
-        if f.visible_enemies.iter().any(|v| v.champion == e.champion && (v.x - enemy_base.0).hypot(v.y - enemy_base.1) < 0.2) {
+        let speed = v.vx.hypot(v.vy);
+        let heading = speed > 0.0008 && ((tower.0 - v.x) * v.vx + (tower.1 - v.y) * v.vy) / (d.max(1e-6) * speed) > 0.6;
+        let wave_ours = f.waves.as_ref().and_then(|w| w.lanes.iter().find(|l| l.lane == lane)).is_some_and(|l| matches!(l.state.as_str(), "our_side" | "under_our_tower"));
+        let guarded = f.allies.iter().any(|a| (a.x - v.x).hypot(a.y - v.y) < 0.25) || f.my_pos.is_some_and(|(x, y)| (x - v.x).hypot(y - v.y) < 0.25);
+        if guarded || !(wave_ours || heading) {
             continue;
         }
         let key = format!("{}@{lane}", e.champion);
@@ -1007,7 +1004,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         }
         f.push_seen.retain(|(k, _)| *k != key);
         f.push_seen.push((key, now));
-        f.toasts.push(Toast { id: now as u64 + 17 + f.toasts.len() as u64, kind: "push".into(), team: "enemy".into(), champion: Some(e.champion.clone()), text: format!("{} pewnie pcha {lane} — {} nie żyje {} s", e.champion, o.champion, o.respawn_in.round()), expires_at: now + 6000.0 });
+        f.toasts.push(Toast { id: now as u64 + 17 + f.toasts.len() as u64, kind: "push".into(), team: "enemy".into(), champion: Some(e.champion.clone()), text: format!("{} pcha {lane} pod naszą wieżę — nikt nie pilnuje", e.champion), expires_at: now + 6000.0 });
     }
     // Teamplay prompts (gank ask, follow-up, ...).
     let (allies_s, enemies_s) = (crate::knowledge::seen(&f.allies), crate::knowledge::seen(&f.visible_enemies));
