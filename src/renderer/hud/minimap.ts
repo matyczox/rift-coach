@@ -343,7 +343,7 @@ function frame(now: number): void {
       const base: Seg = { text: `${t.label} ${fmtClock(t.secondsLeft)}` };
       if (obj && !merged && objKind === t.kind) {
         merged = true;
-        pillSegs([base, ...objectiveSegs(obj, true)], t.x * W, t.y * H);
+        pillSegs([base], t.x * W, t.y * H);
       } else {
         pillSegs([base], t.x * W, t.y * H);
       }
@@ -359,7 +359,8 @@ function frame(now: number): void {
     // An alive objective's standing verdict ('WALCZ' at Herald while the fight was at Dragon) was noise:
     // only a 'go' and only when no fight / help arrow points elsewhere.
     const fightElsewhere = st.hints.some((h) => h.kind === 'move' && isLive(h.expiresAt, gt));
-    if (obj && !merged && obj.verdict === 'go' && !fightElsewhere) pillSegs(objectiveSegs(obj, false), obj.x * W, obj.y * H + Math.max(14, 0.07 * W));
+    // No verdict word at all ('IDŹ' / 'WALCZ' said nothing the arrow does not).
+    void fightElsewhere;
     for (const h of st.hints) if (isLive(h.expiresAt, gt)) drawHint(h, gt, now);
   }
 
