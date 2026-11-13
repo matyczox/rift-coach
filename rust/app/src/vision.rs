@@ -192,6 +192,8 @@ pub struct Field {
     pub my_pos_at: f64,
     /// Last trusted spot of my icon (kept when my_pos goes unknown): (x, y, Date.now() ms).
     pub my_last_real: Option<(f64, f64, f64)>,
+    /// My recent positions (game seconds, x, y), ~1 per second, last 15 s: where I am heading (roam).
+    pub my_trail: Vec<(f64, f64, f64)>,
     /// Last time my icon sat in the middle of the camera box (camera locked on me): Date.now() ms.
     pub cam_locked_at: f64,
     /// Last time my icon was seen AWAY from the camera box centre (camera unlocked / panned).
@@ -258,6 +260,7 @@ impl Field {
             my_pos: None,
             my_pos_at: 0.0,
             my_last_real: None,
+            my_trail: Vec::new(),
             cam_locked_at: 0.0,
             cam_unlocked_at: 0.0,
             cam_size: (0.268, 0.15),
@@ -1020,6 +1023,13 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             f.pos_src = "none";
         } else {
             f.pos_src = "held";
+        }
+    }
+    if let Some((x, y)) = f.my_pos.filter(|_| f.pos_src != "held") {
+        let t = intel.game_time;
+        if f.my_trail.last().is_none_or(|(at, _, _)| t - at >= 1.0 || t < *at) {
+            f.my_trail.retain(|(at, _, _)| t - at <= 15.0 && *at <= t);
+            f.my_trail.push((t, x, y));
         }
     }
     if let Some((x0, y0, x1, y1)) = r.camera_rect.filter(|(x0, y0, x1, y1)| *x0 > 0.01 && *y0 > 0.01 && *x1 < 0.99 && *y1 < 0.99) {

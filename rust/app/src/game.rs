@@ -228,6 +228,8 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
                     // Do I have a ward to place? Trinket type, Control Ward in inventory, last ward placed.
                     // Learned this game: their jungler / support habits (ganks per lane, side, start).
                     "enemyHabits": g.field.habits.iter().map(|(c, h)| (c.clone(), serde_json::json!(h.summary()))).collect::<serde_json::Map<_, _>>(),
+                    // Off my lane (not jungler, not in base): where I am heading, so wards / calls fit the roam.
+                    "roam": roam_info(g, i, red),
                     "myWards": i.me.as_ref().map(|m| {
                         let has = |id: i64| m.items.iter().any(|it| it.id == id);
                         let trinket = if has(3340) { "Stealth Ward" } else if has(3364) { "Oracle Lens" } else if has(3363) { "Farsight Alteration" } else { "brak" };
@@ -294,6 +296,39 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
 
 /// Where on Summoner's Rift a minimap point is, in words for the coach (it misread raw x/y: "Idź z
 /// Zaahenem na Dragon" while he was at Voidgrubs). Minimap: blue base bottom-left, y down.
+/// Distance of a minimap point from a lane's line (fractions of the map).
+fn lane_dist(lane: &str, x: f64, y: f64) -> f64 {
+    match lane {
+        "top" => x.min(y).max(0.0) - 0.07,
+        "bot" => (1.0 - x).min(1.0 - y).max(0.0) - 0.07,
+        _ => (x + y - 1.0).abs() / std::f64::consts::SQRT_2,
+    }
+    .abs()
+}
+
+/// I left my own lane (not jungler, alive, not in a base): {from, at, headingTo, towardLane, sec}.
+fn roam_info(g: &Game, i: &GameIntel, red: bool) -> Option<serde_json::Value> {
+    let me = i.me.as_ref().filter(|m| !m.is_dead)?;
+    let lane = match me.role.as_str() { "TOP" => "top", "MIDDLE" => "mid", "BOTTOM" | "UTILITY" => "bot", _ => return None };
+    let &(t, x, y) = g.field.my_trail.last()?;
+    let in_base = x.hypot(1.0 - y) < 0.22 || (1.0 - x).hypot(y) < 0.22;
+    if in_base || lane_dist(lane, x, y) < 0.13 || i.game_time - t > 3.0 {
+        return None;
+    }
+    // Direction from ~6 s ago; projected 10 s ahead.
+    let &(t0, x0, y0) = g.field.my_trail.iter().find(|(at, _, _)| t - at <= 8.0)?;
+    let dt = (t - t0).max(1.0);
+    let (vx, vy) = ((x - x0) / dt, (y - y0) / dt);
+    let moving = vx.hypot(vy) > 0.004;
+    let (px, py) = if moving { ((x + vx * 10.0).clamp(0.0, 1.0), (y + vy * 10.0).clamp(0.0, 1.0)) } else { (x, y) };
+    let toward = ["top", "mid", "bot"].into_iter().filter(|l| *l != lane).min_by(|a, b| lane_dist(a, px, py).total_cmp(&lane_dist(b, px, py)))?;
+    let off_since = g.field.my_trail.iter().rev().take_while(|(_, tx, ty)| lane_dist(lane, *tx, *ty) >= 0.13).last().map_or(0.0, |(at, _, _)| t - at);
+    Some(serde_json::json!({
+        "from": lane, "at": area_name(x, y, red), "headingTo": if moving { serde_json::json!(area_name(px, py, red)) } else { serde_json::Value::Null },
+        "towardLane": if moving { serde_json::json!(toward) } else { serde_json::Value::Null }, "offLaneSec": off_since.round(),
+    }))
+}
+
 pub fn area_name(x: f64, y: f64, red: bool) -> String {
     let (ours, theirs) = if red { ("wroga", "nasza") } else { ("nasza", "wroga") };
     let half = if x + y < 1.0 { "top" } else { "bot" };
