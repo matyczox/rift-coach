@@ -424,6 +424,10 @@ impl EnemyTracker {
         (total > 1e-12).then(|| pf.mass_near(q, r) / total)
     }
 
+    pub fn forecast_near(&self, champion:&str, q:(f64,f64), radius:f64, speed:f64) -> Option<(f64,u32)> {
+        self.tracks.iter().find(|t|t.pub_.champion==champion && t.pub_.state==TrackState::Fog)?.pf.as_ref()?.forecast_near(q,radius,speed,6)
+    }
+
     pub fn soft_hint(&mut self, champion: &str, q: (f64, f64)) {
         if let Some(tr) = self.tracks.iter_mut().find(|t| t.pub_.champion == champion && t.pub_.state == TrackState::Fog) {
             if let Some(pf) = tr.pf.as_mut() {

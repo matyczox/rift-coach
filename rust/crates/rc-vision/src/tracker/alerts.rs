@@ -38,6 +38,14 @@ pub fn gank_ready(t: &EnemyTrack, my_role: Option<Role>, game_time: f64) -> bool
     !lane_opp && age >= if t.role == Role::Jungle { 1.5 } else { 4.0 }
 }
 
+/// Early amber risk, distinct from an enemy inferred to be next to the player.
+pub fn forecast_warning(champion:&str, current:f64, forecast:(f64,u32), now:f64) -> Option<AlertState> {
+    let (mass,sec)=forecast;
+    if (1..=6).contains(&sec) && current<0.6 && mass>=0.4 && mass-current>=0.15 {
+        Some(AlertState {kind:AlertKind::Missing,text:format!("{champion}: możliwy gank w ciągu 6 s"),confidence:mass.min(0.9),expires_at:now+1800.0})
+    } else {None}
+}
+
 /// `near_me(champion)` = probability (all hypotheses) that the fogged enemy is within reach of me; when
 /// given it decides gank warnings, so the warning agrees with the zones drawn on the minimap.
 pub fn tracker_alerts(tracks: &[EnemyTrack], me: Option<(f64, f64)>, my_team: Team, my_role: Option<Role>, game_time: f64, now: f64, near_me: &dyn Fn(&str) -> Option<f64>) -> Vec<AlertState> {
@@ -94,6 +102,16 @@ mod tests {
             estimate:Some(Estimate { x:0.8,y:0.8,radius:0.03,confidence:0.9,spread:0.0 }),
             recalled_at:None, flash_suspect_at:None }
     }
+    #[test]
+    fn early_risk_precedes_close_gank_but_not_diffuse_uncertainty() {
+        let w=forecast_warning("Warwick",0.05,(0.65,4),1000.0).unwrap();
+        assert_eq!(w.kind,AlertKind::Missing);
+        assert!(w.text.contains("możliwy gank"));
+        assert!(forecast_warning("Warwick",0.05,(0.2,4),1000.0).is_none());
+        assert!(forecast_warning("Warwick",0.65,(0.8,2),1000.0).is_none());
+        assert!(forecast_warning("Warwick",0.4,(0.45,4),1000.0).is_none());
+    }
+
     #[test]
     fn bot_duo_are_lane_opponents_not_gankers() {
         assert!(!gank_ready(&track(Role::Bottom),Some(Role::Utility),110.0));

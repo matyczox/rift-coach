@@ -331,6 +331,32 @@ fn clamp01(v: f64) -> f64 {
 
 const NB8: [(i32, i32); 8] = [(1, 0), (-1, 0), (0, 1), (0, -1), (1, 1), (1, -1), (-1, 1), (-1, -1)];
 
+#[cfg(test)]
+mod forecast_tests {
+    use super::*;
+    fn filter(goal:(f64,f64))->ParticleFilter {
+        let mut f=ParticleFilter::new(Arc::new(GridTerrain::open(64)),vec![Goal {id:"route".into(),kind:GoalKind::LaneBot,x:goal.0,y:goal.1,neutral:false}],64);
+        f.reset((0.5,0.5),&PriorContext::default(),None,&mut Rng::new(1));
+        f.particles=vec![Particle{x:0.5,y:0.5,goal:0,w:1.0/64.0,arrived:false};64];
+        f
+    }
+    #[test]
+    fn forecasts_approach_and_preserves_live_filter() {
+        let f=filter((0.8,0.5));let before=f.particles.clone();
+        assert_eq!(f.mass_near((0.7,0.5),0.11),0.0);
+        let (mass,sec)=f.forecast_near((0.7,0.5),0.11,400.0,6).unwrap();
+        assert!(mass>0.6 && sec>0 && sec<=6);
+        assert_eq!(f.particles,before);
+        assert_eq!(f.forecast_near((0.7,0.5),0.11,400.0,6),Some((mass,sec)));
+    }
+    #[test]
+    fn walking_away_does_not_create_an_approach() {
+        let f=filter((0.1,0.5));
+        assert_eq!(f.forecast_near((0.7,0.5),0.11,400.0,6).unwrap().0,0.0);
+    }
+}
+
+#[derive(Clone)]
 pub struct ParticleFilter {
     pub particles: Vec<Particle>,
     terrain: Arc<GridTerrain>,
@@ -343,6 +369,21 @@ pub struct ParticleFilter {
 }
 
 impl ParticleFilter {
+    /// A read-only look ahead along the same terrain-aware particle paths.
+    /// Never changes the live filter, its RNG, observations, or learned weights.
+    pub fn forecast_near(&self, q: (f64,f64), radius:f64, speed:f64, horizon:u32) -> Option<(f64,u32)> {
+        let total:f64=self.particles.iter().map(|p|p.w).sum();
+        if total<=1e-12 { return None; }
+        let mut future=self.clone();
+        let mut rng=Rng::new(0x63a31);
+        let mut best=(self.mass_near(q,radius)/total,0);
+        for sec in 1..=horizon.min(8) {
+            future.step(1.0,speed,&mut rng);
+            let mass=future.mass_near(q,radius)/total;
+            if mass>best.0 {best=(mass,sec);}
+        }
+        Some(best)
+    }
     pub fn new(terrain: Arc<GridTerrain>, base_goals: Vec<Goal>, n: usize) -> ParticleFilter {
         let mut goals = base_goals;
         let fountain = goals.iter().find(|g| g.kind == GoalKind::Base).map(|g| (g.x, g.y)).unwrap_or((0.95, 0.05));

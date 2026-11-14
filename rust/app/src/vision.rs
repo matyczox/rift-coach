@@ -172,6 +172,8 @@ pub struct Field {
     pub ally_last: std::collections::HashMap<String, (f64, f64, f64)>,
     /// Fog "X invade" guess: (shown since, quiet until) in Date.now() ms.
     pub invade_guess: (f64, f64),
+    gank_forecast_at: f64,
+    gank_forecasts: Vec<rc_vision::tracker::alerts::AlertState>,
     /// Ally fights announced: (ally, Date.now() ms).
     pub fight_seen: Vec<(String, f64)>,
     /// Go help this ally (fight worth joining): (ally, until Date.now() ms) -> arrow on the minimap.
@@ -249,6 +251,8 @@ impl Field {
             push_seen: Vec::new(),
             fight_seen: Vec::new(),
             invade_guess: (0.0, 0.0),
+            gank_forecast_at: 0.0,
+            gank_forecasts: Vec::new(),
             ally_last: Default::default(),
             habits: Default::default(),
             push_stage: Default::default(),
@@ -322,6 +326,8 @@ impl Field {
         self.push_seen.clear();
         self.fight_seen.clear();
         self.invade_guess = (0.0, 0.0);
+        self.gank_forecast_at=0.0;
+        self.gank_forecasts.clear();
         self.ally_last.clear();
         self.habits.clear();
         self.push_stage.clear();
@@ -1467,12 +1473,31 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         });
     }
     let my_role = intel.me.as_ref().map(|m| rc_vision::tracker::Role::parse(&m.role));
+    // Forecast at most once a second; particle paths already include terrain and
+    // last heading. Keep this outside the fast per-frame alert path.
+    if now-f.gank_forecast_at>=1000.0 {
+        f.gank_forecast_at=now;
+        f.gank_forecasts.clear();
+        if let (Some(me),Some(tracker),true)=(f.my_pos,f.tracker.as_ref(),intel.me.as_ref().is_some_and(|m|!m.is_dead)) {
+            for tr in tracks.iter().filter(|tr|tr.state==TrackState::Fog && rc_vision::tracker::alerts::gank_ready(tr,my_role,t)) {
+                let Some(enemy)=intel.players.iter().find(|p|p.champion==tr.champion && !p.is_ally && !p.is_dead) else {continue};
+                let current=tracker.mass_near(&tr.champion,me,0.11).unwrap_or(0.0);
+                if let Some(future)=tracker.forecast_near(&tr.champion,me,0.11,enemy.move_speed) {
+                    if let Some(w)=rc_vision::tracker::alerts::forecast_warning(&tr.champion,current,future,now) {f.gank_forecasts.push(w);}
+                }
+            }
+        }
+    }
     let new_alerts = {
         let near_me = |c: &str| f.my_pos.and_then(|p| f.tracker.as_ref().and_then(|tr| tr.mass_near(c, p, 0.13)));
         let mut a = tracker_alerts(&tracks, f.my_pos, my_team_t, my_role, t, now, &near_me);
+        if a.is_empty() {
+            if let Some(w)=f.gank_forecasts.iter().filter(|w| w.expires_at>now && tracks.iter().any(|tr|tr.state==TrackState::Fog && w.text.starts_with(&format!("{}:",tr.champion))))
+                .max_by(|a,b|a.confidence.total_cmp(&b.confidence)) { a.push(w.clone()); }
+        }
         // C. Risk without a precise ghost (logs: deaths deep in their jungle with the jungler unseen 45 s,
         // and at 16% HP with Wukong walking in from the fog): warn on the situation, not on the guess.
-        let gank_shown = a.iter().any(|x| matches!(x.kind, rc_vision::tracker::alerts::AlertKind::Gank | rc_vision::tracker::alerts::AlertKind::Invade));
+        let gank_shown = !a.is_empty();
         if let (Some(me), false) = (f.my_pos, gank_shown) {
             let red = my_team_t != Team::Order;
             let their_half = if red { me.1 > me.0 + 0.04 } else { me.0 > me.1 + 0.04 };
