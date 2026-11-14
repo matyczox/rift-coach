@@ -432,7 +432,27 @@ pub fn power_bar_near(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dy
     // An enemy probably next to me but unseen (fog guess / live gank warning): never "sure win" - the bar
     // showed 95-100 % until the gank landed.
     let unseen_cap = if local && near.enemies.iter().any(|(_, sure)| !*sure) { 0.65 } else { 1.0 };
-    let p_me = sigmoid(base + tower + if local { nearby_delta(intel, primary, &near_adj) } else { 0.0 }).min(hp_cap).min(unseen_cap);
+    // Allies here: a group fight. Compare the whole group on each side (my own lane matchup against a fed
+    // enemy started a 4v1 at -4 and each ally added ~1: 2-10 % with four of us on Mordekaiser).
+    let alive: Vec<&PlayerIntel> = intel.players.iter().filter(|p| !p.is_dead).collect();
+    let n_alive = alive.len().max(1) as f64;
+    let (avg_lvl, avg_gold) = (alive.iter().map(|p| p.level as f64).sum::<f64>() / n_alive, alive.iter().map(|p| p.item_gold).sum::<f64>() / n_alive);
+    let find = |c: &str| alive.iter().copied().find(|p| p.champion == c);
+    let my_hp_now = Some(my_hp);
+    let allies_here: Vec<(&PlayerIntel, f64)> = near.allies.iter().filter_map(|c| find(c).filter(|p| p.is_ally && !p.is_me).map(|p| (p, if near.uncertain_allies.contains(c) { 0.7 } else { 1.0 }))).collect();
+    let core = if local && !allies_here.is_empty() {
+        let ours = unit_strength(me, avg_lvl, avg_gold, my_hp_now) + allies_here.iter().map(|(p, w)| w * unit_strength(p, avg_lvl, avg_gold, hp_eff(intel, p))).sum::<f64>();
+        let theirs = unit_strength(primary, avg_lvl, avg_gold, hp_eff(intel, primary))
+            + near_adj.enemies.iter().filter_map(|(c, sure)| find(c).filter(|p| !p.is_ally && p.champion != primary.champion).map(|p| unit_strength(p, avg_lvl, avg_gold, hp_eff(intel, p)) * if *sure { 1.0 } else { 0.8 })).sum::<f64>()
+            + near_adj.unknown_enemies as f64 * 0.8
+            + near_adj.enemies_coming.iter().filter_map(|c| find(c).filter(|p| !p.is_ally && p.champion != primary.champion)).map(|p| 0.5 * unit_strength(p, avg_lvl, avg_gold, hp_eff(intel, p))).sum::<f64>();
+        let ours = ours + near_adj.allies_coming.iter().filter_map(|c| find(c).filter(|p| p.is_ally && !p.is_me)).map(|p| 0.5 * unit_strength(p, avg_lvl, avg_gold, hp_eff(intel, p))).sum::<f64>();
+        // Log ratio of the two groups (4 vs 1 equal units ~ +2.2 -> ~90 %), plus a little of the 1v1 matchup.
+        1.6 * (ours.max(0.1) / theirs.max(0.1)).ln() + 0.25 * base
+    } else {
+        base + if local { nearby_delta(intel, primary, &near_adj) } else { 0.0 }
+    };
+    let p_me = sigmoid(core + tower).min(hp_cap).min(unseen_cap);
     // A NaN (bad screen reading somewhere) made the whole bar vanish (JSON has no NaN): log it, show 50 %.
     let p_me = if p_me.is_finite() {
         p_me
