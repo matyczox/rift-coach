@@ -173,13 +173,15 @@ impl Learner {
         if credit_total > 0.02 && prior_total > 0.0 {
             let key = format!("{}|{}", e.role.as_str(), phase_of(e.game_time));
             let m = self.model.multipliers.entry(key).or_default();
-            let lr = 0.25;
+            // Conservative updates and shrinkage prevent correlated labels from
+            // a single fog episode from overpowering the role/phase prior.
+            let lr = 0.08;
             let kinds: std::collections::BTreeSet<_> = e.credit.keys().chain(e.prior.keys()).copied().collect();
             for k in kinds {
                 let c = e.credit.get(&k).copied().unwrap_or(0.0) / credit_total;
                 let p = e.prior.get(&k).copied().unwrap_or(0.0) / prior_total;
                 let cur = m.get(&k).copied().unwrap_or(1.0);
-                m.insert(k, (cur * (lr * (c - p)).exp()).clamp(0.2, 5.0));
+                m.insert(k, (cur.ln() * 0.995 + lr * (c - p)).exp().clamp(0.2, 5.0));
             }
         }
         self.dirty = true;

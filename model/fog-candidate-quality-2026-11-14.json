@@ -1,0 +1,1993 @@
+{
+  "version": 1,
+  "multipliers": {
+    "MIDDLE|mid": {
+      "base": 0.9993522230539978,
+      "lane-top": 0.9900930995899668,
+      "lane-mid": 1.0062412231646851,
+      "baron": 0.9878293416477633,
+      "river": 1.0017650090848824,
+      "camp": 0.9970049775799366,
+      "stay": 0.9822867582342215,
+      "invade": 1.0045526477636912,
+      "dragon": 1.0171629031258516,
+      "lane-bot": 1.0142767869166405
+    },
+    "JUNGLE|mid": {
+      "base": 0.9823917589748866,
+      "lane-top": 1.0096444660171675,
+      "lane-mid": 0.984466543955943,
+      "baron": 1.0401774303729938,
+      "river": 0.9991573442971,
+      "camp": 1.0536962066055515,
+      "stay": 0.9980029302756476,
+      "invade": 0.9996849399719008,
+      "dragon": 0.9581132556594961,
+      "lane-bot": 0.9782757661344329
+    },
+    "TOP|early": {
+      "base": 0.9769115225636945,
+      "lane-top": 0.9835887417026318,
+      "lane-mid": 0.9977094343107477,
+      "baron": 0.9975932183049199,
+      "river": 1.0111606819013614,
+      "camp": 0.993810472271765,
+      "stay": 1.0374693453918877,
+      "invade": 1.0004619639188477,
+      "dragon": 1.0032732666321211,
+      "lane-bot": 0.9992758480452625
+    },
+    "UTILITY|late": {
+      "base": 0.9470359747213122,
+      "lane-top": 1.0432084639701578,
+      "lane-mid": 1.0014983706676999,
+      "baron": 0.9969072257981743,
+      "river": 1.006919197524856,
+      "camp": 0.995273822666851,
+      "stay": 0.9899974708180738,
+      "invade": 1.0003937486243841,
+      "dragon": 0.9722323192100042,
+      "lane-bot": 1.0501826337285567
+    },
+    "TOP|mid": {
+      "base": 0.9733662013872515,
+      "lane-top": 0.985986215056045,
+      "lane-mid": 0.9850330699748161,
+      "baron": 0.9881402071094958,
+      "river": 0.9971369327711963,
+      "camp": 0.9962217630386986,
+      "stay": 1.000481652821295,
+      "invade": 0.9986972599109942,
+      "dragon": 1.0209164279185126,
+      "lane-bot": 1.056440147726949
+    },
+    "BOTTOM|late": {
+      "base": 0.972858824651123,
+      "lane-top": 1.0210501316955654,
+      "lane-mid": 0.9952640542384721,
+      "baron": 1.00211864313694,
+      "river": 0.9983193174374956,
+      "camp": 1.0005934013819033,
+      "stay": 0.9949761504567909,
+      "invade": 1.0014166564962323,
+      "dragon": 0.984333484660975,
+      "lane-bot": 1.0303048062167637
+    },
+    "UTILITY|mid": {
+      "base": 0.9619889585977587,
+      "lane-top": 0.9710195083937626,
+      "lane-mid": 0.9811317658906591,
+      "baron": 0.9784027383381951,
+      "river": 0.9712476563132252,
+      "camp": 0.9883235162072336,
+      "stay": 1.111697063291548,
+      "invade": 1.0020915833467237,
+      "dragon": 0.9543936197288738,
+      "lane-bot": 1.0927387261296362
+    },
+    "JUNGLE|late": {
+      "base": 1.0193985684030764,
+      "lane-top": 0.98946269002542,
+      "lane-mid": 1.0043156857158277,
+      "baron": 0.9763064308427638,
+      "river": 0.9924951776395573,
+      "camp": 1.0155707063595885,
+      "stay": 1.0025239302394333,
+      "invade": 1.0033442198481894,
+      "dragon": 0.9528130496658005,
+      "lane-bot": 1.0466929695448528
+    },
+    "MIDDLE|late": {
+      "base": 1.0119931137105602,
+      "lane-top": 1.0277205747511906,
+      "lane-mid": 0.9972056386435378,
+      "baron": 1.001671871482625,
+      "river": 1.000082646809084,
+      "camp": 1.0178385125729674,
+      "stay": 0.9781426701489596,
+      "invade": 1.0007754403985016,
+      "dragon": 0.9779803963153877,
+      "lane-bot": 0.9877533818914703
+    },
+    "TOP|late": {
+      "base": 1.0095147697550362,
+      "lane-top": 1.0539157392850667,
+      "lane-mid": 0.9968098181985855,
+      "baron": 0.9961986811109852,
+      "river": 1.0112891784945754,
+      "camp": 0.999114103519557,
+      "stay": 0.9796899400676812,
+      "invade": 0.9975126602499585,
+      "dragon": 0.9850706056217405,
+      "lane-bot": 0.973146384483263
+    },
+    "BOTTOM|mid": {
+      "base": 0.9709090894554007,
+      "lane-top": 0.981531528880585,
+      "lane-mid": 0.9848381341705115,
+      "baron": 0.9912147427935313,
+      "river": 0.99451674752178,
+      "camp": 0.998752143168086,
+      "stay": 0.9849094454667221,
+      "invade": 0.9995524478445056,
+      "dragon": 0.9616704657379128,
+      "lane-bot": 1.1427643874953202
+    },
+    "BOTTOM|early": {
+      "base": 0.9664221090537225,
+      "lane-top": 0.9989136210354927,
+      "lane-mid": 0.9915375412422381,
+      "baron": 0.9973748865040946,
+      "river": 0.9965078317095978,
+      "camp": 0.9949161755530866,
+      "stay": 1.0854699128096144,
+      "invade": 0.9990134400694537,
+      "dragon": 0.9616420187484184,
+      "lane-bot": 1.0143216621468345
+    },
+    "MIDDLE|early": {
+      "base": 0.9896799980834147,
+      "lane-top": 0.9751989835772217,
+      "lane-mid": 1.0551991710817021,
+      "baron": 0.9985375344936634,
+      "river": 1.008381453150731,
+      "camp": 0.9814844087682711,
+      "stay": 1.0388359546538484,
+      "invade": 1.0015954724286042,
+      "dragon": 0.9807832802935421,
+      "lane-bot": 0.9736297259222692
+    },
+    "JUNGLE|early": {
+      "base": 1.00571206720343,
+      "lane-top": 1.0086717451071407,
+      "lane-mid": 0.9883527750141934,
+      "baron": 1.010678883631253,
+      "river": 0.985027440551552,
+      "camp": 1.0193812842933618,
+      "stay": 1.0158967352815944,
+      "invade": 0.9939185628666671,
+      "dragon": 1.0110027333976677,
+      "lane-bot": 0.9626986583095121
+    },
+    "UTILITY|early": {
+      "base": 0.963937476587716,
+      "lane-top": 0.9964147285401351,
+      "lane-mid": 0.9898698806658557,
+      "baron": 0.9945066290088947,
+      "river": 0.9650098887657813,
+      "camp": 0.9888017473678076,
+      "stay": 1.048021540730792,
+      "invade": 1.0007709047122249,
+      "dragon": 0.9964697788382397,
+      "lane-bot": 1.0606694067242308
+    }
+  },
+  "score": {
+    "n": 1417,
+    "logModel": -5054.256967097282,
+    "logBaseline": -4714.674739033825,
+    "hits": 770
+  },
+  "recent": [
+    {
+      "at": 1794681542500.0,
+      "champion": "Malphite",
+      "gapSec": 3.0,
+      "model": 0.465,
+      "baseline": 0.831,
+      "errorPred": 0.047,
+      "errorBase": 0.016
+    },
+    {
+      "at": 1794681542478.0,
+      "champion": "Rakan",
+      "gapSec": 25.0,
+      "model": -0.0,
+      "baseline": 0.001,
+      "errorPred": 0.232,
+      "errorBase": 0.728
+    },
+    {
+      "at": 1794681542475.0,
+      "champion": "Yone",
+      "gapSec": 3.0,
+      "model": 0.244,
+      "baseline": 0.366,
+      "errorPred": 0.07,
+      "errorBase": 0.05
+    },
+    {
+      "at": 1794681542465.0,
+      "champion": "Malphite",
+      "gapSec": 3.0,
+      "model": -0.0,
+      "baseline": 0.016,
+      "errorPred": 0.159,
+      "errorBase": 0.121
+    },
+    {
+      "at": 1794681542448.0,
+      "champion": "Rakan",
+      "gapSec": 14.0,
+      "model": 0.083,
+      "baseline": 0.002,
+      "errorPred": 0.28,
+      "errorBase": 0.408
+    },
+    {
+      "at": 1794681542417.0,
+      "champion": "Rakan",
+      "gapSec": 4.0,
+      "model": -0.0,
+      "baseline": 0.566,
+      "errorPred": 0.209,
+      "errorBase": 0.0
+    },
+    {
+      "at": 1794681542413.0,
+      "champion": "Malphite",
+      "gapSec": 3.0,
+      "model": 0.035,
+      "baseline": 0.042,
+      "errorPred": 0.12,
+      "errorBase": 0.103
+    },
+    {
+      "at": 1794681542380.0,
+      "champion": "Yone",
+      "gapSec": 10.0,
+      "model": -0.0,
+      "baseline": 0.01,
+      "errorPred": 0.215,
+      "errorBase": 0.268
+    },
+    {
+      "at": 1794681542378.0,
+      "champion": "Malphite",
+      "gapSec": 4.0,
+      "model": -0.0,
+      "baseline": 0.065,
+      "errorPred": 0.094,
+      "errorBase": 0.106
+    },
+    {
+      "at": 1794681542375.0,
+      "champion": "Malphite",
+      "gapSec": 3.0,
+      "model": 0.099,
+      "baseline": 0.079,
+      "errorPred": 0.072,
+      "errorBase": 0.082
+    },
+    {
+      "at": 1794681542342.0,
+      "champion": "Yone",
+      "gapSec": 7.0,
+      "model": -0.0,
+      "baseline": 0.031,
+      "errorPred": 0.229,
+      "errorBase": 0.159
+    },
+    {
+      "at": 1794681542324.0,
+      "champion": "Malphite",
+      "gapSec": 6.0,
+      "model": 0.384,
+      "baseline": 0.084,
+      "errorPred": 0.042,
+      "errorBase": 0.104
+    },
+    {
+      "at": 1794681542317.0,
+      "champion": "Malphite",
+      "gapSec": 3.0,
+      "model": 0.575,
+      "baseline": 0.271,
+      "errorPred": 0.022,
+      "errorBase": 0.058
+    },
+    {
+      "at": 1794681542313.0,
+      "champion": "Yone",
+      "gapSec": 12.0,
+      "model": -0.0,
+      "baseline": 0.042,
+      "errorPred": 0.299,
+      "errorBase": 0.097
+    },
+    {
+      "at": 1794681542294.0,
+      "champion": "Xayah",
+      "gapSec": 3.0,
+      "model": 0.274,
+      "baseline": 0.096,
+      "errorPred": 0.077,
+      "errorBase": 0.079
+    },
+    {
+      "at": 1794681542292.0,
+      "champion": "Yone",
+      "gapSec": 5.0,
+      "model": -0.0,
+      "baseline": 0.015,
+      "errorPred": 0.192,
+      "errorBase": 0.144
+    },
+    {
+      "at": 1794681542281.0,
+      "champion": "Malphite",
+      "gapSec": 5.0,
+      "model": 0.645,
+      "baseline": 0.088,
+      "errorPred": 0.039,
+      "errorBase": 0.101
+    },
+    {
+      "at": 1794681542279.0,
+      "champion": "Hecarim",
+      "gapSec": 5.0,
+      "model": -0.0,
+      "baseline": 0.075,
+      "errorPred": 0.155,
+      "errorBase": 0.108
+    },
+    {
+      "at": 1794681542276.0,
+      "champion": "Malphite",
+      "gapSec": 3.0,
+      "model": 0.637,
+      "baseline": 0.189,
+      "errorPred": 0.022,
+      "errorBase": 0.066
+    },
+    {
+      "at": 1794681542273.0,
+      "champion": "Xayah",
+      "gapSec": 3.0,
+      "model": 0.711,
+      "baseline": 0.614,
+      "errorPred": 0.034,
+      "errorBase": 0.032
+    },
+    {
+      "at": 1794681542258.0,
+      "champion": "Xayah",
+      "gapSec": 6.0,
+      "model": 0.815,
+      "baseline": 0.282,
+      "errorPred": 0.003,
+      "errorBase": 0.015
+    },
+    {
+      "at": 1794681542242.0,
+      "champion": "Malphite",
+      "gapSec": 4.0,
+      "model": 0.34,
+      "baseline": 0.162,
+      "errorPred": 0.072,
+      "errorBase": 0.075
+    },
+    {
+      "at": 1794681542240.0,
+      "champion": "Malphite",
+      "gapSec": 3.0,
+      "model": 0.364,
+      "baseline": 0.217,
+      "errorPred": 0.059,
+      "errorBase": 0.063
+    },
+    {
+      "at": 1794681542240.0,
+      "champion": "Xayah",
+      "gapSec": 5.0,
+      "model": 0.181,
+      "baseline": 0.037,
+      "errorPred": 0.059,
+      "errorBase": 0.122
+    },
+    {
+      "at": 1794681542240.0,
+      "champion": "Yone",
+      "gapSec": 4.0,
+      "model": -0.0,
+      "baseline": 0.008,
+      "errorPred": 0.098,
+      "errorBase": 0.147
+    },
+    {
+      "at": 1794681542240.0,
+      "champion": "Hecarim",
+      "gapSec": 14.0,
+      "model": 0.003,
+      "baseline": 0.031,
+      "errorPred": 0.19,
+      "errorBase": 0.108
+    },
+    {
+      "at": 1794681542238.0,
+      "champion": "Xayah",
+      "gapSec": 4.0,
+      "model": 0.3,
+      "baseline": 0.023,
+      "errorPred": 0.056,
+      "errorBase": 0.119
+    },
+    {
+      "at": 1794681542237.0,
+      "champion": "Yone",
+      "gapSec": 3.0,
+      "model": -0.0,
+      "baseline": 0.004,
+      "errorPred": 0.073,
+      "errorBase": 0.123
+    },
+    {
+      "at": 1794681542209.0,
+      "champion": "Hecarim",
+      "gapSec": 3.0,
+      "model": 0.007,
+      "baseline": 0.01,
+      "errorPred": 0.101,
+      "errorBase": 0.11
+    },
+    {
+      "at": 1794681542204.0,
+      "champion": "Yone",
+      "gapSec": 5.0,
+      "model": 0.087,
+      "baseline": 0.096,
+      "errorPred": 0.12,
+      "errorBase": 0.098
+    },
+    {
+      "at": 1794681542197.0,
+      "champion": "Yone",
+      "gapSec": 3.0,
+      "model": 0.011,
+      "baseline": 0.012,
+      "errorPred": 0.09,
+      "errorBase": 0.108
+    },
+    {
+      "at": 1794681542196.0,
+      "champion": "Malphite",
+      "gapSec": 4.0,
+      "model": 0.003,
+      "baseline": 0.027,
+      "errorPred": 0.082,
+      "errorBase": 0.127
+    },
+    {
+      "at": 1794681542195.0,
+      "champion": "Malphite",
+      "gapSec": 3.0,
+      "model": 0.325,
+      "baseline": 0.012,
+      "errorPred": 0.063,
+      "errorBase": 0.108
+    },
+    {
+      "at": 1794681542186.0,
+      "champion": "Yone",
+      "gapSec": 3.0,
+      "model": -0.0,
+      "baseline": 0.008,
+      "errorPred": 0.098,
+      "errorBase": 0.128
+    },
+    {
+      "at": 1794681542177.0,
+      "champion": "Rakan",
+      "gapSec": 15.0,
+      "model": -0.0,
+      "baseline": 0.015,
+      "errorPred": 0.364,
+      "errorBase": 0.243
+    },
+    {
+      "at": 1794681542173.0,
+      "champion": "Rakan",
+      "gapSec": 14.0,
+      "model": 0.013,
+      "baseline": 0.019,
+      "errorPred": 0.343,
+      "errorBase": 0.219
+    },
+    {
+      "at": 1794681542164.0,
+      "champion": "Hecarim",
+      "gapSec": 13.0,
+      "model": 0.049,
+      "baseline": 0.011,
+      "errorPred": 0.184,
+      "errorBase": 0.282
+    },
+    {
+      "at": 1794681542162.0,
+      "champion": "Xayah",
+      "gapSec": 13.0,
+      "model": 0.022,
+      "baseline": 0.022,
+      "errorPred": 0.269,
+      "errorBase": 0.202
+    },
+    {
+      "at": 1794681542135.0,
+      "champion": "Rakan",
+      "gapSec": 3.0,
+      "model": 0.769,
+      "baseline": 0.409,
+      "errorPred": 0.02,
+      "errorBase": 0.047
+    },
+    {
+      "at": 1794681542135.0,
+      "champion": "Hecarim",
+      "gapSec": 5.0,
+      "model": 0.435,
+      "baseline": 0.065,
+      "errorPred": 0.012,
+      "errorBase": 0.112
+    },
+    {
+      "at": 1794681542124.0,
+      "champion": "Xayah",
+      "gapSec": 4.0,
+      "model": 0.038,
+      "baseline": 0.074,
+      "errorPred": 0.081,
+      "errorBase": 0.095
+    },
+    {
+      "at": 1794681542118.0,
+      "champion": "Rakan",
+      "gapSec": 12.0,
+      "model": 0.466,
+      "baseline": 0.058,
+      "errorPred": 0.027,
+      "errorBase": 0.015
+    },
+    {
+      "at": 1794681542088.0,
+      "champion": "Rakan",
+      "gapSec": 3.0,
+      "model": 0.595,
+      "baseline": 0.791,
+      "errorPred": 0.014,
+      "errorBase": 0.004
+    },
+    {
+      "at": 1794681542079.0,
+      "champion": "Rakan",
+      "gapSec": 4.0,
+      "model": 0.722,
+      "baseline": 0.227,
+      "errorPred": 0.055,
+      "errorBase": 0.063
+    },
+    {
+      "at": 1794681542076.0,
+      "champion": "Xayah",
+      "gapSec": 7.0,
+      "model": 0.152,
+      "baseline": 0.121,
+      "errorPred": 0.09,
+      "errorBase": 0.082
+    },
+    {
+      "at": 1794681542051.0,
+      "champion": "Xayah",
+      "gapSec": 6.0,
+      "model": -0.0,
+      "baseline": 0.015,
+      "errorPred": 0.101,
+      "errorBase": 0.173
+    },
+    {
+      "at": 1794681542024.0,
+      "champion": "Hecarim",
+      "gapSec": 16.0,
+      "model": -0.0,
+      "baseline": 0.012,
+      "errorPred": 0.332,
+      "errorBase": 0.273
+    },
+    {
+      "at": 1794681541975.0,
+      "champion": "Rakan",
+      "gapSec": 6.0,
+      "model": 0.004,
+      "baseline": 0.004,
+      "errorPred": 0.132,
+      "errorBase": 0.226
+    },
+    {
+      "at": 1794681541971.0,
+      "champion": "Xayah",
+      "gapSec": 5.0,
+      "model": 0.106,
+      "baseline": 0.0,
+      "errorPred": 0.143,
+      "errorBase": 0.23
+    },
+    {
+      "at": 1794681541967.0,
+      "champion": "Rakan",
+      "gapSec": 3.0,
+      "model": 0.205,
+      "baseline": 0.0,
+      "errorPred": 0.112,
+      "errorBase": 0.17
+    },
+    {
+      "at": 1794681541942.0,
+      "champion": "Hecarim",
+      "gapSec": 3.0,
+      "model": 0.097,
+      "baseline": 0.114,
+      "errorPred": 0.096,
+      "errorBase": 0.078
+    },
+    {
+      "at": 1794681541932.0,
+      "champion": "Malphite",
+      "gapSec": 20.0,
+      "model": -0.0,
+      "baseline": 0.014,
+      "errorPred": 0.374,
+      "errorBase": 0.192
+    },
+    {
+      "at": 1794681541901.0,
+      "champion": "Malphite",
+      "gapSec": 8.0,
+      "model": 0.0,
+      "baseline": 0.11,
+      "errorPred": 0.211,
+      "errorBase": 0.069
+    },
+    {
+      "at": 1794681541881.0,
+      "champion": "Hecarim",
+      "gapSec": 7.0,
+      "model": 0.002,
+      "baseline": 0.043,
+      "errorPred": 0.244,
+      "errorBase": 0.145
+    },
+    {
+      "at": 1794681541860.0,
+      "champion": "Hecarim",
+      "gapSec": 12.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.159,
+      "errorBase": 0.562
+    },
+    {
+      "at": 1794681541856.0,
+      "champion": "Malphite",
+      "gapSec": 45.0,
+      "model": 0.0,
+      "baseline": 0.003,
+      "errorPred": 0.385,
+      "errorBase": 0.138
+    },
+    {
+      "at": 1794681541837.0,
+      "champion": "Hecarim",
+      "gapSec": 3.0,
+      "model": 0.403,
+      "baseline": 0.0,
+      "errorPred": 0.028,
+      "errorBase": 0.204
+    },
+    {
+      "at": 1794681541831.0,
+      "champion": "Yone",
+      "gapSec": 29.0,
+      "model": -0.0,
+      "baseline": 0.008,
+      "errorPred": 0.26,
+      "errorBase": 0.068
+    },
+    {
+      "at": 1794681541816.0,
+      "champion": "Yone",
+      "gapSec": 24.0,
+      "model": 0.003,
+      "baseline": 0.011,
+      "errorPred": 0.322,
+      "errorBase": 0.226
+    },
+    {
+      "at": 1794681541796.0,
+      "champion": "Malphite",
+      "gapSec": 24.0,
+      "model": 0.004,
+      "baseline": 0.008,
+      "errorPred": 0.225,
+      "errorBase": 0.338
+    },
+    {
+      "at": 1794681541784.0,
+      "champion": "Yone",
+      "gapSec": 14.0,
+      "model": 0.068,
+      "baseline": 0.0,
+      "errorPred": 0.66,
+      "errorBase": 0.618
+    },
+    {
+      "at": 1794681541763.0,
+      "champion": "Malphite",
+      "gapSec": 14.0,
+      "model": 0.001,
+      "baseline": 0.031,
+      "errorPred": 0.151,
+      "errorBase": 0.155
+    },
+    {
+      "at": 1794681541748.0,
+      "champion": "Yone",
+      "gapSec": 3.0,
+      "model": 0.194,
+      "baseline": 0.349,
+      "errorPred": 0.074,
+      "errorBase": 0.051
+    },
+    {
+      "at": 1794681541733.0,
+      "champion": "Rakan",
+      "gapSec": 5.0,
+      "model": -0.0,
+      "baseline": 0.031,
+      "errorPred": 0.111,
+      "errorBase": 0.144
+    },
+    {
+      "at": 1794681541731.0,
+      "champion": "Xayah",
+      "gapSec": 20.0,
+      "model": -0.0,
+      "baseline": 0.006,
+      "errorPred": 0.272,
+      "errorBase": 0.391
+    },
+    {
+      "at": 1794681541729.0,
+      "champion": "Malphite",
+      "gapSec": 3.0,
+      "model": 0.781,
+      "baseline": 0.576,
+      "errorPred": 0.017,
+      "errorBase": 0.036
+    },
+    {
+      "at": 1794681541726.0,
+      "champion": "Rakan",
+      "gapSec": 3.0,
+      "model": 0.017,
+      "baseline": 0.065,
+      "errorPred": 0.087,
+      "errorBase": 0.082
+    },
+    {
+      "at": 1794681541717.0,
+      "champion": "Yone",
+      "gapSec": 9.0,
+      "model": 0.001,
+      "baseline": 0.071,
+      "errorPred": 0.118,
+      "errorBase": 0.088
+    },
+    {
+      "at": 1794681541708.0,
+      "champion": "Malphite",
+      "gapSec": 6.0,
+      "model": -0.0,
+      "baseline": 0.003,
+      "errorPred": 0.265,
+      "errorBase": 0.219
+    },
+    {
+      "at": 1794681541701.0,
+      "champion": "Yone",
+      "gapSec": 3.0,
+      "model": 0.243,
+      "baseline": 0.446,
+      "errorPred": 0.061,
+      "errorBase": 0.044
+    },
+    {
+      "at": 1794681541701.0,
+      "champion": "Rakan",
+      "gapSec": 7.0,
+      "model": 0.028,
+      "baseline": 0.027,
+      "errorPred": 0.144,
+      "errorBase": 0.163
+    },
+    {
+      "at": 1794681541689.0,
+      "champion": "Rakan",
+      "gapSec": 3.0,
+      "model": 0.074,
+      "baseline": 0.065,
+      "errorPred": 0.08,
+      "errorBase": 0.087
+    },
+    {
+      "at": 1794681541684.0,
+      "champion": "Malphite",
+      "gapSec": 3.0,
+      "model": 0.071,
+      "baseline": 0.0,
+      "errorPred": 0.105,
+      "errorBase": 0.166
+    },
+    {
+      "at": 1794681541682.0,
+      "champion": "Yone",
+      "gapSec": 6.0,
+      "model": 0.906,
+      "baseline": 0.162,
+      "errorPred": 0.023,
+      "errorBase": 0.063
+    },
+    {
+      "at": 1794681541659.0,
+      "champion": "Yone",
+      "gapSec": 4.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.224,
+      "errorBase": 0.217
+    },
+    {
+      "at": 1794681541657.0,
+      "champion": "Yone",
+      "gapSec": 3.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.178,
+      "errorBase": 0.172
+    },
+    {
+      "at": 1794681541653.0,
+      "champion": "Rakan",
+      "gapSec": 4.0,
+      "model": 0.022,
+      "baseline": 0.061,
+      "errorPred": 0.112,
+      "errorBase": 0.103
+    },
+    {
+      "at": 1794681541651.0,
+      "champion": "Rakan",
+      "gapSec": 3.0,
+      "model": 0.372,
+      "baseline": 0.046,
+      "errorPred": 0.1,
+      "errorBase": 0.091
+    },
+    {
+      "at": 1794681541648.0,
+      "champion": "Yone",
+      "gapSec": 3.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.145,
+      "errorBase": 0.171
+    },
+    {
+      "at": 1794681541639.0,
+      "champion": "Rakan",
+      "gapSec": 23.0,
+      "model": -0.0,
+      "baseline": 0.008,
+      "errorPred": 0.335,
+      "errorBase": 0.336
+    },
+    {
+      "at": 1794681541633.0,
+      "champion": "Yone",
+      "gapSec": 7.0,
+      "model": 0.061,
+      "baseline": 0.046,
+      "errorPred": 0.091,
+      "errorBase": 0.142
+    },
+    {
+      "at": 1794681541631.0,
+      "champion": "Xayah",
+      "gapSec": 4.0,
+      "model": 0.073,
+      "baseline": 0.069,
+      "errorPred": 0.093,
+      "errorBase": 0.094
+    },
+    {
+      "at": 1794681541620.0,
+      "champion": "Yone",
+      "gapSec": 3.0,
+      "model": 0.271,
+      "baseline": 0.095,
+      "errorPred": 0.064,
+      "errorBase": 0.079
+    },
+    {
+      "at": 1794681541614.0,
+      "champion": "Rakan",
+      "gapSec": 14.0,
+      "model": -0.0,
+      "baseline": 0.027,
+      "errorPred": 0.176,
+      "errorBase": 0.173
+    },
+    {
+      "at": 1794681541611.0,
+      "champion": "Xayah",
+      "gapSec": 6.0,
+      "model": 0.003,
+      "baseline": 0.0,
+      "errorPred": 0.349,
+      "errorBase": 0.285
+    },
+    {
+      "at": 1794681541601.0,
+      "champion": "Xayah",
+      "gapSec": 3.0,
+      "model": 0.009,
+      "baseline": 0.0,
+      "errorPred": 0.231,
+      "errorBase": 0.188
+    },
+    {
+      "at": 1794681541591.0,
+      "champion": "Yone",
+      "gapSec": 5.0,
+      "model": 0.335,
+      "baseline": 0.033,
+      "errorPred": 0.055,
+      "errorBase": 0.138
+    },
+    {
+      "at": 1794681541587.0,
+      "champion": "Yone",
+      "gapSec": 3.0,
+      "model": 0.578,
+      "baseline": 0.018,
+      "errorPred": 0.048,
+      "errorBase": 0.109
+    },
+    {
+      "at": 1794681541579.0,
+      "champion": "Rakan",
+      "gapSec": 3.0,
+      "model": 0.169,
+      "baseline": 0.051,
+      "errorPred": 0.101,
+      "errorBase": 0.092
+    },
+    {
+      "at": 1794681541564.0,
+      "champion": "Yone",
+      "gapSec": 5.0,
+      "model": 0.328,
+      "baseline": 0.168,
+      "errorPred": 0.059,
+      "errorBase": 0.07
+    },
+    {
+      "at": 1794681541527.0,
+      "champion": "Hecarim",
+      "gapSec": 14.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.756,
+      "errorBase": 0.974
+    },
+    {
+      "at": 1794681541497.0,
+      "champion": "Hecarim",
+      "gapSec": 3.0,
+      "model": 0.149,
+      "baseline": 0.105,
+      "errorPred": 0.058,
+      "errorBase": 0.076
+    },
+    {
+      "at": 1794681541458.0,
+      "champion": "Malphite",
+      "gapSec": 11.0,
+      "model": -0.0,
+      "baseline": 0.035,
+      "errorPred": 0.327,
+      "errorBase": 0.152
+    },
+    {
+      "at": 1794681541440.0,
+      "champion": "Malphite",
+      "gapSec": 3.0,
+      "model": 0.259,
+      "baseline": 0.229,
+      "errorPred": 0.065,
+      "errorBase": 0.062
+    },
+    {
+      "at": 1794681541425.0,
+      "champion": "Malphite",
+      "gapSec": 11.0,
+      "model": -0.0,
+      "baseline": 0.012,
+      "errorPred": 0.3,
+      "errorBase": 0.258
+    },
+    {
+      "at": 1794681541401.0,
+      "champion": "Malphite",
+      "gapSec": 3.0,
+      "model": 0.643,
+      "baseline": 0.158,
+      "errorPred": 0.035,
+      "errorBase": 0.069
+    },
+    {
+      "at": 1794681541396.0,
+      "champion": "Xayah",
+      "gapSec": 3.0,
+      "model": 0.442,
+      "baseline": 0.103,
+      "errorPred": 0.055,
+      "errorBase": 0.078
+    },
+    {
+      "at": 1794681541391.0,
+      "champion": "Malphite",
+      "gapSec": 66.0,
+      "model": 0.003,
+      "baseline": 0.002,
+      "errorPred": 0.427,
+      "errorBase": 0.352
+    },
+    {
+      "at": 1794681541353.0,
+      "champion": "Xayah",
+      "gapSec": 54.0,
+      "model": -0.0,
+      "baseline": 0.002,
+      "errorPred": 0.113,
+      "errorBase": 0.734
+    },
+    {
+      "at": 1794681541349.0,
+      "champion": "Rakan",
+      "gapSec": 7.0,
+      "model": 0.104,
+      "baseline": 0.141,
+      "errorPred": 0.057,
+      "errorBase": 0.03
+    },
+    {
+      "at": 1794681541342.0,
+      "champion": "Hecarim",
+      "gapSec": 6.0,
+      "model": -0.0,
+      "baseline": 0.008,
+      "errorPred": 0.211,
+      "errorBase": 0.211
+    },
+    {
+      "at": 1794681541333.0,
+      "champion": "Rakan",
+      "gapSec": 3.0,
+      "model": 0.599,
+      "baseline": 0.29,
+      "errorPred": 0.026,
+      "errorBase": 0.056
+    },
+    {
+      "at": 1794681541329.0,
+      "champion": "Hecarim",
+      "gapSec": 3.0,
+      "model": 0.083,
+      "baseline": 0.029,
+      "errorPred": 0.1,
+      "errorBase": 0.098
+    },
+    {
+      "at": 1794681541306.0,
+      "champion": "Yone",
+      "gapSec": 14.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.341,
+      "errorBase": 0.578
+    },
+    {
+      "at": 1794681541293.0,
+      "champion": "Hecarim",
+      "gapSec": 6.0,
+      "model": 0.081,
+      "baseline": 0.045,
+      "errorPred": 0.108,
+      "errorBase": 0.135
+    },
+    {
+      "at": 1794681541285.0,
+      "champion": "Hecarim",
+      "gapSec": 3.0,
+      "model": 0.206,
+      "baseline": 0.139,
+      "errorPred": 0.066,
+      "errorBase": 0.073
+    },
+    {
+      "at": 1794681541285.0,
+      "champion": "Rakan",
+      "gapSec": 39.0,
+      "model": 0.004,
+      "baseline": 0.005,
+      "errorPred": 0.182,
+      "errorBase": 0.194
+    },
+    {
+      "at": 1794681541232.0,
+      "champion": "Rakan",
+      "gapSec": 24.0,
+      "model": 0.027,
+      "baseline": 0.012,
+      "errorPred": 0.184,
+      "errorBase": 0.216
+    },
+    {
+      "at": 1794681541229.0,
+      "champion": "Hecarim",
+      "gapSec": 8.0,
+      "model": 0.016,
+      "baseline": 0.073,
+      "errorPred": 0.079,
+      "errorBase": 0.095
+    },
+    {
+      "at": 1794681541218.0,
+      "champion": "Hecarim",
+      "gapSec": 5.0,
+      "model": 0.003,
+      "baseline": 0.051,
+      "errorPred": 0.079,
+      "errorBase": 0.114
+    },
+    {
+      "at": 1794681541218.0,
+      "champion": "Malphite",
+      "gapSec": 20.0,
+      "model": 0.057,
+      "baseline": 0.014,
+      "errorPred": 0.082,
+      "errorBase": 0.235
+    },
+    {
+      "at": 1794681541213.0,
+      "champion": "Yone",
+      "gapSec": 24.0,
+      "model": 0.086,
+      "baseline": 0.011,
+      "errorPred": 0.458,
+      "errorBase": 0.235
+    },
+    {
+      "at": 1794681541197.0,
+      "champion": "Hecarim",
+      "gapSec": 8.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.213,
+      "errorBase": 0.401
+    },
+    {
+      "at": 1794681541195.0,
+      "champion": "Rakan",
+      "gapSec": 14.0,
+      "model": 0.051,
+      "baseline": 0.019,
+      "errorPred": 0.239,
+      "errorBase": 0.222
+    },
+    {
+      "at": 1794681541178.0,
+      "champion": "Hecarim",
+      "gapSec": 3.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.136,
+      "errorBase": 0.198
+    },
+    {
+      "at": 1794681541171.0,
+      "champion": "Yone",
+      "gapSec": 14.0,
+      "model": 0.137,
+      "baseline": 0.014,
+      "errorPred": 0.249,
+      "errorBase": 0.249
+    },
+    {
+      "at": 1794681541157.0,
+      "champion": "Xayah",
+      "gapSec": 3.0,
+      "model": 0.26,
+      "baseline": 0.861,
+      "errorPred": 0.048,
+      "errorBase": 0.015
+    },
+    {
+      "at": 1794681541155.0,
+      "champion": "Rakan",
+      "gapSec": 3.0,
+      "model": 0.187,
+      "baseline": 0.074,
+      "errorPred": 0.106,
+      "errorBase": 0.083
+    },
+    {
+      "at": 1794681541154.0,
+      "champion": "Malphite",
+      "gapSec": 3.0,
+      "model": 0.568,
+      "baseline": 0.073,
+      "errorPred": 0.033,
+      "errorBase": 0.083
+    },
+    {
+      "at": 1794681541132.0,
+      "champion": "Yone",
+      "gapSec": 3.0,
+      "model": 0.629,
+      "baseline": 0.49,
+      "errorPred": 0.028,
+      "errorBase": 0.04
+    },
+    {
+      "at": 1794681541129.0,
+      "champion": "Rakan",
+      "gapSec": 14.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.622,
+      "errorBase": 0.549
+    },
+    {
+      "at": 1794681541122.0,
+      "champion": "Xayah",
+      "gapSec": 3.0,
+      "model": 0.477,
+      "baseline": 0.248,
+      "errorPred": 0.053,
+      "errorBase": 0.06
+    },
+    {
+      "at": 1794681541095.0,
+      "champion": "Yone",
+      "gapSec": 12.0,
+      "model": 0.011,
+      "baseline": 0.025,
+      "errorPred": 0.104,
+      "errorBase": 0.186
+    },
+    {
+      "at": 1794681541088.0,
+      "champion": "Malphite",
+      "gapSec": 31.0,
+      "model": 0.0,
+      "baseline": 0.006,
+      "errorPred": 0.653,
+      "errorBase": 0.279
+    },
+    {
+      "at": 1794681541080.0,
+      "champion": "Rakan",
+      "gapSec": 3.0,
+      "model": 0.018,
+      "baseline": 0.001,
+      "errorPred": 0.183,
+      "errorBase": 0.132
+    },
+    {
+      "at": 1794681541074.0,
+      "champion": "Malphite",
+      "gapSec": 28.0,
+      "model": 0.0,
+      "baseline": 0.01,
+      "errorPred": 0.595,
+      "errorBase": 0.171
+    },
+    {
+      "at": 1794681541061.0,
+      "champion": "Yone",
+      "gapSec": 4.0,
+      "model": 0.879,
+      "baseline": 0.102,
+      "errorPred": 0.027,
+      "errorBase": 0.086
+    },
+    {
+      "at": 1794681541040.0,
+      "champion": "Malphite",
+      "gapSec": 18.0,
+      "model": 0.099,
+      "baseline": 0.013,
+      "errorPred": 0.463,
+      "errorBase": 0.268
+    },
+    {
+      "at": 1794681541040.0,
+      "champion": "Yone",
+      "gapSec": 17.0,
+      "model": 0.012,
+      "baseline": 0.006,
+      "errorPred": 0.378,
+      "errorBase": 0.382
+    },
+    {
+      "at": 1794681541031.0,
+      "champion": "Yone",
+      "gapSec": 14.0,
+      "model": 0.04,
+      "baseline": 0.005,
+      "errorPred": 0.338,
+      "errorBase": 0.341
+    },
+    {
+      "at": 1794681541020.0,
+      "champion": "Xayah",
+      "gapSec": 4.0,
+      "model": 0.003,
+      "baseline": 0.065,
+      "errorPred": 0.144,
+      "errorBase": 0.097
+    },
+    {
+      "at": 1794681541003.0,
+      "champion": "Malphite",
+      "gapSec": 5.0,
+      "model": 0.088,
+      "baseline": 0.379,
+      "errorPred": 0.087,
+      "errorBase": 0.009
+    },
+    {
+      "at": 1794681541001.0,
+      "champion": "Yone",
+      "gapSec": 3.0,
+      "model": 0.01,
+      "baseline": 0.0,
+      "errorPred": 0.14,
+      "errorBase": 0.17
+    },
+    {
+      "at": 1794681540990.0,
+      "champion": "Xayah",
+      "gapSec": 22.0,
+      "model": -0.0,
+      "baseline": 0.001,
+      "errorPred": 0.528,
+      "errorBase": 0.607
+    },
+    {
+      "at": 1794681540982.0,
+      "champion": "Xayah",
+      "gapSec": 18.0,
+      "model": 0.0,
+      "baseline": 0.0,
+      "errorPred": 0.504,
+      "errorBase": 0.625
+    },
+    {
+      "at": 1794681540945.0,
+      "champion": "Xayah",
+      "gapSec": 8.0,
+      "model": 0.0,
+      "baseline": 0.085,
+      "errorPred": 0.227,
+      "errorBase": 0.096
+    },
+    {
+      "at": 1794681540932.0,
+      "champion": "Hecarim",
+      "gapSec": 5.0,
+      "model": -0.0,
+      "baseline": 0.032,
+      "errorPred": 0.172,
+      "errorBase": 0.137
+    },
+    {
+      "at": 1794681540919.0,
+      "champion": "Malphite",
+      "gapSec": 11.0,
+      "model": 0.001,
+      "baseline": 0.067,
+      "errorPred": 0.207,
+      "errorBase": 0.029
+    },
+    {
+      "at": 1794681540906.0,
+      "champion": "Xayah",
+      "gapSec": 9.0,
+      "model": 0.037,
+      "baseline": 0.101,
+      "errorPred": 0.057,
+      "errorBase": 0.058
+    },
+    {
+      "at": 1794681540900.0,
+      "champion": "Xayah",
+      "gapSec": 7.0,
+      "model": 0.225,
+      "baseline": 0.12,
+      "errorPred": 0.069,
+      "errorBase": 0.074
+    },
+    {
+      "at": 1794681540900.0,
+      "champion": "Rakan",
+      "gapSec": 8.0,
+      "model": 0.008,
+      "baseline": 0.088,
+      "errorPred": 0.168,
+      "errorBase": 0.079
+    },
+    {
+      "at": 1794681540896.0,
+      "champion": "Rakan",
+      "gapSec": 7.0,
+      "model": 0.017,
+      "baseline": 0.108,
+      "errorPred": 0.159,
+      "errorBase": 0.083
+    },
+    {
+      "at": 1794681540889.0,
+      "champion": "Malphite",
+      "gapSec": 3.0,
+      "model": 0.756,
+      "baseline": 0.69,
+      "errorPred": 0.004,
+      "errorBase": 0.028
+    },
+    {
+      "at": 1794681540882.0,
+      "champion": "Hecarim",
+      "gapSec": 3.0,
+      "model": 0.056,
+      "baseline": 0.074,
+      "errorPred": 0.104,
+      "errorBase": 0.083
+    },
+    {
+      "at": 1794681540871.0,
+      "champion": "Malphite",
+      "gapSec": 8.0,
+      "model": 0.012,
+      "baseline": 0.117,
+      "errorPred": 0.141,
+      "errorBase": 0.015
+    },
+    {
+      "at": 1794681540868.0,
+      "champion": "Xayah",
+      "gapSec": 10.0,
+      "model": 0.002,
+      "baseline": 0.083,
+      "errorPred": 0.118,
+      "errorBase": 0.034
+    },
+    {
+      "at": 1794681540854.0,
+      "champion": "Rakan",
+      "gapSec": 4.0,
+      "model": 0.651,
+      "baseline": 0.418,
+      "errorPred": 0.038,
+      "errorBase": 0.029
+    },
+    {
+      "at": 1794681540851.0,
+      "champion": "Rakan",
+      "gapSec": 3.0,
+      "model": 0.718,
+      "baseline": 0.578,
+      "errorPred": 0.037,
+      "errorBase": 0.035
+    },
+    {
+      "at": 1794681540815.0,
+      "champion": "Rakan",
+      "gapSec": 4.0,
+      "model": 0.337,
+      "baseline": 0.422,
+      "errorPred": 0.035,
+      "errorBase": 0.015
+    },
+    {
+      "at": 1794681540806.0,
+      "champion": "Hecarim",
+      "gapSec": 3.0,
+      "model": 0.883,
+      "baseline": 0.036,
+      "errorPred": 0.042,
+      "errorBase": 0.095
+    },
+    {
+      "at": 1794681540800.0,
+      "champion": "Rakan",
+      "gapSec": 16.0,
+      "model": 0.004,
+      "baseline": 0.018,
+      "errorPred": 0.165,
+      "errorBase": 0.203
+    },
+    {
+      "at": 1794681540792.0,
+      "champion": "Rakan",
+      "gapSec": 14.0,
+      "model": 0.004,
+      "baseline": 0.031,
+      "errorPred": 0.113,
+      "errorBase": 0.156
+    },
+    {
+      "at": 1794681540789.0,
+      "champion": "Xayah",
+      "gapSec": 15.0,
+      "model": 0.003,
+      "baseline": 0.02,
+      "errorPred": 0.214,
+      "errorBase": 0.205
+    },
+    {
+      "at": 1794681540768.0,
+      "champion": "Xayah",
+      "gapSec": 9.0,
+      "model": -0.0,
+      "baseline": 0.093,
+      "errorPred": 0.095,
+      "errorBase": 0.072
+    },
+    {
+      "at": 1794681540764.0,
+      "champion": "Hecarim",
+      "gapSec": 7.0,
+      "model": 0.016,
+      "baseline": 0.072,
+      "errorPred": 0.217,
+      "errorBase": 0.106
+    },
+    {
+      "at": 1794681540756.0,
+      "champion": "Rakan",
+      "gapSec": 3.0,
+      "model": 0.109,
+      "baseline": 0.106,
+      "errorPred": 0.06,
+      "errorBase": 0.077
+    },
+    {
+      "at": 1794681540738.0,
+      "champion": "Rakan",
+      "gapSec": 12.0,
+      "model": 0.091,
+      "baseline": 0.022,
+      "errorPred": 0.186,
+      "errorBase": 0.205
+    },
+    {
+      "at": 1794681540734.0,
+      "champion": "Xayah",
+      "gapSec": 14.0,
+      "model": -0.0,
+      "baseline": 0.01,
+      "errorPred": 0.851,
+      "errorBase": 0.284
+    },
+    {
+      "at": 1794681540732.0,
+      "champion": "Xayah",
+      "gapSec": 13.0,
+      "model": 0.003,
+      "baseline": 0.012,
+      "errorPred": 0.832,
+      "errorBase": 0.26
+    },
+    {
+      "at": 1794681540729.0,
+      "champion": "Hecarim",
+      "gapSec": 5.0,
+      "model": -0.0,
+      "baseline": 0.027,
+      "errorPred": 0.095,
+      "errorBase": 0.143
+    },
+    {
+      "at": 1794681540723.0,
+      "champion": "Hecarim",
+      "gapSec": 3.0,
+      "model": 0.441,
+      "baseline": 0.023,
+      "errorPred": 0.055,
+      "errorBase": 0.101
+    },
+    {
+      "at": 1794681540713.0,
+      "champion": "Rakan",
+      "gapSec": 4.0,
+      "model": 0.194,
+      "baseline": 0.073,
+      "errorPred": 0.063,
+      "errorBase": 0.095
+    },
+    {
+      "at": 1794681540709.0,
+      "champion": "Hecarim",
+      "gapSec": 4.0,
+      "model": 0.205,
+      "baseline": 0.115,
+      "errorPred": 0.061,
+      "errorBase": 0.087
+    },
+    {
+      "at": 1794681540700.0,
+      "champion": "Malphite",
+      "gapSec": 27.0,
+      "model": -0.0,
+      "baseline": 0.011,
+      "errorPred": 0.17,
+      "errorBase": 0.143
+    },
+    {
+      "at": 1794681540692.0,
+      "champion": "Rakan",
+      "gapSec": 8.0,
+      "model": 0.007,
+      "baseline": 0.019,
+      "errorPred": 0.078,
+      "errorBase": 0.196
+    },
+    {
+      "at": 1794681540687.0,
+      "champion": "Yone",
+      "gapSec": 7.0,
+      "model": 0.067,
+      "baseline": 0.021,
+      "errorPred": 0.122,
+      "errorBase": 0.185
+    },
+    {
+      "at": 1794681540684.0,
+      "champion": "Xayah",
+      "gapSec": 6.0,
+      "model": -0.0,
+      "baseline": 0.028,
+      "errorPred": 0.107,
+      "errorBase": 0.142
+    },
+    {
+      "at": 1794681540684.0,
+      "champion": "Hecarim",
+      "gapSec": 26.0,
+      "model": 0.073,
+      "baseline": 0.005,
+      "errorPred": 0.458,
+      "errorBase": 0.398
+    },
+    {
+      "at": 1794681540679.0,
+      "champion": "Hecarim",
+      "gapSec": 25.0,
+      "model": 0.104,
+      "baseline": 0.007,
+      "errorPred": 0.434,
+      "errorBase": 0.356
+    },
+    {
+      "at": 1794681540675.0,
+      "champion": "Rakan",
+      "gapSec": 3.0,
+      "model": 0.774,
+      "baseline": 0.113,
+      "errorPred": 0.034,
+      "errorBase": 0.076
+    },
+    {
+      "at": 1794681540675.0,
+      "champion": "Xayah",
+      "gapSec": 3.0,
+      "model": 0.456,
+      "baseline": 0.108,
+      "errorPred": 0.057,
+      "errorBase": 0.077
+    },
+    {
+      "at": 1794681540672.0,
+      "champion": "Yone",
+      "gapSec": 3.0,
+      "model": 0.421,
+      "baseline": 0.136,
+      "errorPred": 0.042,
+      "errorBase": 0.073
+    },
+    {
+      "at": 1794681540661.0,
+      "champion": "Malphite",
+      "gapSec": 17.0,
+      "model": 0.453,
+      "baseline": 0.011,
+      "errorPred": 0.028,
+      "errorBase": 0.288
+    },
+    {
+      "at": 1794681540658.0,
+      "champion": "Rakan",
+      "gapSec": 14.0,
+      "model": 0.167,
+      "baseline": 0.017,
+      "errorPred": 0.097,
+      "errorBase": 0.235
+    },
+    {
+      "at": 1794681540644.0,
+      "champion": "Xayah",
+      "gapSec": 10.0,
+      "model": 0.04,
+      "baseline": 0.018,
+      "errorPred": 0.062,
+      "errorBase": 0.212
+    },
+    {
+      "at": 1794681540644.0,
+      "champion": "Yone",
+      "gapSec": 18.0,
+      "model": -0.0,
+      "baseline": 0.002,
+      "errorPred": 0.483,
+      "errorBase": 0.489
+    },
+    {
+      "at": 1794681540636.0,
+      "champion": "Hecarim",
+      "gapSec": 14.0,
+      "model": 0.022,
+      "baseline": 0.042,
+      "errorPred": 0.301,
+      "errorBase": 0.053
+    },
+    {
+      "at": 1794681540625.0,
+      "champion": "Yone",
+      "gapSec": 14.0,
+      "model": -0.0,
+      "baseline": 0.003,
+      "errorPred": 0.381,
+      "errorBase": 0.386
+    },
+    {
+      "at": 1794681540617.0,
+      "champion": "Rakan",
+      "gapSec": 4.0,
+      "model": 0.091,
+      "baseline": 0.096,
+      "errorPred": 0.066,
+      "errorBase": 0.088
+    },
+    {
+      "at": 1794681540617.0,
+      "champion": "Malphite",
+      "gapSec": 6.0,
+      "model": -0.0,
+      "baseline": 0.177,
+      "errorPred": 0.174,
+      "errorBase": 0.053
+    },
+    {
+      "at": 1794681540594.0,
+      "champion": "Rakan",
+      "gapSec": 18.0,
+      "model": -0.0,
+      "baseline": 0.021,
+      "errorPred": 0.221,
+      "errorBase": 0.089
+    },
+    {
+      "at": 1794681540592.0,
+      "champion": "Hecarim",
+      "gapSec": 4.0,
+      "model": 0.053,
+      "baseline": 0.036,
+      "errorPred": 0.138,
+      "errorBase": 0.11
+    },
+    {
+      "at": 1794681540583.0,
+      "champion": "Yone",
+      "gapSec": 3.0,
+      "model": 0.207,
+      "baseline": 0.331,
+      "errorPred": 0.036,
+      "errorBase": 0.053
+    },
+    {
+      "at": 1794681540580.0,
+      "champion": "Xayah",
+      "gapSec": 7.0,
+      "model": -0.0,
+      "baseline": 0.004,
+      "errorPred": 0.23,
+      "errorBase": 0.229
+    },
+    {
+      "at": 1794681540578.0,
+      "champion": "Rakan",
+      "gapSec": 14.0,
+      "model": 0.525,
+      "baseline": 0.024,
+      "errorPred": 0.046,
+      "errorBase": 0.193
+    },
+    {
+      "at": 1794681540569.0,
+      "champion": "Xayah",
+      "gapSec": 3.0,
+      "model": 0.01,
+      "baseline": 0.014,
+      "errorPred": 0.181,
+      "errorBase": 0.109
+    },
+    {
+      "at": 1794681540548.0,
+      "champion": "Rakan",
+      "gapSec": 3.0,
+      "model": 0.074,
+      "baseline": 0.132,
+      "errorPred": 0.088,
+      "errorBase": 0.073
+    },
+    {
+      "at": 1794681540545.0,
+      "champion": "Hecarim",
+      "gapSec": 33.0,
+      "model": -0.0,
+      "baseline": 0.006,
+      "errorPred": 0.336,
+      "errorBase": 0.104
+    },
+    {
+      "at": 1794681540538.0,
+      "champion": "Malphite",
+      "gapSec": 5.0,
+      "model": 0.627,
+      "baseline": 0.199,
+      "errorPred": 0.011,
+      "errorBase": 0.062
+    },
+    {
+      "at": 1794681540520.0,
+      "champion": "Hecarim",
+      "gapSec": 24.0,
+      "model": 0.098,
+      "baseline": 0.013,
+      "errorPred": 0.169,
+      "errorBase": 0.191
+    },
+    {
+      "at": 1794681540510.0,
+      "champion": "Malphite",
+      "gapSec": 6.0,
+      "model": 0.566,
+      "baseline": 0.0,
+      "errorPred": 0.038,
+      "errorBase": 0.267
+    },
+    {
+      "at": 1794681540503.0,
+      "champion": "Malphite",
+      "gapSec": 3.0,
+      "model": 0.731,
+      "baseline": 0.0,
+      "errorPred": 0.032,
+      "errorBase": 0.191
+    },
+    {
+      "at": 1794681540491.0,
+      "champion": "Hecarim",
+      "gapSec": 14.0,
+      "model": 0.07,
+      "baseline": 0.012,
+      "errorPred": 0.14,
+      "errorBase": 0.27
+    },
+    {
+      "at": 1794681540482.0,
+      "champion": "Rakan",
+      "gapSec": 16.0,
+      "model": -0.0,
+      "baseline": 0.009,
+      "errorPred": 0.513,
+      "errorBase": 0.317
+    },
+    {
+      "at": 1794681540462.0,
+      "champion": "Rakan",
+      "gapSec": 9.0,
+      "model": -0.0,
+      "baseline": 0.116,
+      "errorPred": 0.34,
+      "errorBase": 0.028
+    },
+    {
+      "at": 1794681540462.0,
+      "champion": "Hecarim",
+      "gapSec": 3.0,
+      "model": 0.074,
+      "baseline": 0.328,
+      "errorPred": 0.095,
+      "errorBase": 0.053
+    },
+    {
+      "at": 1794681540421.0,
+      "champion": "Hecarim",
+      "gapSec": 38.0,
+      "model": 0.014,
+      "baseline": 0.003,
+      "errorPred": 0.185,
+      "errorBase": 0.469
+    },
+    {
+      "at": 1794681540394.0,
+      "champion": "Xayah",
+      "gapSec": 38.0,
+      "model": -0.0,
+      "baseline": 0.003,
+      "errorPred": 0.307,
+      "errorBase": 0.5
+    },
+    {
+      "at": 1794681540381.0,
+      "champion": "Hecarim",
+      "gapSec": 24.0,
+      "model": 0.048,
+      "baseline": 0.003,
+      "errorPred": 0.496,
+      "errorBase": 0.5
+    },
+    {
+      "at": 1794681540378.0,
+      "champion": "Yone",
+      "gapSec": 16.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.619,
+      "errorBase": 0.626
+    }
+  ]
+}

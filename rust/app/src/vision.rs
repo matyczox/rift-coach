@@ -174,6 +174,7 @@ pub struct Field {
     pub invade_guess: (f64, f64),
     gank_forecast_at: f64,
     gank_forecasts: Vec<rc_vision::tracker::alerts::AlertState>,
+    approach_gate: rc_vision::tracker::alerts::ApproachGate,
     /// Ally fights announced: (ally, Date.now() ms).
     pub fight_seen: Vec<(String, f64)>,
     /// Go help this ally (fight worth joining): (ally, until Date.now() ms) -> arrow on the minimap.
@@ -253,6 +254,7 @@ impl Field {
             invade_guess: (0.0, 0.0),
             gank_forecast_at: 0.0,
             gank_forecasts: Vec::new(),
+            approach_gate: Default::default(),
             ally_last: Default::default(),
             habits: Default::default(),
             push_stage: Default::default(),
@@ -328,6 +330,7 @@ impl Field {
         self.invade_guess = (0.0, 0.0);
         self.gank_forecast_at=0.0;
         self.gank_forecasts.clear();
+        self.approach_gate=Default::default();
         self.ally_last.clear();
         self.habits.clear();
         self.push_stage.clear();
@@ -1464,7 +1467,9 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         let obj_round = |o: Option<f64>| o.map(f64::round);
         obs.add(rc_core::self_train::ObsInput {
             t,
-            d: r.detections.iter().filter(|d| d.team != my_team_t).map(|d| (d.champion.clone(), r4(d.x), r4(d.y))).collect(),
+            // Compact observations omit scores; only store trusted sightings so
+            // post-game replay cannot promote a weak identity match to a label.
+            d: r.detections.iter().filter(|d| d.team != my_team_t && d.score>=0.75).map(|d| (d.champion.clone(), r4(d.x), r4(d.y))).collect(),
             mask: r.fog_mask.as_deref(),
             mask_size: r.fog_grid,
             e: intel.players.iter().filter(|p| !p.is_ally).map(|p| (p.champion.clone(), p.role.clone(), p.is_dead as u8, p.move_speed, p.shop_gold)).collect(),
@@ -1473,14 +1478,23 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         });
     }
     let my_role = intel.me.as_ref().map(|m| rc_vision::tracker::Role::parse(&m.role));
+    let mut approaches=Vec::new();
+    if let Some(me)=f.my_pos.filter(|_|intel.me.as_ref().is_some_and(|m|!m.is_dead)) {
+        for tr in &tracks {
+            let candidate=intel.players.iter().find(|p|p.champion==tr.champion && !p.is_ally && !p.is_dead)
+                .and_then(|p|rc_vision::tracker::alerts::approach_warning(tr,me,my_role,t,p.move_speed,now));
+            if let Some(w)=f.approach_gate.consider(&tr.champion,candidate,t*1000.0) {approaches.push(w);}
+        }
+    } else { f.approach_gate=Default::default(); }
     // Forecast at most once a second; particle paths already include terrain and
     // last heading. Keep this outside the fast per-frame alert path.
     if now-f.gank_forecast_at>=1000.0 {
         f.gank_forecast_at=now;
         f.gank_forecasts.clear();
         if let (Some(me),Some(tracker),true)=(f.my_pos,f.tracker.as_ref(),intel.me.as_ref().is_some_and(|m|!m.is_dead)) {
-            for tr in tracks.iter().filter(|tr|tr.state==TrackState::Fog && rc_vision::tracker::alerts::gank_ready(tr,my_role,t)) {
+            for tr in &tracks {
                 let Some(enemy)=intel.players.iter().find(|p|p.champion==tr.champion && !p.is_ally && !p.is_dead) else {continue};
+                if tr.state!=TrackState::Fog || !rc_vision::tracker::alerts::gank_ready(tr,my_role,t) {continue;}
                 let current=tracker.mass_near(&tr.champion,me,0.11).unwrap_or(0.0);
                 if let Some(future)=tracker.forecast_near(&tr.champion,me,0.11,enemy.move_speed) {
                     if let Some(w)=rc_vision::tracker::alerts::forecast_warning(&tr.champion,current,future,now) {f.gank_forecasts.push(w);}
@@ -1492,7 +1506,8 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         let near_me = |c: &str| f.my_pos.and_then(|p| f.tracker.as_ref().and_then(|tr| tr.mass_near(c, p, 0.13)));
         let mut a = tracker_alerts(&tracks, f.my_pos, my_team_t, my_role, t, now, &near_me);
         if a.is_empty() {
-            if let Some(w)=f.gank_forecasts.iter().filter(|w| w.expires_at>now && tracks.iter().any(|tr|tr.state==TrackState::Fog && w.text.starts_with(&format!("{}:",tr.champion))))
+            if let Some(w)=f.gank_forecasts.iter().filter(|w|tracks.iter().any(|tr|tr.state==TrackState::Fog && w.text.starts_with(&format!("{}:",tr.champion))))
+                .chain(approaches.iter()).filter(|w| w.expires_at>now)
                 .max_by(|a,b|a.confidence.total_cmp(&b.confidence)) { a.push(w.clone()); }
         }
         // C. Risk without a precise ghost (logs: deaths deep in their jungle with the jungler unseen 45 s,

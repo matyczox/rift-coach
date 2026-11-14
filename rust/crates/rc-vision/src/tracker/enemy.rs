@@ -7,7 +7,7 @@
 //! and the reappearance trains the model. An item purchase while unseen is a proven recall.
 
 use super::learning::{Learner, Observation};
-use super::predictor::{fountain_of, goals_for, Estimate, KindMap, ParticleFilter, PriorContext, Rng, Role, MAP_UNITS};
+use super::predictor::{fountain_of, goals_for, Estimate, ParticleFilter, PriorContext, Rng, Role, MAP_UNITS};
 use super::terrain::GridTerrain;
 use crate::detect::{Detection, Team};
 use serde::{Deserialize, Serialize};
@@ -102,8 +102,6 @@ struct Internal {
     last_item_gold: Option<f64>,
     /// Estimate frozen at the last fog frame (scored when the enemy reappears).
     frozen: Option<Estimate>,
-    /// Seen standing on one spot: (x, y, since t). Standing 7+ s then vanishing = a recall (8 s channel).
-    still: Option<(f64, f64, f64)>,
 }
 
 pub struct EnemyTracker {
@@ -119,11 +117,14 @@ pub struct EnemyTracker {
     /// game shows enemy items like the scoreboard, as last seen, so the jump arrives when he walks out of
     /// the fog far from base ("Sion in base" while he was top).
     pub item_recall: bool,
+    /// Experimental time-normalised evidence rate. None preserves live behaviour;
+    /// no calibrated rate passed the final replay regression check yet.
+    pub absence_hz: Option<f64>,
 }
 
 impl EnemyTracker {
     pub fn new(terrain: Arc<GridTerrain>, learner: Learner, particles: usize) -> EnemyTracker {
-        EnemyTracker { tracks: Vec::new(), last_t: None, rng: Rng::new(12345), terrain, learner, particles, learning_enabled: true, item_recall: false }
+        EnemyTracker { tracks: Vec::new(), last_t: None, rng: Rng::new(12345), terrain, learner, particles, learning_enabled: true, item_recall: false, absence_hz: None }
     }
 
     pub fn reset(&mut self) {
@@ -200,7 +201,6 @@ impl EnemyTracker {
                         pending: None,
                         last_item_gold: e.item_gold,
                         frozen: None,
-                        still: None,
                     };
                     // Game start: everyone walks out of their fountain.
                     if f.t < 100.0 {
@@ -310,7 +310,7 @@ impl EnemyTracker {
                             }
                         }
                     }
-                    if tr.pub_.state == TrackState::Fog && tr.pub_.fog_since.is_some() {
+                    if tr.pub_.state == TrackState::Fog && tr.pub_.fog_since.is_some() && det.score >= 0.75 {
                         self.learn_reappearance(&tr, e, (det.x, det.y), f.t);
                     }
                     if let Some(l) = tr.pub_.last {
@@ -319,10 +319,6 @@ impl EnemyTracker {
                             tr.pub_.vel = (tr.pub_.vel.0 * (1.0 - k) + ((det.x - l.x) / dtv) * k, tr.pub_.vel.1 * (1.0 - k) + ((det.y - l.y) / dtv) * k);
                         }
                     }
-                    tr.still = match tr.still {
-                        Some((x, y, s0)) if tr.pub_.state == TrackState::Visible && (det.x - x).hypot(det.y - y) < 0.012 => Some((x, y, s0)),
-                        _ => Some((det.x, det.y, f.t)),
-                    };
                     tr.pub_.last = Some(Sighting { x: det.x, y: det.y, t: f.t });
                     let hits: u32 = tr.hits.iter().map(|&h| h as u32).sum();
                     if tr.pub_.state != TrackState::Visible && (hits >= 2 || tr.pub_.state == TrackState::Fog || tr.pub_.state == TrackState::Unknown) {
@@ -339,23 +335,9 @@ impl EnemyTracker {
             // Not seen this frame.
             let mut caught_up = false;
             if let Some(l) = tr.pub_.last {
-                // Stood on one spot for 7+ s, then vanished: the recall finished (seen backing, then
-                // "Kha'Zix invade" from a ghost walking out of that spot). Start him at his fountain.
-                let recalled = tr.pub_.state == TrackState::Visible && tr.hits.iter().all(|&h| h == 0) && f.t - l.t >= 0.35 && tr.still.is_some_and(|(_, _, s0)| l.t - s0 >= 7.0);
-                if recalled {
-                    tr.pub_.state = TrackState::Fog;
-                    tr.pub_.fog_since = Some(l.t);
-                    tr.pub_.last = Some(Sighting { x: fp.0, y: fp.1, t: l.t });
-                    tr.pub_.recalled_at = Some(l.t);
-                    tr.baseline_at = Some(fp);
-                    tr.still = None;
-                    let mut pf = self.new_filter(e);
-                    pf.reset(fp, &PriorContext { leaving_base: true, ..ctx.clone() }, None, &mut self.rng);
-                    tr.last_prior_at = f.t;
-                    tr.pf = Some(pf);
-                    caught_up = true;
-                } else if tr.pub_.state == TrackState::Visible && tr.hits.iter().all(|&h| h == 0) && f.t - l.t >= 0.35 {
-                    tr.still = None;
+                // Standing before disappearing does not prove a recall: a laner
+                // can farm in place and then walk into a bush. Keep a mixture.
+                if tr.pub_.state == TrackState::Visible && tr.hits.iter().all(|&h| h == 0) && f.t - l.t >= 0.35 {
                     tr.pub_.state = TrackState::Fog;
                     tr.pub_.fog_since = Some(l.t);
                     tr.baseline_at = Some((l.x, l.y));
@@ -384,7 +366,8 @@ impl EnemyTracker {
                     }
                     let mut contradicted = false;
                     if let Some(vis) = f.visible {
-                        let ok = pf.observe_absent(vis, &mut self.rng);
+                        let evidence_dt=self.absence_hz.map_or(0.1,|hz|dt*hz/10.0);
+                        let ok = pf.observe_absent_for(vis, evidence_dt, &mut self.rng);
                         if !ok {
                             if let Some(l) = tr.pub_.last {
                                 // Everything contradicted: restart broadly from the last sighting.
@@ -392,7 +375,7 @@ impl EnemyTracker {
                                 pf.step((f.t - l.t).min(60.0), e.move_speed, &mut self.rng);
                             }
                             // Still all in sight (e.g. full vision): no honest guess -> no ghost.
-                            contradicted = !pf.observe_absent(vis, &mut self.rng);
+                            contradicted = !pf.observe_absent_for(vis, evidence_dt, &mut self.rng);
                         }
                     }
                     // Calibrated: the particle spread alone is overconfident; a speed x time floor
@@ -460,9 +443,13 @@ impl EnemyTracker {
         let sigma = (((e.move_speed * 0.5) / MAP_UNITS) * gap).max(0.02);
         let (r, d) = (0.05, (q.0 - base.0).hypot(q.1 - base.1));
         let mass_baseline = ((r * r) / (2.0 * sigma * sigma) * (-(d * d) / (2.0 * sigma * sigma)).exp()).min(1.0);
-        // The distribution the filter really sampled from (not a count of goals per kind): with the
-        // wrong prior, observations that matched the model still moved the weights.
-        let prior = pf.prior_by_kind();
+        // Teleports and bad identity matches cannot teach ordinary walking routes.
+        // A real recall into the fountain remains an allowed discontinuity.
+        let fp = fountain_of(e.team);
+        let extra=if (base.0-fp.0).hypot(base.1-fp.1)<0.05 {homeguard_extra_secs(gap,t)} else {0.0};
+        let reach = e.move_speed / MAP_UNITS * (gap * 1.8 + extra) + 0.06;
+        if d > reach && !(gap >= 8.0 && (q.0-fp.0).hypot(q.1-fp.1) < 0.08) { return; }
+        let prior = pf.posterior_by_kind();
         self.learner.observe(Observation {
             champion: &e.champion,
             role: e.role,
@@ -488,7 +475,6 @@ fn placeholder() -> Internal {
         pending: None,
         last_item_gold: None,
         frozen: None,
-        still: None,
     }
 }
 

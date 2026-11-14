@@ -305,6 +305,11 @@ impl Harvester {
                     break;
                 }
                 let _ = api.set_playback(&json!({ "paused": true })).await;
+                // The victory animation at the end can temporarily disable the
+                // fog dropdown. Return to a settled replay HUD before switching.
+                api.set_render(&json!({ "fogOfWar": true, "interfaceAll": true, "interfaceReplay": true, "interfaceTimeline": true })).await?;
+                api.seek(0.0).await?;
+                tokio::time::sleep(Duration::from_millis(self.settle_ms)).await;
                 // Switch the replay HUD fog team by itself; ask the user only if that fails.
                 let switched = api.set_fog(pass).await;
                 if !switched && (k > 0 || !req.confirm_first) {
@@ -332,9 +337,6 @@ impl Harvester {
                     s.need_fog = None;
                 });
                 self.inner.lock().unwrap().last_frame_game_ms = -1;
-                api.set_render(&json!({ "fogOfWar": true })).await?;
-                api.seek(0.0).await?;
-                tokio::time::sleep(Duration::from_millis(self.settle_ms)).await;
                 api.set_playback(&json!({ "speed": req.speed, "paused": false })).await?;
                 let mut last_api: Option<Instant> = None;
                 loop {
@@ -451,6 +453,12 @@ mod tests {
         fn allgamedata(&self) -> BoxFuture<'_, Result<Value>> {
             Box::pin(async { Ok(json!({ "gameData": { "gameMode": "CLASSIC" }, "allPlayers": [{ "championName": "Ahri", "team": "ORDER" }, { "championName": "Zed", "team": "CHAOS" }] })) })
         }
+        fn set_fog(&self, _team: FogTeam) -> BoxFuture<'_, bool> {
+            Box::pin(async move {
+                assert_eq!(*self.t.lock().unwrap(),0.0,"leave the end-of-game animation before switching fog");
+                false
+            })
+        }
     }
 
     fn fake() -> FakeReplay {
@@ -500,7 +508,7 @@ mod tests {
         assert_eq!(meta["frames"], st.frames);
         let s = crate::recorder::load_session(root.path(), "replay-77-x").unwrap();
         assert!(!s.api.is_empty());
-        assert_eq!(api.renders.lock().unwrap()[0], json!({ "fogOfWar": true }));
+        assert_eq!(api.renders.lock().unwrap()[0], json!({ "fogOfWar": true, "interfaceAll": true, "interfaceReplay": true, "interfaceTimeline": true }));
         assert!(seen.lock().unwrap().contains(&"waiting-fog".to_string()));
 
         // A second run adding the "all" pass keeps passesDone/frames and the api log.

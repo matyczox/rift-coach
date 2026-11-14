@@ -27,7 +27,7 @@ use rc_vision::image::load_png;
 use rc_vision::tracker::{EnemyInput, EnemyTracker, FrameInput, GridTerrain, Learner, Role, TrackState, MAP_UNITS};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
-use std::io::Read;
+use std::io::{Read, Write};
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -254,6 +254,8 @@ fn main() {
     let terrain = Arc::new(GridTerrain::from_asset(128));
     let model_path = std::env::var("MODEL").ok().map(std::path::PathBuf::from);
     let train = std::env::var("TRAIN").is_ok();
+    assert!(!train || (truth_sub=="truth" && dir.join("label-quality.json").exists()),
+        "Training requires TRUTH=truth and prepare-replay-labels.py; raw detections are not teacher labels");
     let learner = match &model_path {
         Some(p) if train => Learner::new(Some(p.clone())),
         Some(p) => {
@@ -269,8 +271,11 @@ fn main() {
         None => Learner::new(None),
     };
     let mut tracker = EnemyTracker::new(terrain, learner, 300);
+    if let Ok(hz)=std::env::var("ABSENCE_HZ") {
+        tracker.absence_hz=Some(hz.parse::<f64>().expect("ABSENCE_HZ number").clamp(0.1,20.0));
+    }
     tracker.learning_enabled = train;
-    let mut last_train_t = 0.0;
+    let mut last_train_t: HashMap<String, f64> = HashMap::new();
     let mut reader: Option<FogReader> = None;
     let mut camp_t = CampTracker::default();
 
@@ -292,6 +297,8 @@ fn main() {
     let t0 = Instant::now();
     let mut ms_fog = 0.0;
     let mut ms_track = 0.0;
+    let mut trace = std::env::var("TRACE").ok().map(|p| std::io::BufWriter::new(std::fs::File::create(p).expect("trace file")));
+    let my_champion = std::env::var("MY_CHAMPION").unwrap_or_else(|_| "Leona".into());
 
     for &ms in &blue_times {
         if ms < 30000 {
@@ -358,14 +365,37 @@ fn main() {
         if (rt as i64 - ms as i64).abs() > 300 {
             continue;
         }
-        if train && t - last_train_t >= 10.0 {
-            last_train_t = t;
+        if let Some(out) = trace.as_mut() {
+            let me = blue[&ms].iter().find(|d| d.c == my_champion && d.t == "ORDER");
+            let my_role=it.players.iter().find(|p|p.champion==my_champion).map(|p|p.role);
+            let rows: Vec<Value> = tracks.iter().map(|tr| {
+                let truth = red[&rt].iter().find(|d| d.c == tr.champion && d.t == "CHAOS");
+                let enemy = enemies.iter().find(|e| e.champion == tr.champion).unwrap();
+                let forecast = me.and_then(|p| tracker.forecast_near(&tr.champion, (p.x, p.y), 0.11, enemy.move_speed));
+                serde_json::json!({"c":tr.champion,"role":tr.role,"state":tr.state,"last":tr.last,"estimate":tr.estimate,
+                    "fogSince":tr.fog_since,"recalledAt":tr.recalled_at,"dead":enemy.is_dead,"speed":enemy.move_speed,"vel":tr.vel,
+                    "approach":me.is_some_and(|p|rc_vision::tracker::alerts::approach_warning(tr,(p.x,p.y),my_role,t,enemy.move_speed,t*1000.0).is_some()),
+                    "truth":truth.map(|d|serde_json::json!({"x":d.x,"y":d.y,"score":d.s})),
+                    "blueScore":blue[&ms].iter().find(|d|d.c==tr.champion && d.t=="CHAOS").map(|d|d.s),
+                    "truthVisible":truth.and_then(|d|visible.map(|v|v(d.x,d.y))),
+                    "mass":me.and_then(|p|tracker.mass_near(&tr.champion,(p.x,p.y),0.13)),
+                    "forecastCurrent":me.and_then(|p|tracker.mass_near(&tr.champion,(p.x,p.y),0.11)),"forecast":forecast})
+            }).collect();
+            writeln!(out,"{}",serde_json::json!({"t":t,"truthMs":rt,"me":me.map(|d|serde_json::json!({"x":d.x,"y":d.y,"score":d.s})),"enemies":rows})).unwrap();
+        }
+        if train {
             for tr in &tracks {
-                if tr.state != TrackState::Fog {
+                if tr.state != TrackState::Fog || t-last_train_t.get(&tr.champion).copied().unwrap_or(-10.0)<10.0 {
                     continue;
                 }
+                let age=t-tr.fog_since.unwrap_or(t);
+                if !(3.0..=30.0).contains(&age) { continue; }
                 if let Some(truth) = red[&rt].iter().find(|d| d.c == tr.champion && d.t == "CHAOS") {
+                    // A portrait missed in an otherwise visible cell is a detector
+                    // failure, not a hidden route that should change behaviour priors.
+                    if truth.s<0.75 || visible.is_some_and(|v|v(truth.x,truth.y)>=0.8) {continue;}
                     tracker.train_at(&tr.champion, (truth.x, truth.y), t);
+                    last_train_t.insert(tr.champion.clone(),t);
                 }
             }
         }

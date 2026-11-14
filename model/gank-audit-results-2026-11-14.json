@@ -1,0 +1,1167 @@
+{
+  "activeModelChanged": false,
+  "activeModelSha256": "fb12066618e7ae2ab9c4ac1a3171f8c21a6ed880c88c7a711e75114b54a9a1ff",
+  "games": [
+    4028222906,
+    4028237949,
+    4027181891,
+    4027208890
+  ],
+  "quality": [
+    {
+      "raw": 9015,
+      "lowScore": 1936,
+      "accepted": 7050,
+      "noTemporalSupport": 29,
+      "minScore": 0.75,
+      "supportSeconds": 2,
+      "maxTimeAlignmentMs": 300,
+      "acceptedFraction": 0.7820299500831946
+    },
+    {
+      "raw": 7033,
+      "lowScore": 1727,
+      "accepted": 5250,
+      "noTemporalSupport": 56,
+      "minScore": 0.75,
+      "supportSeconds": 2,
+      "maxTimeAlignmentMs": 300,
+      "acceptedFraction": 0.7464808758708944
+    },
+    {
+      "raw": 25695,
+      "lowScore": 3824,
+      "noTemporalSupport": 24,
+      "accepted": 21846,
+      "conflictsWithVisibleEnemy": 1,
+      "minScore": 0.75,
+      "supportSeconds": 2,
+      "maxTimeAlignmentMs": 300,
+      "acceptedFraction": 0.8502043199065966
+    },
+    {
+      "raw": 7460,
+      "lowScore": 983,
+      "noTemporalSupport": 18,
+      "accepted": 6458,
+      "conflictsWithVisibleEnemy": 1,
+      "minScore": 0.75,
+      "supportSeconds": 2,
+      "maxTimeAlignmentMs": 300,
+      "acceptedFraction": 0.8656836461126005
+    }
+  ],
+  "production": [
+    {
+      "session": "replay-unknown-2026-11-14T17-24-55",
+      "role": "UTILITY",
+      "positionAfter": {
+        "buckets": [
+          {
+            "better": 0.569211669770329,
+            "errBase": 0.06619637756150105,
+            "errModel": 0.06222331235516679,
+            "hi": 5.0,
+            "inside": 0.8417132216014898,
+            "lo": 0.0,
+            "n": 1611
+          },
+          {
+            "better": 0.5895170789163722,
+            "errBase": 0.199708579021262,
+            "errModel": 0.18286452476641227,
+            "hi": 15.0,
+            "inside": 0.8409893992932862,
+            "lo": 5.0,
+            "n": 1698
+          },
+          {
+            "better": 0.5988274706867671,
+            "errBase": 0.34154511371736956,
+            "errModel": 0.27823191980011286,
+            "hi": 30.0,
+            "inside": 0.7830820770519263,
+            "lo": 15.0,
+            "n": 1194
+          },
+          {
+            "better": 0.7292929292929293,
+            "errBase": 0.45666614281245205,
+            "errModel": 0.3540145853936482,
+            "hi": 60.0,
+            "inside": 0.6787878787878788,
+            "lo": 30.0,
+            "n": 990
+          },
+          {
+            "better": 0.964200477326969,
+            "errBase": 0.48696763957757977,
+            "errModel": 0.2469387783157896,
+            "hi": 120.0,
+            "inside": 0.7756563245823389,
+            "lo": 60.0,
+            "n": 419
+          }
+        ]
+      },
+      "ganksBefore": {
+        "events": [
+          {
+            "c": "Sejuani",
+            "t": 237.119,
+            "lane": true,
+            "warningOpportunities": 2,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Akali",
+            "t": 725.569,
+            "lane": true,
+            "warningOpportunities": 7,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Akali",
+            "t": 1170.124,
+            "lane": true,
+            "warningOpportunities": 1,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Sejuani",
+            "t": 1377.105,
+            "lane": false,
+            "warningOpportunities": 5,
+            "warned": true,
+            "lead": 6.813000000000102
+          },
+          {
+            "c": "Akali",
+            "t": 1377.375,
+            "lane": false,
+            "warningOpportunities": 14,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Sejuani",
+            "t": 1460.112,
+            "lane": false,
+            "warningOpportunities": 6,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Akali",
+            "t": 1491.24,
+            "lane": false,
+            "warningOpportunities": 17,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "K'Sante",
+            "t": 1643.737,
+            "lane": false,
+            "warningOpportunities": 15,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Sejuani",
+            "t": 1745.833,
+            "lane": true,
+            "warningOpportunities": 15,
+            "warned": false,
+            "lead": null
+          }
+        ],
+        "eventsN": 9,
+        "warned": 1,
+        "recall": 0.1111111111111111,
+        "warningEpisodes": 13,
+        "confirmed": 5,
+        "falseWarnings": 2,
+        "unscorableWarnings": 6,
+        "precision": 0.7142857142857143,
+        "falseWarningEvents": [
+          {
+            "c": "Sejuani",
+            "t": 1534.745,
+            "end": 1534.958
+          },
+          {
+            "c": "Akali",
+            "t": 1149.195,
+            "end": 1151.137
+          }
+        ],
+        "policy": {
+          "threshold": 0.4,
+          "rise": 0.15,
+          "maxAge": 120,
+          "persistence": 0
+        }
+      },
+      "ganksAfter": {
+        "events": [
+          {
+            "c": "Sejuani",
+            "t": 237.119,
+            "lane": true,
+            "warningOpportunities": 2,
+            "warned": true,
+            "lead": 2.3499999999999943
+          },
+          {
+            "c": "Akali",
+            "t": 725.569,
+            "lane": true,
+            "warningOpportunities": 7,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Akali",
+            "t": 1170.124,
+            "lane": true,
+            "warningOpportunities": 1,
+            "warned": true,
+            "lead": 7.764000000000124
+          },
+          {
+            "c": "Sejuani",
+            "t": 1377.105,
+            "lane": false,
+            "warningOpportunities": 5,
+            "warned": true,
+            "lead": 6.813000000000102
+          },
+          {
+            "c": "Akali",
+            "t": 1377.375,
+            "lane": false,
+            "warningOpportunities": 14,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Sejuani",
+            "t": 1460.112,
+            "lane": false,
+            "warningOpportunities": 6,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Akali",
+            "t": 1491.24,
+            "lane": false,
+            "warningOpportunities": 17,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "K'Sante",
+            "t": 1643.737,
+            "lane": false,
+            "warningOpportunities": 15,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Sejuani",
+            "t": 1745.833,
+            "lane": true,
+            "warningOpportunities": 15,
+            "warned": false,
+            "lead": null
+          }
+        ],
+        "eventsN": 9,
+        "warned": 3,
+        "recall": 0.3333333333333333,
+        "warningEpisodes": 23,
+        "confirmed": 8,
+        "falseWarnings": 5,
+        "unscorableWarnings": 10,
+        "precision": 0.6153846153846154,
+        "falseWarningEvents": [
+          {
+            "c": "K'Sante",
+            "t": 1391.688,
+            "end": 1391.688
+          },
+          {
+            "c": "Sejuani",
+            "t": 1534.745,
+            "end": 1534.958
+          },
+          {
+            "c": "Sejuani",
+            "t": 1770.69,
+            "end": 1771.643
+          },
+          {
+            "c": "Akali",
+            "t": 1149.195,
+            "end": 1151.137
+          },
+          {
+            "c": "Akali",
+            "t": 1745.833,
+            "end": 1747.964
+          }
+        ],
+        "policy": {
+          "threshold": 0.4,
+          "rise": 0.15,
+          "maxAge": 120,
+          "persistence": 0
+        }
+      }
+    },
+    {
+      "session": "replay-unknown-2026-11-14T17-37-33",
+      "role": "UTILITY",
+      "positionAfter": {
+        "buckets": [
+          {
+            "better": 0.6339285714285714,
+            "errBase": 0.07594202139717633,
+            "errModel": 0.06089259362652436,
+            "hi": 5.0,
+            "inside": 0.8348214285714286,
+            "lo": 0.0,
+            "n": 224
+          },
+          {
+            "better": 0.6193181818181818,
+            "errBase": 0.23529890254051172,
+            "errModel": 0.1948117306960972,
+            "hi": 15.0,
+            "inside": 0.7642045454545454,
+            "lo": 5.0,
+            "n": 352
+          },
+          {
+            "better": 0.7698863636363636,
+            "errBase": 0.5053153799925366,
+            "errModel": 0.3594750044381872,
+            "hi": 30.0,
+            "inside": 0.6420454545454546,
+            "lo": 15.0,
+            "n": 352
+          },
+          {
+            "better": 0.6037735849056604,
+            "errBase": 0.3635833263676491,
+            "errModel": 0.3044310557668138,
+            "hi": 60.0,
+            "inside": 0.7704402515723271,
+            "lo": 30.0,
+            "n": 318
+          },
+          {
+            "better": 0.6684782608695652,
+            "errBase": 0.30043974199413265,
+            "errModel": 0.20574170871566347,
+            "hi": 120.0,
+            "inside": 0.9565217391304348,
+            "lo": 60.0,
+            "n": 184
+          }
+        ]
+      },
+      "ganksBefore": {
+        "events": [
+          {
+            "c": "Warwick",
+            "t": 654.92,
+            "lane": true,
+            "warningOpportunities": 8,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Warwick",
+            "t": 936.832,
+            "lane": false,
+            "warningOpportunities": 1,
+            "warned": false,
+            "lead": null
+          }
+        ],
+        "eventsN": 2,
+        "warned": 0,
+        "recall": 0.0,
+        "warningEpisodes": 2,
+        "confirmed": 0,
+        "falseWarnings": 0,
+        "unscorableWarnings": 2,
+        "precision": null,
+        "falseWarningEvents": [],
+        "policy": {
+          "threshold": 0.4,
+          "rise": 0.15,
+          "maxAge": 120,
+          "persistence": 0
+        }
+      },
+      "ganksAfter": {
+        "events": [
+          {
+            "c": "Warwick",
+            "t": 654.92,
+            "lane": true,
+            "warningOpportunities": 8,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Warwick",
+            "t": 936.832,
+            "lane": false,
+            "warningOpportunities": 1,
+            "warned": false,
+            "lead": null
+          }
+        ],
+        "eventsN": 2,
+        "warned": 0,
+        "recall": 0.0,
+        "warningEpisodes": 2,
+        "confirmed": 0,
+        "falseWarnings": 0,
+        "unscorableWarnings": 2,
+        "precision": null,
+        "falseWarningEvents": [],
+        "policy": {
+          "threshold": 0.4,
+          "rise": 0.15,
+          "maxAge": 120,
+          "persistence": 0
+        }
+      }
+    },
+    {
+      "session": "replay-unknown-2026-11-14T18-05-42",
+      "role": "MIDDLE",
+      "positionAfter": {
+        "buckets": [
+          {
+            "better": 0.6323676323676324,
+            "errBase": 0.08504181253667158,
+            "errModel": 0.0714465515421955,
+            "hi": 5.0,
+            "inside": 0.7962037962037962,
+            "lo": 0.0,
+            "n": 1001
+          },
+          {
+            "better": 0.6117241379310345,
+            "errBase": 0.20900479426574664,
+            "errModel": 0.1657615842337908,
+            "hi": 15.0,
+            "inside": 0.8489655172413794,
+            "lo": 5.0,
+            "n": 1450
+          },
+          {
+            "better": 0.7680084745762712,
+            "errBase": 0.4201979027677493,
+            "errModel": 0.2606062035359883,
+            "hi": 30.0,
+            "inside": 0.8125,
+            "lo": 15.0,
+            "n": 944
+          },
+          {
+            "better": 0.7561374795417348,
+            "errBase": 0.45158781723506536,
+            "errModel": 0.3151437287972584,
+            "hi": 60.0,
+            "inside": 0.7315875613747954,
+            "lo": 30.0,
+            "n": 611
+          },
+          {
+            "better": 0.7777777777777778,
+            "errBase": 0.48086083025648174,
+            "errModel": 0.27386904024927544,
+            "hi": 120.0,
+            "inside": 0.8148148148148148,
+            "lo": 60.0,
+            "n": 216
+          }
+        ]
+      },
+      "ganksBefore": {
+        "events": [
+          {
+            "c": "Hecarim",
+            "t": 911.761,
+            "lane": true,
+            "warningOpportunities": 7,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Hecarim",
+            "t": 1261.686,
+            "lane": true,
+            "warningOpportunities": 1,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Malphite",
+            "t": 1288.112,
+            "lane": true,
+            "warningOpportunities": 5,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Hecarim",
+            "t": 1292.964,
+            "lane": true,
+            "warningOpportunities": 6,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Malphite",
+            "t": 1382.832,
+            "lane": true,
+            "warningOpportunities": 7,
+            "warned": true,
+            "lead": 3.2230000000001837
+          },
+          {
+            "c": "Malphite",
+            "t": 1516.82,
+            "lane": true,
+            "warningOpportunities": 7,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Hecarim",
+            "t": 1577.772,
+            "lane": true,
+            "warningOpportunities": 5,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Rakan",
+            "t": 1713.409,
+            "lane": true,
+            "warningOpportunities": 7,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Malphite",
+            "t": 1846.617,
+            "lane": false,
+            "warningOpportunities": 2,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Rakan",
+            "t": 2081.257,
+            "lane": false,
+            "warningOpportunities": 4,
+            "warned": false,
+            "lead": null
+          }
+        ],
+        "eventsN": 10,
+        "warned": 1,
+        "recall": 0.1,
+        "warningEpisodes": 5,
+        "confirmed": 1,
+        "falseWarnings": 1,
+        "unscorableWarnings": 3,
+        "precision": 0.5,
+        "falseWarningEvents": [
+          {
+            "c": "Malphite",
+            "t": 1970.249,
+            "end": 1970.249
+          }
+        ],
+        "policy": {
+          "threshold": 0.4,
+          "rise": 0.15,
+          "maxAge": 120,
+          "persistence": 0
+        }
+      },
+      "ganksAfter": {
+        "events": [
+          {
+            "c": "Hecarim",
+            "t": 911.761,
+            "lane": true,
+            "warningOpportunities": 7,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Hecarim",
+            "t": 1261.686,
+            "lane": true,
+            "warningOpportunities": 1,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Malphite",
+            "t": 1288.112,
+            "lane": true,
+            "warningOpportunities": 5,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Hecarim",
+            "t": 1292.964,
+            "lane": true,
+            "warningOpportunities": 6,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Malphite",
+            "t": 1382.832,
+            "lane": true,
+            "warningOpportunities": 7,
+            "warned": true,
+            "lead": 4.810000000000173
+          },
+          {
+            "c": "Malphite",
+            "t": 1516.82,
+            "lane": true,
+            "warningOpportunities": 7,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Hecarim",
+            "t": 1577.772,
+            "lane": true,
+            "warningOpportunities": 5,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Rakan",
+            "t": 1713.409,
+            "lane": true,
+            "warningOpportunities": 7,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Malphite",
+            "t": 1846.617,
+            "lane": false,
+            "warningOpportunities": 2,
+            "warned": false,
+            "lead": null
+          },
+          {
+            "c": "Rakan",
+            "t": 2081.257,
+            "lane": false,
+            "warningOpportunities": 4,
+            "warned": false,
+            "lead": null
+          }
+        ],
+        "eventsN": 10,
+        "warned": 1,
+        "recall": 0.1,
+        "warningEpisodes": 6,
+        "confirmed": 1,
+        "falseWarnings": 2,
+        "unscorableWarnings": 3,
+        "precision": 0.3333333333333333,
+        "falseWarningEvents": [
+          {
+            "c": "Malphite",
+            "t": 1575.365,
+            "end": 1576.177
+          },
+          {
+            "c": "Xayah",
+            "t": 1872.354,
+            "end": 1873.23
+          }
+        ],
+        "policy": {
+          "threshold": 0.4,
+          "rise": 0.15,
+          "maxAge": 120,
+          "persistence": 0
+        }
+      }
+    },
+    {
+      "session": "final-control-4027208890",
+      "role": "TOP",
+      "positionAfter": {
+        "buckets": [
+          {
+            "better": 0.6913875598086124,
+            "errBase": 0.08552395546128858,
+            "errModel": 0.0652533679522448,
+            "hi": 5.0,
+            "inside": 0.868421052631579,
+            "lo": 0.0,
+            "n": 418
+          },
+          {
+            "better": 0.6509146341463414,
+            "errBase": 0.24383088024047764,
+            "errModel": 0.17902185748875826,
+            "hi": 15.0,
+            "inside": 0.8658536585365854,
+            "lo": 5.0,
+            "n": 656
+          },
+          {
+            "better": 0.8414839797639123,
+            "errBase": 0.42988540348857757,
+            "errModel": 0.282597198882594,
+            "hi": 30.0,
+            "inside": 0.7858347386172007,
+            "lo": 15.0,
+            "n": 593
+          },
+          {
+            "better": 0.8292220113851992,
+            "errBase": 0.4637119690393346,
+            "errModel": 0.3049116173206784,
+            "hi": 60.0,
+            "inside": 0.7419354838709677,
+            "lo": 30.0,
+            "n": 527
+          },
+          {
+            "better": 0.9890710382513661,
+            "errBase": 0.5888767057506544,
+            "errModel": 0.25633272947847996,
+            "hi": 120.0,
+            "inside": 0.8961748633879781,
+            "lo": 60.0,
+            "n": 183
+          }
+        ]
+      },
+      "ganksBefore": {
+        "events": [
+          {
+            "c": "Sylas",
+            "t": 1242.684,
+            "lane": false,
+            "warningOpportunities": 1,
+            "warned": false,
+            "lead": null
+          }
+        ],
+        "eventsN": 1,
+        "warned": 0,
+        "recall": 0.0,
+        "warningEpisodes": 0,
+        "confirmed": 0,
+        "falseWarnings": 0,
+        "unscorableWarnings": 0,
+        "precision": null,
+        "falseWarningEvents": [],
+        "policy": {
+          "threshold": 0.4,
+          "rise": 0.15,
+          "maxAge": 120,
+          "persistence": 0
+        }
+      },
+      "ganksAfter": {
+        "events": [
+          {
+            "c": "Sylas",
+            "t": 1242.684,
+            "lane": false,
+            "warningOpportunities": 1,
+            "warned": false,
+            "lead": null
+          }
+        ],
+        "eventsN": 1,
+        "warned": 0,
+        "recall": 0.0,
+        "warningEpisodes": 0,
+        "confirmed": 0,
+        "falseWarnings": 0,
+        "unscorableWarnings": 0,
+        "precision": null,
+        "falseWarningEvents": [],
+        "policy": {
+          "threshold": 0.4,
+          "rise": 0.15,
+          "maxAge": 120,
+          "persistence": 0
+        }
+      }
+    }
+  ],
+  "trainingCrossValidation": {
+    "recipe": "equal-game geometric mean, half-log shrinkage",
+    "absenceHz": "default",
+    "folds": [
+      {
+        "session": "replay-unknown-2026-11-14T17-24-55",
+        "neutral": {
+          "buckets": [
+            {
+              "better": 0.5561066336019839,
+              "errBase": 0.06570159236539656,
+              "errModel": 0.06291677607099243,
+              "hi": 5.0,
+              "inside": 0.8363298202107874,
+              "lo": 0.0,
+              "n": 1613
+            },
+            {
+              "better": 0.5800942285041225,
+              "errBase": 0.199708579021262,
+              "errModel": 0.17913066282992327,
+              "hi": 15.0,
+              "inside": 0.8515901060070671,
+              "lo": 5.0,
+              "n": 1698
+            },
+            {
+              "better": 0.5971524288107203,
+              "errBase": 0.34154511371736956,
+              "errModel": 0.2699986209941627,
+              "hi": 30.0,
+              "inside": 0.8149078726968174,
+              "lo": 15.0,
+              "n": 1194
+            },
+            {
+              "better": 0.7292929292929293,
+              "errBase": 0.45666614281245205,
+              "errModel": 0.31872641917612843,
+              "hi": 60.0,
+              "inside": 0.7595959595959596,
+              "lo": 30.0,
+              "n": 990
+            },
+            {
+              "better": 0.9880668257756563,
+              "errBase": 0.48696763957757977,
+              "errModel": 0.19068976614959768,
+              "hi": 120.0,
+              "inside": 0.8949880668257757,
+              "lo": 60.0,
+              "n": 419
+            }
+          ]
+        },
+        "trained": {
+          "buckets": [
+            {
+              "better": 0.5573465592064476,
+              "errBase": 0.06566695432608337,
+              "errModel": 0.06279070205881516,
+              "hi": 5.0,
+              "inside": 0.8332300061996281,
+              "lo": 0.0,
+              "n": 1613
+            },
+            {
+              "better": 0.5818610129564193,
+              "errBase": 0.199708579021262,
+              "errModel": 0.18420246274107183,
+              "hi": 15.0,
+              "inside": 0.8415783274440518,
+              "lo": 5.0,
+              "n": 1698
+            },
+            {
+              "better": 0.6197654941373534,
+              "errBase": 0.34154511371736956,
+              "errModel": 0.273276188360616,
+              "hi": 30.0,
+              "inside": 0.7948073701842546,
+              "lo": 15.0,
+              "n": 1194
+            },
+            {
+              "better": 0.7555555555555555,
+              "errBase": 0.45666614281245205,
+              "errModel": 0.33746341216123854,
+              "hi": 60.0,
+              "inside": 0.7343434343434343,
+              "lo": 30.0,
+              "n": 990
+            },
+            {
+              "better": 0.9618138424821002,
+              "errBase": 0.48696763957757977,
+              "errModel": 0.1958138265972671,
+              "hi": 120.0,
+              "inside": 0.8997613365155132,
+              "lo": 60.0,
+              "n": 419
+            }
+          ]
+        }
+      },
+      {
+        "session": "replay-unknown-2026-11-14T17-37-33",
+        "neutral": {
+          "buckets": [
+            {
+              "better": 0.6150442477876106,
+              "errBase": 0.07556193987865817,
+              "errModel": 0.06180108696623263,
+              "hi": 5.0,
+              "inside": 0.8362831858407079,
+              "lo": 0.0,
+              "n": 226
+            },
+            {
+              "better": 0.6392045454545454,
+              "errBase": 0.23529890254051172,
+              "errModel": 0.19040535128666158,
+              "hi": 15.0,
+              "inside": 0.7784090909090909,
+              "lo": 5.0,
+              "n": 352
+            },
+            {
+              "better": 0.7954545454545454,
+              "errBase": 0.5053153799925366,
+              "errModel": 0.3523562538359274,
+              "hi": 30.0,
+              "inside": 0.6505681818181818,
+              "lo": 15.0,
+              "n": 352
+            },
+            {
+              "better": 0.6132075471698113,
+              "errBase": 0.3635833263676491,
+              "errModel": 0.32718545284208117,
+              "hi": 60.0,
+              "inside": 0.7578616352201258,
+              "lo": 30.0,
+              "n": 318
+            },
+            {
+              "better": 0.6793478260869565,
+              "errBase": 0.30043974199413265,
+              "errModel": 0.2202203888044629,
+              "hi": 120.0,
+              "inside": 0.9836956521739131,
+              "lo": 60.0,
+              "n": 184
+            }
+          ]
+        },
+        "trained": {
+          "buckets": [
+            {
+              "better": 0.6194690265486725,
+              "errBase": 0.07556193987865817,
+              "errModel": 0.06228913528287588,
+              "hi": 5.0,
+              "inside": 0.8362831858407079,
+              "lo": 0.0,
+              "n": 226
+            },
+            {
+              "better": 0.6278409090909091,
+              "errBase": 0.23529890254051172,
+              "errModel": 0.19696379499828742,
+              "hi": 15.0,
+              "inside": 0.7698863636363636,
+              "lo": 5.0,
+              "n": 352
+            },
+            {
+              "better": 0.7755681818181818,
+              "errBase": 0.5053153799925366,
+              "errModel": 0.3559704205189005,
+              "hi": 30.0,
+              "inside": 0.6477272727272727,
+              "lo": 15.0,
+              "n": 352
+            },
+            {
+              "better": 0.6320754716981132,
+              "errBase": 0.3635833263676491,
+              "errModel": 0.3078754943021966,
+              "hi": 60.0,
+              "inside": 0.7672955974842768,
+              "lo": 30.0,
+              "n": 318
+            },
+            {
+              "better": 0.7228260869565217,
+              "errBase": 0.30043974199413265,
+              "errModel": 0.20271050592752646,
+              "hi": 120.0,
+              "inside": 0.9565217391304348,
+              "lo": 60.0,
+              "n": 184
+            }
+          ]
+        }
+      },
+      {
+        "session": "replay-unknown-2026-11-14T18-05-42",
+        "neutral": {
+          "buckets": [
+            {
+              "better": 0.6332665330661322,
+              "errBase": 0.08457521924547388,
+              "errModel": 0.07090793251922,
+              "hi": 5.0,
+              "inside": 0.7935871743486974,
+              "lo": 0.0,
+              "n": 998
+            },
+            {
+              "better": 0.6048275862068966,
+              "errBase": 0.20900479426574664,
+              "errModel": 0.17096094237445783,
+              "hi": 15.0,
+              "inside": 0.84,
+              "lo": 5.0,
+              "n": 1450
+            },
+            {
+              "better": 0.7521186440677966,
+              "errBase": 0.4201979027677493,
+              "errModel": 0.2768974842722485,
+              "hi": 30.0,
+              "inside": 0.763771186440678,
+              "lo": 15.0,
+              "n": 944
+            },
+            {
+              "better": 0.7675941080196399,
+              "errBase": 0.45158781723506536,
+              "errModel": 0.3132939842337702,
+              "hi": 60.0,
+              "inside": 0.723404255319149,
+              "lo": 30.0,
+              "n": 611
+            },
+            {
+              "better": 0.8472222222222222,
+              "errBase": 0.48086083025648174,
+              "errModel": 0.24404071594850196,
+              "hi": 120.0,
+              "inside": 0.8564814814814815,
+              "lo": 60.0,
+              "n": 216
+            }
+          ]
+        },
+        "trained": {
+          "buckets": [
+            {
+              "better": 0.6342685370741483,
+              "errBase": 0.08458269791699166,
+              "errModel": 0.07043389197969237,
+              "hi": 5.0,
+              "inside": 0.8006012024048096,
+              "lo": 0.0,
+              "n": 998
+            },
+            {
+              "better": 0.6041379310344828,
+              "errBase": 0.20900479426574664,
+              "errModel": 0.16892460301319456,
+              "hi": 15.0,
+              "inside": 0.8462068965517241,
+              "lo": 5.0,
+              "n": 1450
+            },
+            {
+              "better": 0.763771186440678,
+              "errBase": 0.4201979027677493,
+              "errModel": 0.2734278836848562,
+              "hi": 30.0,
+              "inside": 0.7786016949152542,
+              "lo": 15.0,
+              "n": 944
+            },
+            {
+              "better": 0.7463175122749591,
+              "errBase": 0.45158781723506536,
+              "errModel": 0.31382474333104854,
+              "hi": 60.0,
+              "inside": 0.7283142389525368,
+              "lo": 30.0,
+              "n": 611
+            },
+            {
+              "better": 0.8240740740740741,
+              "errBase": 0.48086083025648174,
+              "errModel": 0.23791679513619512,
+              "hi": 120.0,
+              "inside": 0.9444444444444444,
+              "lo": 60.0,
+              "n": 216
+            }
+          ]
+        }
+      }
+    ]
+  },
+  "candidateLabels": 1417,
+  "experimentalProtocol": {
+    "selectionData": "first match only; no control outcomes inspected",
+    "approachHoldSeconds": 1.5,
+    "approachMaxGapSeconds": 1.8,
+    "forecastThreshold": 0.4,
+    "forecastMinRise": 0.15,
+    "warningWindowSeconds": [
+      2,
+      8
+    ],
+    "contactRadius": 0.13,
+    "events": "off-lane walking approaches, automatic proxy, not hand-labelled ganks",
+    "weightRecipe": "independent per-match fits; equal-game geometric mean; half-log shrinkage",
+    "frozenAtUtc": "2026-11-14T18:31:03.051112+00:00",
+    "calibrationGames": [
+      4028222906,
+      4028237949,
+      4027181891
+    ],
+    "finalHoldoutGame": 4027208890,
+    "absenceHz": 1,
+    "rateSelection": "Lowest equal-game mean 5-30s position error over calibration games; rates 1,3,10 Hz",
+    "rateLossPercent": {
+      "1": 22.007711028215613,
+      "3": 23.942098609780906,
+      "10": 24.052821655527342
+    },
+    "weightAcceptance": "Trained LOO must not worsen 5-15s and must improve every 15-30,30-60,60-120s bucket by >=1 map percentage point; otherwise neutral",
+    "finalHoldoutOutcomesInspected": false
+  },
+  "interpretation": "Retrospective approach proxy; not live gank accuracy or an independent generalisation claim"
+}

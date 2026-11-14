@@ -441,12 +441,23 @@ impl ParticleFilter {
         q
     }
 
-    /// Goal-kind shares the filter actually samples from (role/time prior, learned multipliers,
-    /// heading, the dynamic Stay goal): what the learner must compare credit against.
+    /// Sampling prior by kind (role/time, learned multipliers, heading and Stay).
+    /// Credit assignment after vision evidence uses posterior_by_kind instead.
     pub fn prior_by_kind(&self) -> KindMap {
         let mut out = KindMap::new();
         for (g, w) in self.goals.iter().zip(&self.goal_w) {
             *out.entry(g.kind).or_insert(0.0) += *w;
+        }
+        out
+    }
+
+    /// Goal mixture after negative evidence and resampling, before a truth label.
+    /// Learning must compare the label posterior with this conditional mixture,
+    /// not with the original prior (which would learn ward coverage as behaviour).
+    pub fn posterior_by_kind(&self) -> KindMap {
+        let mut out = KindMap::new();
+        for p in &self.particles {
+            *out.entry(self.goals[p.goal].kind).or_insert(0.0) += p.w;
         }
         out
     }
@@ -593,6 +604,13 @@ impl ParticleFilter {
     /// Negative evidence: `visible(x,y)` = P(point in our vision now). Returns false when every
     /// hypothesis is contradicted (weights left unnormalised, as in TS).
     pub fn observe_absent(&mut self, visible: &dyn Fn(f64, f64) -> f64, rng: &mut Rng) -> bool {
+        self.observe_absent_for(visible, 0.1, rng)
+    }
+
+    /// Preserve the original 10 Hz live strength, independently of capture fps.
+    pub fn observe_absent_for(&mut self, visible: &dyn Fn(f64, f64) -> f64, dt: f64, rng: &mut Rng) -> bool {
+        if !dt.is_finite() || dt <= 0.0 { return true; }
+        let dt = dt.min(5.0) * 10.0;
         let before: f64 = self.particles.iter().map(|p| p.w).sum();
         // Mass in cells the fog reader calls visible (>= 0.52, fog.rs): if nearly all of it is there and
         // nobody is seen, the hypothesis is contradicted even when v < 1 (v = 0.8 used to survive).
@@ -601,13 +619,13 @@ impl ParticleFilter {
         for p in self.particles.iter_mut() {
             let v = visible(clamp01(p.x), clamp01(p.y));
             let v = if v.is_finite() { v.clamp(0.0, 1.0) } else { 0.0 };
-            p.w *= 1.0 - 0.95 * v;
+            p.w *= (1.0 - 0.95 * v).powf(dt);
             total += p.w;
         }
         // Almost all of the mass sat where we can see and nobody is there: the whole hypothesis is
         // contradicted. (Normalizing would bring the same distribution back — e.g. full map vision
         // left a ghost at ~95% confidence.)
-        if !(total > 1e-9) || total < before * 0.12 || seen > before * 0.9 {
+        if !(total > 0.0) || total < before * 0.12f64.powf(dt) || seen > before * 0.9 {
             return false;
         }
         for p in self.particles.iter_mut() {

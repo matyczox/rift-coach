@@ -1,5 +1,7 @@
 # Trening trackera z powtórek — 2026-11-14
 
+**Wyniki zastąpione audytem:** surowe etykiety zawierały fałszywe pozycje. Aktualne pomiary i ograniczenia są w [RAPORT-ganki-2026-11-14.md](RAPORT-ganki-2026-11-14.md).
+
 ## Wynik
 
 Wytrenowano kandydata na obu pełnych powtórkach: **922 etykiety treningowe**.

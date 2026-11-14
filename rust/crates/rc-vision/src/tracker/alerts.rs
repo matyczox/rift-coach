@@ -28,7 +28,7 @@ pub struct AlertState {
 /// opponent: him in a bush or behind his tower is lane play (his threat is in the fight bar), and
 /// "Sion gank" about my own laner only confused.
 pub fn same_lane_roles(a: Role, b: Role) -> bool {
-    a != Role::Unknown && b != Role::Unknown
+    a != Role::Unknown && b != Role::Unknown && a != Role::Jungle && b != Role::Jungle
         && (a == b || matches!((a,b), (Role::Bottom,Role::Utility) | (Role::Utility,Role::Bottom)))
 }
 
@@ -44,6 +44,50 @@ pub fn forecast_warning(champion:&str, current:f64, forecast:(f64,u32), now:f64)
     if (1..=6).contains(&sec) && current<0.6 && mass>=0.4 && mass-current>=0.15 {
         Some(AlertState {kind:AlertKind::Missing,text:format!("{champion}: możliwy gank w ciągu 6 s"),confidence:mass.min(0.9),expires_at:now+1800.0})
     } else {None}
+}
+
+/// A recently observed off-lane enemy is already walking towards the player.
+/// This is an amber approach warning, not a claim that he is currently in reach.
+pub fn approach_warning(tr: &EnemyTrack, me: (f64,f64), my_role: Option<Role>, game_time: f64, move_speed: f64, now: f64) -> Option<AlertState> {
+    if !matches!(tr.state,TrackState::Visible|TrackState::Fog) || tr.role==Role::Unknown
+        || my_role.is_some_and(|r|same_lane_roles(r,tr.role)) {return None;}
+    let last=tr.last?;
+    let age=game_time-last.t;
+    if !(0.0..=4.0).contains(&age) || tr.flash_suspect_at.is_some_and(|f|game_time-f<3.0) {return None;}
+    let speed=tr.vel.0.hypot(tr.vel.1);
+    let walk=move_speed/super::predictor::MAP_UNITS;
+    // Sustained speed buffs (Warwick/Hecarim) can exceed the item-only estimate;
+    // short dashes are rejected by the evidence-duration gate instead.
+    if speed<walk*0.3 || speed>walk*3.0 || speed>0.08 {return None;}
+    let (dx,dy)=(me.0-last.x,me.1-last.y);
+    let distance=dx.hypot(dy);
+    if distance<=0.13 {return None;}
+    let closing=(dx*tr.vel.0+dy*tr.vel.1)/distance;
+    if closing/speed<0.75 {return None;}
+    // Merely getting closer is insufficient: the path can pass beside us.
+    // Solve the first intersection with our reach circle instead of using
+    // distance / radial velocity (which warned about enemies walking past).
+    let dot=dx*tr.vel.0+dy*tr.vel.1;
+    let discriminant=dot*dot-speed*speed*(distance*distance-0.13f64.powi(2));
+    if discriminant<0.0 {return None;}
+    let eta=(dot-discriminant.sqrt())/(speed*speed)-age;
+    if !(1.0..=6.0).contains(&eta) {return None;}
+    Some(AlertState{kind:AlertKind::Missing,text:format!("{}: idzie w twoją stronę",tr.champion),confidence:0.6,expires_at:now+1800.0})
+}
+
+/// Do not announce a one-frame turn, dash, or misread as an approaching ganker.
+#[derive(Default)]
+pub struct ApproachGate {
+    pending: std::collections::HashMap<String,(f64,f64)>,
+}
+impl ApproachGate {
+    pub fn consider(&mut self, champion: &str, warning: Option<AlertState>, game_ms: f64) -> Option<AlertState> {
+        let Some(warning)=warning else {self.pending.remove(champion);return None;};
+        let p=self.pending.entry(champion.into()).or_insert((game_ms,game_ms));
+        if game_ms-p.1>1800.0 || game_ms<p.1 { *p=(game_ms,game_ms); }
+        p.1=game_ms;
+        (game_ms-p.0>=1500.0).then_some(warning)
+    }
 }
 
 /// `near_me(champion)` = probability (all hypotheses) that the fogged enemy is within reach of me; when
@@ -113,11 +157,45 @@ mod tests {
     }
 
     #[test]
+    fn warns_on_a_visible_roamer_approaching_before_fog() {
+        let mut tr=track(Role::Jungle);
+        tr.state=TrackState::Visible;
+        tr.last=Some(super::super::enemy::Sighting{x:0.5,y:0.5,t:110.0});
+        tr.vel=(0.025,0.0);
+        tr.vel=(0.025,0.018);
+        assert!(approach_warning(&tr,(0.74,0.5),Some(Role::Utility),110.0,400.0,0.0).is_none());
+        tr.vel=(0.025,0.0);
+        assert!(approach_warning(&tr,(0.75,0.5),Some(Role::Utility),110.0,400.0,0.0).is_some());
+        assert!(approach_warning(&tr,(0.25,0.5),Some(Role::Utility),110.0,400.0,0.0).is_none());
+        tr.vel=(0.05,0.0); // sustained movement buff, faster than the item-only estimate
+        assert!(approach_warning(&tr,(0.82,0.5),Some(Role::Utility),110.0,400.0,0.0).is_some());
+        tr.vel=(0.025,0.0);
+        assert!(approach_warning(&tr,(0.75,0.5),Some(Role::Utility),115.0,400.0,0.0).is_none());
+        tr.role=Role::Bottom;
+        assert!(approach_warning(&tr,(0.75,0.5),Some(Role::Utility),110.0,400.0,0.0).is_none());
+        tr.role=Role::Jungle;tr.vel=(0.1,0.0);
+        assert!(approach_warning(&tr,(0.75,0.5),Some(Role::Utility),110.0,400.0,0.0).is_none());
+    }
+
+    #[test]
+    fn approach_needs_sustained_evidence_and_resets_on_a_turn() {
+        let mut gate=ApproachGate::default();
+        let w=||Some(AlertState{kind:AlertKind::Missing,text:"Enemy: approach".into(),confidence:0.6,expires_at:5000.0});
+        assert!(gate.consider("Enemy",w(),0.0).is_none());
+        assert!(gate.consider("Enemy",w(),800.0).is_none());
+        assert!(gate.consider("Enemy",w(),1600.0).is_some());
+        assert!(gate.consider("Enemy",None,1700.0).is_none());
+        assert!(gate.consider("Enemy",w(),1800.0).is_none());
+        assert!(gate.consider("Enemy",w(),4000.0).is_none());
+    }
+
+    #[test]
     fn bot_duo_are_lane_opponents_not_gankers() {
         assert!(!gank_ready(&track(Role::Bottom),Some(Role::Utility),110.0));
         assert!(!gank_ready(&track(Role::Utility),Some(Role::Bottom),110.0));
         assert!(gank_ready(&track(Role::Jungle),Some(Role::Utility),110.0));
         assert!(gank_ready(&track(Role::Middle),Some(Role::Utility),110.0));
+        assert!(gank_ready(&track(Role::Jungle),Some(Role::Jungle),110.0));
         assert!(!same_lane_roles(Role::Unknown,Role::Unknown));
     }
     #[test]

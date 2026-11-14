@@ -50,6 +50,62 @@ fn visible_to_fog_ghost_near_last_sighting_gone_on_reappearance() {
 }
 
 #[test]
+fn standing_then_entering_fog_does_not_prove_a_recall() {
+    let mut tr = EnemyTracker::new(open(), Learner::new(None), 200);
+    for i in 0..90 { upd(&mut tr, 300.0+i as f64*0.1, &[det(0.55,0.5)], &[ww()]); }
+    for i in 0..12 { upd(&mut tr, 309.0+i as f64*0.1, &[], &[ww()]); }
+    let w = &tr.all()[0];
+    assert_eq!(w.state, TrackState::Fog);
+    assert!(w.recalled_at.is_none());
+    assert!((w.last.unwrap().x-0.55).abs() < 0.001);
+    let estimate=w.estimate.unwrap();
+    assert!((estimate.x-0.55).hypot(estimate.y-0.5)<0.1);
+}
+
+#[test]
+fn low_confidence_or_impossible_reappearance_does_not_train_routes() {
+    for (score, point) in [(0.65,(0.52,0.5)),(0.95,(0.1,0.9))] {
+        let mut tr = EnemyTracker::new(open(), Learner::new(None), 200);
+        upd(&mut tr, 300.0, &[det(0.5,0.5)], &[ww()]);
+        for i in 1..=60 { upd(&mut tr, 300.0+i as f64*0.1, &[], &[ww()]); }
+        let mut d=det(point.0,point.1);d.score=score;
+        upd(&mut tr,306.1,&[d],&[ww()]);
+        assert_eq!(tr.learner.summary().samples,0);
+    }
+}
+
+#[test]
+fn absence_evidence_has_the_same_strength_at_different_frame_rates() {
+    let make=|| {
+        let mut f=ParticleFilter::new(open(),goals_for(Team::Chaos),2);
+        f.reset((0.5,0.5),&PriorContext::default(),None,&mut Rng::new(1));
+        f.set_points(&[(0.3,0.3),(0.7,0.7)]);
+        f
+    };
+    let (mut slow,mut fast)=(make(),make());
+    let visible=|x:f64,_y:f64|if x<0.5 {0.1}else{0.2};
+    assert!(slow.observe_absent_for(&visible,1.0,&mut Rng::new(2)));
+    for _ in 0..10 {assert!(fast.observe_absent_for(&visible,0.1,&mut Rng::new(2)));}
+    for (a,b) in slow.particles.iter().zip(&fast.particles) {assert!((a.w-b.w).abs()<1e-12);}
+}
+
+#[test]
+fn uninformative_truth_does_not_learn_visibility_as_a_route_preference() {
+    let mut pf=ParticleFilter::new(open(),goals_for(Team::Chaos),2);
+    pf.reset((0.5,0.5),&PriorContext::default(),None,&mut Rng::new(1));
+    // Negative evidence can leave only one goal kind alive. A label covering
+    // that whole surviving cloud says nothing new about the behaviour prior.
+    pf.set_points(&[(0.5,0.5),(0.51,0.5)]);
+    let conditional=pf.posterior_by_kind();
+    let mut learner=Learner::new(None);
+    learner.observe(rc_vision::tracker::learning::Observation{
+        champion:"Warwick",role:Role::Jungle,game_time:300.0,gap_sec:8.0,
+        credit:pf.goal_kinds_near((0.5,0.5),0.06),prior:conditional,
+        mass_model:1.0,mass_baseline:1.0,error_pred:0.0,error_base:0.0});
+    assert!(learner.multipliers(Role::Jungle,300.0).values().all(|v|(*v-1.0).abs()<1e-12));
+}
+
+#[test]
 fn dead_enemies_restart_at_fountain() {
     let mut tr = EnemyTracker::new(open(), Learner::new(None), 100);
     upd(&mut tr, 300.0, &[det(0.5, 0.5)], &[ww()]);
