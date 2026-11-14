@@ -476,8 +476,9 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
             // Benchmarks (Blitz-like): CS per minute me vs my lane rival, item value of both teams.
             let mins = (i.game_time / 60.0).max(1.0);
             if let Some(me) = i.me.as_ref() {
-                let target = p.get("enemy").and_then(|e| e.get("champion")).and_then(Value::as_str);
-                let opp = i.players.iter().find(|x| !x.is_ally && Some(x.champion.as_str()) == target);
+                // Same rival as the gold / CS / lvl cells: my lane opponent, not whoever I fight right now
+                // ("+10 CS" next to "CS/min 1.0 vs 4.1" compared two different players).
+                let opp = rc_core::intel::matchup::lane_opponent(i);
                 let r1 = |v: f64| (v * 10.0).round() / 10.0;
                 p.insert("csMin".into(), json!({ "me": r1(me.cs as f64 / mins), "opp": opp.map(|o| r1(o.cs as f64 / mins)) }));
             }
