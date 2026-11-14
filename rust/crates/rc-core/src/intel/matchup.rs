@@ -770,7 +770,7 @@ pub(crate) mod tests {
         let b = brief(0.6);
         let icon = |c: &str| format!("icon:{c}");
         let pb = power_bar(&i, Some(&b), &icon).unwrap();
-        assert_eq!(pb.advice, "Czekaj na 6 lvl, farm bezpiecznie");
+        assert_eq!(pb.advice, "Czekaj na 6 lvl");
         assert_eq!(pb.detail, "lvl 5 vs 5 · +0 g · CS +0");
         assert_eq!(pb.enemy.icon_url, "icon:Zed");
         i.players[1].hp_pct = Some(0.2);
