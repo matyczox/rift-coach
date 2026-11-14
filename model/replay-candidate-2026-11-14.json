@@ -1,0 +1,1993 @@
+{
+  "version": 1,
+  "multipliers": {
+    "BOTTOM|early": {
+      "camp": 0.9776051289972665,
+      "lane-top": 0.9672889766857893,
+      "lane-mid": 0.9252002253978592,
+      "lane-bot": 1.2158401590220507,
+      "dragon": 0.7320436156362843,
+      "baron": 0.9815189046935391,
+      "base": 1.0234755455902125,
+      "invade": 0.9876949232289367,
+      "river": 0.975953718892795,
+      "stay": 1.3261814071370812
+    },
+    "BOTTOM|late": {
+      "camp": 0.9990035395887954,
+      "lane-top": 1.1487938591865523,
+      "lane-mid": 1.0320124104529982,
+      "lane-bot": 0.9652259998884668,
+      "dragon": 0.8493608565542796,
+      "baron": 1.059552278359843,
+      "base": 1.0987192123039662,
+      "invade": 0.9941056306134259,
+      "river": 0.9840246629313901,
+      "stay": 0.9043510935930374
+    },
+    "BOTTOM|mid": {
+      "camp": 0.9933912548243631,
+      "lane-top": 0.936920889288032,
+      "lane-mid": 0.9831698010482075,
+      "lane-bot": 1.9748084830682007,
+      "dragon": 0.6896280463442829,
+      "baron": 0.9405370582625402,
+      "base": 0.9772241376554938,
+      "invade": 1.0042671005070873,
+      "river": 0.9414480712954997,
+      "stay": 0.9234058308804383
+    },
+    "JUNGLE|early": {
+      "camp": 1.565295929514474,
+      "lane-top": 0.8917477352676302,
+      "lane-mid": 0.9333315799731216,
+      "lane-bot": 0.987430166732728,
+      "dragon": 0.9476208132201656,
+      "baron": 1.181576167636877,
+      "base": 0.9131613348141894,
+      "invade": 0.9116240802407917,
+      "river": 0.8804180099820781,
+      "stay": 0.9472631502746157
+    },
+    "JUNGLE|late": {
+      "camp": 1.0994422991796007,
+      "lane-top": 0.9274907901695009,
+      "lane-mid": 0.934372512708507,
+      "lane-bot": 1.1902657186236547,
+      "dragon": 0.7973654097558185,
+      "baron": 0.8122855607325704,
+      "base": 1.068145741060396,
+      "invade": 0.958882803500961,
+      "river": 0.9150339575871599,
+      "stay": 1.4526286098208279
+    },
+    "JUNGLE|mid": {
+      "camp": 1.6561419608432355,
+      "lane-top": 1.016737902597252,
+      "lane-mid": 0.9711887981333622,
+      "lane-bot": 0.8969456093681699,
+      "dragon": 0.7017232917984358,
+      "baron": 1.0996982371266582,
+      "base": 0.9734945984909426,
+      "invade": 0.970991143281605,
+      "river": 0.9968072237429365,
+      "stay": 0.9376143389687485
+    },
+    "MIDDLE|early": {
+      "camp": 1.1666712830910353,
+      "lane-top": 0.9076436335323756,
+      "lane-mid": 0.9850934770612448,
+      "lane-bot": 0.9619867930463076,
+      "dragon": 0.8060795815132611,
+      "baron": 0.9212346066382052,
+      "base": 1.1971321558999868,
+      "invade": 0.9712052378182278,
+      "river": 1.1636271202556585,
+      "stay": 0.991915008708435
+    },
+    "MIDDLE|late": {
+      "camp": 1.057183904835415,
+      "lane-top": 1.1419631370240615,
+      "lane-mid": 0.9004770437987004,
+      "lane-bot": 0.954367381241269,
+      "dragon": 0.8349069254452585,
+      "baron": 0.8980356857653614,
+      "base": 1.5358145644258854,
+      "invade": 0.9975229223057042,
+      "river": 0.9257838800984466,
+      "stay": 0.9063714154693455
+    },
+    "MIDDLE|mid": {
+      "camp": 0.9753599008808973,
+      "lane-top": 0.9278730131289635,
+      "lane-mid": 0.8593141093410293,
+      "lane-bot": 1.1622462118844168,
+      "dragon": 0.9542935115680633,
+      "baron": 0.9615268868244269,
+      "base": 0.8934424632620367,
+      "invade": 0.9905827774784511,
+      "river": 0.9981777742685465,
+      "stay": 1.364859087375706
+    },
+    "TOP|early": {
+      "camp": 0.9572953960035138,
+      "lane-top": 0.9685896603995029,
+      "lane-mid": 0.9792881570739445,
+      "lane-bot": 0.9796008959167424,
+      "dragon": 0.9358558160894496,
+      "baron": 0.9348452463573323,
+      "base": 1.5414597112226147,
+      "invade": 0.975293145442199,
+      "river": 1.0627781447549518,
+      "stay": 0.8042589310560211
+    },
+    "TOP|late": {
+      "camp": 1.1404400707479787,
+      "lane-top": 0.719109826734981,
+      "lane-mid": 1.0466494846042176,
+      "lane-bot": 1.0449472063307612,
+      "dragon": 0.9900868364492807,
+      "baron": 0.9090759756414786,
+      "base": 1.2304765256169914,
+      "invade": 1.0073318357843037,
+      "river": 1.0471272570807026,
+      "stay": 0.9543723988639301
+    },
+    "TOP|mid": {
+      "camp": 0.99956660741804,
+      "lane-top": 0.6957497422538048,
+      "lane-mid": 0.983837412728791,
+      "lane-bot": 1.3955705450415277,
+      "dragon": 1.0914948295041744,
+      "baron": 0.8886665901776867,
+      "base": 0.9891536884633542,
+      "invade": 0.9925425081571273,
+      "river": 1.0277782139701133,
+      "stay": 1.0700085419690093
+    },
+    "UTILITY|early": {
+      "camp": 0.9443590084664152,
+      "lane-top": 0.972583703241944,
+      "lane-mid": 0.9333656101420842,
+      "lane-bot": 2.0055652709824976,
+      "dragon": 0.6571789514400179,
+      "baron": 0.9629104353689347,
+      "base": 1.1523115351564859,
+      "invade": 0.917055203074366,
+      "river": 0.8126069451010413,
+      "stay": 1.0703648322257557
+    },
+    "UTILITY|late": {
+      "camp": 1.1248375544632236,
+      "lane-top": 1.0774933378743088,
+      "lane-mid": 0.9661366053591373,
+      "lane-bot": 1.109722598186126,
+      "dragon": 0.8834078188533936,
+      "baron": 0.9422741833516506,
+      "base": 1.0609701249632864,
+      "invade": 0.9793447072043237,
+      "river": 0.9467130057479022,
+      "stay": 0.9398250608189996
+    },
+    "UTILITY|mid": {
+      "camp": 0.9917672410840592,
+      "lane-top": 0.8517370516561694,
+      "lane-mid": 1.082877838090777,
+      "lane-bot": 1.092355821506598,
+      "dragon": 0.7071353193190583,
+      "baron": 0.8601809843634408,
+      "base": 1.3818266471343894,
+      "invade": 1.0539951218150287,
+      "river": 0.8819366884198494,
+      "stay": 1.2809116243025434
+    }
+  },
+  "score": {
+    "n": 922,
+    "logModel": -4143.5666654943025,
+    "logBaseline": -3605.8115606565543,
+    "hits": 472
+  },
+  "recent": [
+    {
+      "at": 1794678248555.0,
+      "champion": "Warwick",
+      "gapSec": 41.0,
+      "model": -0.0,
+      "baseline": 0.003,
+      "errorPred": 0.37,
+      "errorBase": 0.479
+    },
+    {
+      "at": 1794678248529.0,
+      "champion": "Irelia",
+      "gapSec": 3.0,
+      "model": -0.0,
+      "baseline": 0.158,
+      "errorPred": 0.08,
+      "errorBase": 0.073
+    },
+    {
+      "at": 1794678248511.0,
+      "champion": "Irelia",
+      "gapSec": 7.0,
+      "model": 0.0,
+      "baseline": 0.133,
+      "errorPred": 0.124,
+      "errorBase": 0.009
+    },
+    {
+      "at": 1794678248503.0,
+      "champion": "Renekton",
+      "gapSec": 6.0,
+      "model": -0.0,
+      "baseline": 0.056,
+      "errorPred": 0.184,
+      "errorBase": 0.118
+    },
+    {
+      "at": 1794678248494.0,
+      "champion": "Irelia",
+      "gapSec": 10.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 1.016,
+      "errorBase": 1.022
+    },
+    {
+      "at": 1794678248480.0,
+      "champion": "Warwick",
+      "gapSec": 10.0,
+      "model": 0.388,
+      "baseline": 0.041,
+      "errorPred": 0.051,
+      "errorBase": 0.149
+    },
+    {
+      "at": 1794678248465.0,
+      "champion": "Warwick",
+      "gapSec": 20.0,
+      "model": -0.0,
+      "baseline": 0.016,
+      "errorPred": 0.158,
+      "errorBase": 0.144
+    },
+    {
+      "at": 1794678248462.0,
+      "champion": "Irelia",
+      "gapSec": 5.0,
+      "model": 0.73,
+      "baseline": 0.158,
+      "errorPred": 0.045,
+      "errorBase": 0.073
+    },
+    {
+      "at": 1794678248452.0,
+      "champion": "Irelia",
+      "gapSec": 4.0,
+      "model": 0.2,
+      "baseline": 0.441,
+      "errorPred": 0.072,
+      "errorBase": 0.033
+    },
+    {
+      "at": 1794678248443.0,
+      "champion": "Blitzcrank",
+      "gapSec": 5.0,
+      "model": 0.228,
+      "baseline": 0.248,
+      "errorPred": 0.065,
+      "errorBase": 0.038
+    },
+    {
+      "at": 1794678248427.0,
+      "champion": "Blitzcrank",
+      "gapSec": 8.0,
+      "model": -0.0,
+      "baseline": 0.071,
+      "errorPred": 0.204,
+      "errorBase": 0.109
+    },
+    {
+      "at": 1794678248426.0,
+      "champion": "Caitlyn",
+      "gapSec": 4.0,
+      "model": 0.605,
+      "baseline": 0.196,
+      "errorPred": 0.045,
+      "errorBase": 0.068
+    },
+    {
+      "at": 1794678248417.0,
+      "champion": "Caitlyn",
+      "gapSec": 8.0,
+      "model": 0.022,
+      "baseline": 0.031,
+      "errorPred": 0.068,
+      "errorBase": 0.158
+    },
+    {
+      "at": 1794678248411.0,
+      "champion": "Caitlyn",
+      "gapSec": 4.0,
+      "model": 0.678,
+      "baseline": 0.138,
+      "errorPred": 0.045,
+      "errorBase": 0.077
+    },
+    {
+      "at": 1794678248403.0,
+      "champion": "Caitlyn",
+      "gapSec": 25.0,
+      "model": -0.0,
+      "baseline": 0.009,
+      "errorPred": 0.27,
+      "errorBase": 0.306
+    },
+    {
+      "at": 1794678248402.0,
+      "champion": "Irelia",
+      "gapSec": 5.0,
+      "model": 0.79,
+      "baseline": 0.254,
+      "errorPred": 0.026,
+      "errorBase": 0.036
+    },
+    {
+      "at": 1794678248397.0,
+      "champion": "Blitzcrank",
+      "gapSec": 15.0,
+      "model": 0.022,
+      "baseline": 0.016,
+      "errorPred": 0.134,
+      "errorBase": 0.236
+    },
+    {
+      "at": 1794678248394.0,
+      "champion": "Blitzcrank",
+      "gapSec": 13.0,
+      "model": 0.035,
+      "baseline": 0.018,
+      "errorPred": 0.126,
+      "errorBase": 0.224
+    },
+    {
+      "at": 1794678248394.0,
+      "champion": "Caitlyn",
+      "gapSec": 19.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.639,
+      "errorBase": 0.942
+    },
+    {
+      "at": 1794678248377.0,
+      "champion": "Caitlyn",
+      "gapSec": 9.0,
+      "model": 0.004,
+      "baseline": 0.094,
+      "errorPred": 0.207,
+      "errorBase": 0.073
+    },
+    {
+      "at": 1794678248377.0,
+      "champion": "Warwick",
+      "gapSec": 83.0,
+      "model": 0.02,
+      "baseline": 0.001,
+      "errorPred": 0.696,
+      "errorBase": 0.865
+    },
+    {
+      "at": 1794678248359.0,
+      "champion": "Warwick",
+      "gapSec": 72.0,
+      "model": 0.049,
+      "baseline": 0.002,
+      "errorPred": 0.219,
+      "errorBase": 0.437
+    },
+    {
+      "at": 1794678248344.0,
+      "champion": "Irelia",
+      "gapSec": 10.0,
+      "model": 0.003,
+      "baseline": 0.064,
+      "errorPred": 0.232,
+      "errorBase": 0.058
+    },
+    {
+      "at": 1794678248342.0,
+      "champion": "Irelia",
+      "gapSec": 9.0,
+      "model": 0.006,
+      "baseline": 0.103,
+      "errorPred": 0.224,
+      "errorBase": 0.05
+    },
+    {
+      "at": 1794678248342.0,
+      "champion": "Warwick",
+      "gapSec": 61.0,
+      "model": 0.036,
+      "baseline": 0.002,
+      "errorPred": 0.216,
+      "errorBase": 0.437
+    },
+    {
+      "at": 1794678248340.0,
+      "champion": "Caitlyn",
+      "gapSec": 8.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.366,
+      "errorBase": 0.462
+    },
+    {
+      "at": 1794678248326.0,
+      "champion": "Caitlyn",
+      "gapSec": 6.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.417,
+      "errorBase": 0.4
+    },
+    {
+      "at": 1794678248326.0,
+      "champion": "Irelia",
+      "gapSec": 26.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.534,
+      "errorBase": 0.854
+    },
+    {
+      "at": 1794678248325.0,
+      "champion": "Blitzcrank",
+      "gapSec": 82.0,
+      "model": 0.0,
+      "baseline": 0.001,
+      "errorPred": 0.209,
+      "errorBase": 0.794
+    },
+    {
+      "at": 1794678248325.0,
+      "champion": "Caitlyn",
+      "gapSec": 4.0,
+      "model": 0.07,
+      "baseline": 0.33,
+      "errorPred": 0.095,
+      "errorBase": 0.046
+    },
+    {
+      "at": 1794678248325.0,
+      "champion": "Irelia",
+      "gapSec": 25.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.529,
+      "errorBase": 0.852
+    },
+    {
+      "at": 1794678248325.0,
+      "champion": "Warwick",
+      "gapSec": 51.0,
+      "model": -0.0,
+      "baseline": 0.003,
+      "errorPred": 0.375,
+      "errorBase": 0.32
+    },
+    {
+      "at": 1794678248325.0,
+      "champion": "Renekton",
+      "gapSec": 4.0,
+      "model": 0.054,
+      "baseline": 0.176,
+      "errorPred": 0.077,
+      "errorBase": 0.071
+    },
+    {
+      "at": 1794678248307.0,
+      "champion": "Caitlyn",
+      "gapSec": 54.0,
+      "model": 0.014,
+      "baseline": 0.003,
+      "errorPred": 0.294,
+      "errorBase": 0.177
+    },
+    {
+      "at": 1794678248304.0,
+      "champion": "Blitzcrank",
+      "gapSec": 72.0,
+      "model": 0.062,
+      "baseline": 0.001,
+      "errorPred": 0.076,
+      "errorBase": 0.775
+    },
+    {
+      "at": 1794678248304.0,
+      "champion": "Caitlyn",
+      "gapSec": 52.0,
+      "model": 0.021,
+      "baseline": 0.003,
+      "errorPred": 0.29,
+      "errorBase": 0.187
+    },
+    {
+      "at": 1794678248304.0,
+      "champion": "Irelia",
+      "gapSec": 15.0,
+      "model": -0.0,
+      "baseline": 0.001,
+      "errorPred": 0.486,
+      "errorBase": 0.494
+    },
+    {
+      "at": 1794678248304.0,
+      "champion": "Warwick",
+      "gapSec": 41.0,
+      "model": 0.055,
+      "baseline": 0.004,
+      "errorPred": 0.28,
+      "errorBase": 0.355
+    },
+    {
+      "at": 1794678248302.0,
+      "champion": "Renekton",
+      "gapSec": 31.0,
+      "model": -0.0,
+      "baseline": 0.001,
+      "errorPred": 0.313,
+      "errorBase": 0.864
+    },
+    {
+      "at": 1794678248285.0,
+      "champion": "Blitzcrank",
+      "gapSec": 61.0,
+      "model": 0.064,
+      "baseline": 0.002,
+      "errorPred": 0.265,
+      "errorBase": 0.664
+    },
+    {
+      "at": 1794678248285.0,
+      "champion": "Caitlyn",
+      "gapSec": 42.0,
+      "model": 0.029,
+      "baseline": 0.005,
+      "errorPred": 0.173,
+      "errorBase": 0.137
+    },
+    {
+      "at": 1794678248285.0,
+      "champion": "Irelia",
+      "gapSec": 4.0,
+      "model": 0.028,
+      "baseline": 0.091,
+      "errorPred": 0.055,
+      "errorBase": 0.093
+    },
+    {
+      "at": 1794678248285.0,
+      "champion": "Renekton",
+      "gapSec": 22.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.345,
+      "errorBase": 0.731
+    },
+    {
+      "at": 1794678248259.0,
+      "champion": "Blitzcrank",
+      "gapSec": 50.0,
+      "model": 0.011,
+      "baseline": 0.002,
+      "errorPred": 0.25,
+      "errorBase": 0.734
+    },
+    {
+      "at": 1794678248259.0,
+      "champion": "Caitlyn",
+      "gapSec": 31.0,
+      "model": 0.003,
+      "baseline": 0.005,
+      "errorPred": 0.153,
+      "errorBase": 0.388
+    },
+    {
+      "at": 1794678248259.0,
+      "champion": "Renekton",
+      "gapSec": 11.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.204,
+      "errorBase": 0.433
+    },
+    {
+      "at": 1794678248233.0,
+      "champion": "Blitzcrank",
+      "gapSec": 38.0,
+      "model": -0.0,
+      "baseline": 0.001,
+      "errorPred": 0.201,
+      "errorBase": 0.812
+    },
+    {
+      "at": 1794678248233.0,
+      "champion": "Caitlyn",
+      "gapSec": 19.0,
+      "model": 0.065,
+      "baseline": 0.0,
+      "errorPred": 0.539,
+      "errorBase": 0.793
+    },
+    {
+      "at": 1794678248233.0,
+      "champion": "Warwick",
+      "gapSec": 7.0,
+      "model": -0.0,
+      "baseline": 0.014,
+      "errorPred": 0.1,
+      "errorBase": 0.192
+    },
+    {
+      "at": 1794678248209.0,
+      "champion": "Warwick",
+      "gapSec": 6.0,
+      "model": -0.0,
+      "baseline": 0.022,
+      "errorPred": 0.103,
+      "errorBase": 0.17
+    },
+    {
+      "at": 1794678248185.0,
+      "champion": "Warwick",
+      "gapSec": 13.0,
+      "model": -0.0,
+      "baseline": 0.038,
+      "errorPred": 0.237,
+      "errorBase": 0.105
+    },
+    {
+      "at": 1794678248180.0,
+      "champion": "Blitzcrank",
+      "gapSec": 6.0,
+      "model": -0.0,
+      "baseline": 0.233,
+      "errorPred": 0.145,
+      "errorBase": 0.007
+    },
+    {
+      "at": 1794678248180.0,
+      "champion": "Warwick",
+      "gapSec": 10.0,
+      "model": -0.0,
+      "baseline": 0.079,
+      "errorPred": 0.151,
+      "errorBase": 0.078
+    },
+    {
+      "at": 1794678248161.0,
+      "champion": "Irelia",
+      "gapSec": 28.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.624,
+      "errorBase": 0.977
+    },
+    {
+      "at": 1794678248161.0,
+      "champion": "Warwick",
+      "gapSec": 6.0,
+      "model": 0.006,
+      "baseline": 0.139,
+      "errorPred": 0.084,
+      "errorBase": 0.075
+    },
+    {
+      "at": 1794678248160.0,
+      "champion": "Irelia",
+      "gapSec": 27.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.595,
+      "errorBase": 0.941
+    },
+    {
+      "at": 1794678248150.0,
+      "champion": "Warwick",
+      "gapSec": 12.0,
+      "model": -0.0,
+      "baseline": 0.048,
+      "errorPred": 0.18,
+      "errorBase": 0.074
+    },
+    {
+      "at": 1794678248144.0,
+      "champion": "Caitlyn",
+      "gapSec": 8.0,
+      "model": 0.006,
+      "baseline": 0.152,
+      "errorPred": 0.156,
+      "errorBase": 0.035
+    },
+    {
+      "at": 1794678248142.0,
+      "champion": "Renekton",
+      "gapSec": 10.0,
+      "model": -0.0,
+      "baseline": 0.046,
+      "errorPred": 0.19,
+      "errorBase": 0.12
+    },
+    {
+      "at": 1794678248132.0,
+      "champion": "Caitlyn",
+      "gapSec": 3.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.889,
+      "errorBase": 0.922
+    },
+    {
+      "at": 1794678248132.0,
+      "champion": "Irelia",
+      "gapSec": 14.0,
+      "model": 0.034,
+      "baseline": 0.001,
+      "errorPred": 0.278,
+      "errorBase": 0.437
+    },
+    {
+      "at": 1794678248128.0,
+      "champion": "Blitzcrank",
+      "gapSec": 6.0,
+      "model": 0.034,
+      "baseline": 0.248,
+      "errorPred": 0.1,
+      "errorBase": 0.019
+    },
+    {
+      "at": 1794678248120.0,
+      "champion": "Caitlyn",
+      "gapSec": 4.0,
+      "model": 0.696,
+      "baseline": 0.675,
+      "errorPred": 0.033,
+      "errorBase": 0.004
+    },
+    {
+      "at": 1794678248119.0,
+      "champion": "Renekton",
+      "gapSec": 15.0,
+      "model": 0.022,
+      "baseline": 0.034,
+      "errorPred": 0.236,
+      "errorBase": 0.015
+    },
+    {
+      "at": 1794678248117.0,
+      "champion": "Warwick",
+      "gapSec": 6.0,
+      "model": 0.009,
+      "baseline": 0.124,
+      "errorPred": 0.158,
+      "errorBase": 0.072
+    },
+    {
+      "at": 1794678248109.0,
+      "champion": "Caitlyn",
+      "gapSec": 11.0,
+      "model": 0.034,
+      "baseline": 0.068,
+      "errorPred": 0.241,
+      "errorBase": 0.077
+    },
+    {
+      "at": 1794678248101.0,
+      "champion": "Blitzcrank",
+      "gapSec": 3.0,
+      "model": 0.485,
+      "baseline": 0.452,
+      "errorPred": 0.052,
+      "errorBase": 0.042
+    },
+    {
+      "at": 1794678248098.0,
+      "champion": "Warwick",
+      "gapSec": 24.0,
+      "model": -0.0,
+      "baseline": 0.002,
+      "errorPred": 0.768,
+      "errorBase": 0.604
+    },
+    {
+      "at": 1794678248089.0,
+      "champion": "Warwick",
+      "gapSec": 20.0,
+      "model": -0.0,
+      "baseline": 0.001,
+      "errorPred": 0.702,
+      "errorBase": 0.603
+    },
+    {
+      "at": 1794678248087.0,
+      "champion": "Renekton",
+      "gapSec": 6.0,
+      "model": -0.0,
+      "baseline": 0.053,
+      "errorPred": 0.106,
+      "errorBase": 0.127
+    },
+    {
+      "at": 1794678248083.0,
+      "champion": "Caitlyn",
+      "gapSec": 3.0,
+      "model": 0.239,
+      "baseline": 0.483,
+      "errorPred": 0.067,
+      "errorBase": 0.043
+    },
+    {
+      "at": 1794678248077.0,
+      "champion": "Blitzcrank",
+      "gapSec": 18.0,
+      "model": 0.0,
+      "baseline": 0.022,
+      "errorPred": 0.312,
+      "errorBase": 0.119
+    },
+    {
+      "at": 1794678248073.0,
+      "champion": "Caitlyn",
+      "gapSec": 17.0,
+      "model": 0.005,
+      "baseline": 0.033,
+      "errorPred": 0.147,
+      "errorBase": 0.09
+    },
+    {
+      "at": 1794678248065.0,
+      "champion": "Blitzcrank",
+      "gapSec": 13.0,
+      "model": 0.063,
+      "baseline": 0.055,
+      "errorPred": 0.2,
+      "errorBase": 0.023
+    },
+    {
+      "at": 1794678248065.0,
+      "champion": "Caitlyn",
+      "gapSec": 14.0,
+      "model": 0.003,
+      "baseline": 0.044,
+      "errorPred": 0.147,
+      "errorBase": 0.082
+    },
+    {
+      "at": 1794678248065.0,
+      "champion": "Warwick",
+      "gapSec": 10.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.675,
+      "errorBase": 0.593
+    },
+    {
+      "at": 1794678248063.0,
+      "champion": "Renekton",
+      "gapSec": 5.0,
+      "model": 0.474,
+      "baseline": 0.293,
+      "errorPred": 0.016,
+      "errorBase": 0.024
+    },
+    {
+      "at": 1794678248038.0,
+      "champion": "Caitlyn",
+      "gapSec": 3.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.436,
+      "errorBase": 0.451
+    },
+    {
+      "at": 1794678248033.0,
+      "champion": "Blitzcrank",
+      "gapSec": 79.0,
+      "model": 0.007,
+      "baseline": 0.001,
+      "errorPred": 0.236,
+      "errorBase": 0.154
+    },
+    {
+      "at": 1794678248030.0,
+      "champion": "Renekton",
+      "gapSec": 37.0,
+      "model": -0.0,
+      "baseline": 0.001,
+      "errorPred": 0.701,
+      "errorBase": 0.862
+    },
+    {
+      "at": 1794678248027.0,
+      "champion": "Caitlyn",
+      "gapSec": 59.0,
+      "model": 0.001,
+      "baseline": 0.003,
+      "errorPred": 0.272,
+      "errorBase": 0.205
+    },
+    {
+      "at": 1794678248020.0,
+      "champion": "Blitzcrank",
+      "gapSec": 71.0,
+      "model": 0.029,
+      "baseline": 0.002,
+      "errorPred": 0.135,
+      "errorBase": 0.271
+    },
+    {
+      "at": 1794678248020.0,
+      "champion": "Caitlyn",
+      "gapSec": 55.0,
+      "model": 0.044,
+      "baseline": 0.003,
+      "errorPred": 0.302,
+      "errorBase": 0.258
+    },
+    {
+      "at": 1794678248020.0,
+      "champion": "Renekton",
+      "gapSec": 31.0,
+      "model": -0.0,
+      "baseline": 0.001,
+      "errorPred": 0.58,
+      "errorBase": 0.818
+    },
+    {
+      "at": 1794678248003.0,
+      "champion": "Blitzcrank",
+      "gapSec": 60.0,
+      "model": 0.014,
+      "baseline": 0.002,
+      "errorPred": 0.27,
+      "errorBase": 0.625
+    },
+    {
+      "at": 1794678248003.0,
+      "champion": "Caitlyn",
+      "gapSec": 44.0,
+      "model": 0.13,
+      "baseline": 0.004,
+      "errorPred": 0.116,
+      "errorBase": 0.361
+    },
+    {
+      "at": 1794678248003.0,
+      "champion": "Renekton",
+      "gapSec": 21.0,
+      "model": 0.002,
+      "baseline": 0.001,
+      "errorPred": 0.418,
+      "errorBase": 0.643
+    },
+    {
+      "at": 1794678247986.0,
+      "champion": "Warwick",
+      "gapSec": 40.0,
+      "model": 0.006,
+      "baseline": 0.005,
+      "errorPred": 0.221,
+      "errorBase": 0.21
+    },
+    {
+      "at": 1794678247980.0,
+      "champion": "Blitzcrank",
+      "gapSec": 49.0,
+      "model": 0.154,
+      "baseline": 0.001,
+      "errorPred": 0.499,
+      "errorBase": 0.861
+    },
+    {
+      "at": 1794678247980.0,
+      "champion": "Caitlyn",
+      "gapSec": 33.0,
+      "model": 0.021,
+      "baseline": 0.002,
+      "errorPred": 0.365,
+      "errorBase": 0.649
+    },
+    {
+      "at": 1794678247980.0,
+      "champion": "Warwick",
+      "gapSec": 37.0,
+      "model": -0.0,
+      "baseline": 0.007,
+      "errorPred": 0.316,
+      "errorBase": 0.117
+    },
+    {
+      "at": 1794678247980.0,
+      "champion": "Renekton",
+      "gapSec": 10.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.168,
+      "errorBase": 0.384
+    },
+    {
+      "at": 1794678247972.0,
+      "champion": "Irelia",
+      "gapSec": 6.0,
+      "model": 0.28,
+      "baseline": 0.05,
+      "errorPred": 0.112,
+      "errorBase": 0.129
+    },
+    {
+      "at": 1794678247955.0,
+      "champion": "Blitzcrank",
+      "gapSec": 38.0,
+      "model": 0.138,
+      "baseline": 0.001,
+      "errorPred": 0.483,
+      "errorBase": 0.888
+    },
+    {
+      "at": 1794678247955.0,
+      "champion": "Caitlyn",
+      "gapSec": 22.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.783,
+      "errorBase": 0.907
+    },
+    {
+      "at": 1794678247955.0,
+      "champion": "Warwick",
+      "gapSec": 26.0,
+      "model": -0.0,
+      "baseline": 0.012,
+      "errorPred": 0.301,
+      "errorBase": 0.11
+    },
+    {
+      "at": 1794678247931.0,
+      "champion": "Blitzcrank",
+      "gapSec": 28.0,
+      "model": 0.167,
+      "baseline": 0.0,
+      "errorPred": 0.57,
+      "errorBase": 0.893
+    },
+    {
+      "at": 1794678247931.0,
+      "champion": "Caitlyn",
+      "gapSec": 12.0,
+      "model": 0.162,
+      "baseline": 0.041,
+      "errorPred": 0.069,
+      "errorBase": 0.133
+    },
+    {
+      "at": 1794678247931.0,
+      "champion": "Warwick",
+      "gapSec": 16.0,
+      "model": 0.005,
+      "baseline": 0.025,
+      "errorPred": 0.077,
+      "errorBase": 0.156
+    },
+    {
+      "at": 1794678247926.0,
+      "champion": "Irelia",
+      "gapSec": 38.0,
+      "model": 0.007,
+      "baseline": 0.005,
+      "errorPred": 0.308,
+      "errorBase": 0.067
+    },
+    {
+      "at": 1794678247910.0,
+      "champion": "Blitzcrank",
+      "gapSec": 18.0,
+      "model": 0.197,
+      "baseline": 0.0,
+      "errorPred": 0.672,
+      "errorBase": 0.885
+    },
+    {
+      "at": 1794678247910.0,
+      "champion": "Irelia",
+      "gapSec": 30.0,
+      "model": 0.03,
+      "baseline": 0.006,
+      "errorPred": 0.103,
+      "errorBase": 0.353
+    },
+    {
+      "at": 1794678247910.0,
+      "champion": "Warwick",
+      "gapSec": 6.0,
+      "model": 0.684,
+      "baseline": 0.052,
+      "errorPred": 0.077,
+      "errorBase": 0.121
+    },
+    {
+      "at": 1794678247894.0,
+      "champion": "Caitlyn",
+      "gapSec": 33.0,
+      "model": 0.0,
+      "baseline": 0.007,
+      "errorPred": 0.483,
+      "errorBase": 0.32
+    },
+    {
+      "at": 1794678247892.0,
+      "champion": "Blitzcrank",
+      "gapSec": 7.0,
+      "model": 0.195,
+      "baseline": 0.166,
+      "errorPred": 0.085,
+      "errorBase": 0.032
+    },
+    {
+      "at": 1794678247892.0,
+      "champion": "Caitlyn",
+      "gapSec": 32.0,
+      "model": 0.0,
+      "baseline": 0.007,
+      "errorPred": 0.45,
+      "errorBase": 0.287
+    },
+    {
+      "at": 1794678247892.0,
+      "champion": "Irelia",
+      "gapSec": 19.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.412,
+      "errorBase": 0.745
+    },
+    {
+      "at": 1794678247883.0,
+      "champion": "Warwick",
+      "gapSec": 12.0,
+      "model": -0.0,
+      "baseline": 0.006,
+      "errorPred": 0.357,
+      "errorBase": 0.3
+    },
+    {
+      "at": 1794678247873.0,
+      "champion": "Caitlyn",
+      "gapSec": 22.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.566,
+      "errorBase": 0.794
+    },
+    {
+      "at": 1794678247873.0,
+      "champion": "Irelia",
+      "gapSec": 9.0,
+      "model": 0.086,
+      "baseline": 0.118,
+      "errorPred": 0.145,
+      "errorBase": 0.016
+    },
+    {
+      "at": 1794678247873.0,
+      "champion": "Warwick",
+      "gapSec": 6.0,
+      "model": 0.003,
+      "baseline": 0.018,
+      "errorPred": 0.187,
+      "errorBase": 0.168
+    },
+    {
+      "at": 1794678247852.0,
+      "champion": "Warwick",
+      "gapSec": 26.0,
+      "model": -0.0,
+      "baseline": 0.012,
+      "errorPred": 0.555,
+      "errorBase": 0.154
+    },
+    {
+      "at": 1794678247850.0,
+      "champion": "Caitlyn",
+      "gapSec": 8.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.73,
+      "errorBase": 0.794
+    },
+    {
+      "at": 1794678247835.0,
+      "champion": "Caitlyn",
+      "gapSec": 3.0,
+      "model": 0.853,
+      "baseline": 0.217,
+      "errorPred": 0.031,
+      "errorBase": 0.062
+    },
+    {
+      "at": 1794678247827.0,
+      "champion": "Caitlyn",
+      "gapSec": 3.0,
+      "model": 0.33,
+      "baseline": 0.664,
+      "errorPred": 0.048,
+      "errorBase": 0.033
+    },
+    {
+      "at": 1794678247823.0,
+      "champion": "Blitzcrank",
+      "gapSec": 14.0,
+      "model": 0.124,
+      "baseline": 0.048,
+      "errorPred": 0.187,
+      "errorBase": 0.02
+    },
+    {
+      "at": 1794678247808.0,
+      "champion": "Caitlyn",
+      "gapSec": 9.0,
+      "model": 0.01,
+      "baseline": 0.099,
+      "errorPred": 0.193,
+      "errorBase": 0.074
+    },
+    {
+      "at": 1794678247808.0,
+      "champion": "Warwick",
+      "gapSec": 39.0,
+      "model": -0.0,
+      "baseline": 0.005,
+      "errorPred": 0.48,
+      "errorBase": 0.282
+    },
+    {
+      "at": 1794678247802.0,
+      "champion": "Caitlyn",
+      "gapSec": 6.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.418,
+      "errorBase": 0.519
+    },
+    {
+      "at": 1794678247802.0,
+      "champion": "Warwick",
+      "gapSec": 37.0,
+      "model": 0.001,
+      "baseline": 0.005,
+      "errorPred": 0.398,
+      "errorBase": 0.283
+    },
+    {
+      "at": 1794678247791.0,
+      "champion": "Blitzcrank",
+      "gapSec": 4.0,
+      "model": 0.109,
+      "baseline": 0.292,
+      "errorPred": 0.087,
+      "errorBase": 0.054
+    },
+    {
+      "at": 1794678247774.0,
+      "champion": "Renekton",
+      "gapSec": 3.0,
+      "model": 0.436,
+      "baseline": 0.228,
+      "errorPred": 0.064,
+      "errorBase": 0.063
+    },
+    {
+      "at": 1794678247766.0,
+      "champion": "Warwick",
+      "gapSec": 15.0,
+      "model": 0.0,
+      "baseline": 0.036,
+      "errorPred": 0.161,
+      "errorBase": 0.068
+    },
+    {
+      "at": 1794678247765.0,
+      "champion": "Blitzcrank",
+      "gapSec": 4.0,
+      "model": 0.474,
+      "baseline": 0.4,
+      "errorPred": 0.056,
+      "errorBase": 0.04
+    },
+    {
+      "at": 1794678247763.0,
+      "champion": "Caitlyn",
+      "gapSec": 6.0,
+      "model": 0.001,
+      "baseline": 0.277,
+      "errorPred": 0.103,
+      "errorBase": 0.038
+    },
+    {
+      "at": 1794678247755.0,
+      "champion": "Blitzcrank",
+      "gapSec": 60.0,
+      "model": 0.05,
+      "baseline": 0.002,
+      "errorPred": 0.15,
+      "errorBase": 0.23
+    },
+    {
+      "at": 1794678247747.0,
+      "champion": "Blitzcrank",
+      "gapSec": 55.0,
+      "model": 0.271,
+      "baseline": 0.003,
+      "errorPred": 0.013,
+      "errorBase": 0.358
+    },
+    {
+      "at": 1794678247747.0,
+      "champion": "Warwick",
+      "gapSec": 4.0,
+      "model": 0.04,
+      "baseline": 0.383,
+      "errorPred": 0.065,
+      "errorBase": 0.042
+    },
+    {
+      "at": 1794678247728.0,
+      "champion": "Blitzcrank",
+      "gapSec": 44.0,
+      "model": 0.056,
+      "baseline": 0.002,
+      "errorPred": 0.349,
+      "errorBase": 0.718
+    },
+    {
+      "at": 1794678247726.0,
+      "champion": "Caitlyn",
+      "gapSec": 3.0,
+      "model": 0.286,
+      "baseline": 0.188,
+      "errorPred": 0.066,
+      "errorBase": 0.065
+    },
+    {
+      "at": 1794678247711.0,
+      "champion": "Renekton",
+      "gapSec": 69.0,
+      "model": 0.0,
+      "baseline": 0.001,
+      "errorPred": 0.401,
+      "errorBase": 0.864
+    },
+    {
+      "at": 1794678247709.0,
+      "champion": "Caitlyn",
+      "gapSec": 39.0,
+      "model": 0.048,
+      "baseline": 0.005,
+      "errorPred": 0.095,
+      "errorBase": 0.288
+    },
+    {
+      "at": 1794678247686.0,
+      "champion": "Irelia",
+      "gapSec": 6.0,
+      "model": 0.136,
+      "baseline": 0.072,
+      "errorPred": 0.142,
+      "errorBase": 0.112
+    },
+    {
+      "at": 1794678247670.0,
+      "champion": "Blitzcrank",
+      "gapSec": 13.0,
+      "model": 0.004,
+      "baseline": 0.043,
+      "errorPred": 0.095,
+      "errorBase": 0.112
+    },
+    {
+      "at": 1794678247670.0,
+      "champion": "Caitlyn",
+      "gapSec": 19.0,
+      "model": 0.179,
+      "baseline": 0.0,
+      "errorPred": 0.603,
+      "errorBase": 0.904
+    },
+    {
+      "at": 1794678247670.0,
+      "champion": "Warwick",
+      "gapSec": 70.0,
+      "model": 0.005,
+      "baseline": 0.002,
+      "errorPred": 0.522,
+      "errorBase": 0.524
+    },
+    {
+      "at": 1794678247670.0,
+      "champion": "Renekton",
+      "gapSec": 48.0,
+      "model": -0.0,
+      "baseline": 0.004,
+      "errorPred": 0.392,
+      "errorBase": 0.296
+    },
+    {
+      "at": 1794678247668.0,
+      "champion": "Irelia",
+      "gapSec": 34.0,
+      "model": 0.016,
+      "baseline": 0.006,
+      "errorPred": 0.099,
+      "errorBase": 0.145
+    },
+    {
+      "at": 1794678247643.0,
+      "champion": "Caitlyn",
+      "gapSec": 7.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.799,
+      "errorBase": 0.88
+    },
+    {
+      "at": 1794678247643.0,
+      "champion": "Irelia",
+      "gapSec": 23.0,
+      "model": 0.0,
+      "baseline": 0.003,
+      "errorPred": 0.248,
+      "errorBase": 0.496
+    },
+    {
+      "at": 1794678247643.0,
+      "champion": "Warwick",
+      "gapSec": 58.0,
+      "model": 0.011,
+      "baseline": 0.002,
+      "errorPred": 0.517,
+      "errorBase": 0.511
+    },
+    {
+      "at": 1794678247643.0,
+      "champion": "Renekton",
+      "gapSec": 36.0,
+      "model": 0.02,
+      "baseline": 0.007,
+      "errorPred": 0.662,
+      "errorBase": 0.021
+    },
+    {
+      "at": 1794678247631.0,
+      "champion": "Blitzcrank",
+      "gapSec": 4.0,
+      "model": 0.39,
+      "baseline": 0.502,
+      "errorPred": 0.053,
+      "errorBase": 0.023
+    },
+    {
+      "at": 1794678247626.0,
+      "champion": "Caitlyn",
+      "gapSec": 10.0,
+      "model": 0.001,
+      "baseline": 0.074,
+      "errorPred": 0.2,
+      "errorBase": 0.066
+    },
+    {
+      "at": 1794678247603.0,
+      "champion": "Caitlyn",
+      "gapSec": 12.0,
+      "model": 0.033,
+      "baseline": 0.056,
+      "errorPred": 0.143,
+      "errorBase": 0.012
+    },
+    {
+      "at": 1794678247590.0,
+      "champion": "Caitlyn",
+      "gapSec": 5.0,
+      "model": 0.409,
+      "baseline": 0.357,
+      "errorPred": 0.072,
+      "errorBase": 0.026
+    },
+    {
+      "at": 1794678247590.0,
+      "champion": "Warwick",
+      "gapSec": 32.0,
+      "model": -0.0,
+      "baseline": 0.001,
+      "errorPred": 0.751,
+      "errorBase": 0.755
+    },
+    {
+      "at": 1794678247590.0,
+      "champion": "Renekton",
+      "gapSec": 10.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.665,
+      "errorBase": 0.827
+    },
+    {
+      "at": 1794678247582.0,
+      "champion": "Caitlyn",
+      "gapSec": 6.0,
+      "model": 0.892,
+      "baseline": 0.119,
+      "errorPred": 0.034,
+      "errorBase": 0.081
+    },
+    {
+      "at": 1794678247572.0,
+      "champion": "Warwick",
+      "gapSec": 21.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.686,
+      "errorBase": 0.692
+    },
+    {
+      "at": 1794678247571.0,
+      "champion": "Blitzcrank",
+      "gapSec": 6.0,
+      "model": 0.062,
+      "baseline": 0.185,
+      "errorPred": 0.096,
+      "errorBase": 0.041
+    },
+    {
+      "at": 1794678247561.0,
+      "champion": "Caitlyn",
+      "gapSec": 6.0,
+      "model": 0.038,
+      "baseline": 0.191,
+      "errorPred": 0.086,
+      "errorBase": 0.019
+    },
+    {
+      "at": 1794678247557.0,
+      "champion": "Caitlyn",
+      "gapSec": 3.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.831,
+      "errorBase": 0.86
+    },
+    {
+      "at": 1794678247557.0,
+      "champion": "Warwick",
+      "gapSec": 11.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.399,
+      "errorBase": 0.406
+    },
+    {
+      "at": 1794678247556.0,
+      "champion": "Renekton",
+      "gapSec": 4.0,
+      "model": 0.921,
+      "baseline": 0.314,
+      "errorPred": 0.008,
+      "errorBase": 0.046
+    },
+    {
+      "at": 1794678247549.0,
+      "champion": "Blitzcrank",
+      "gapSec": 9.0,
+      "model": -0.0,
+      "baseline": 0.021,
+      "errorPred": 0.11,
+      "errorBase": 0.191
+    },
+    {
+      "at": 1794678247534.0,
+      "champion": "Caitlyn",
+      "gapSec": 10.0,
+      "model": -0.0,
+      "baseline": 0.027,
+      "errorPred": 0.264,
+      "errorBase": 0.185
+    },
+    {
+      "at": 1794678247527.0,
+      "champion": "Blitzcrank",
+      "gapSec": 20.0,
+      "model": -0.0,
+      "baseline": 0.001,
+      "errorPred": 0.244,
+      "errorBase": 0.555
+    },
+    {
+      "at": 1794678247517.0,
+      "champion": "Blitzcrank",
+      "gapSec": 14.0,
+      "model": -0.0,
+      "baseline": 0.001,
+      "errorPred": 0.244,
+      "errorBase": 0.449
+    },
+    {
+      "at": 1794678247513.0,
+      "champion": "Caitlyn",
+      "gapSec": 14.0,
+      "model": 0.244,
+      "baseline": 0.017,
+      "errorPred": 0.233,
+      "errorBase": 0.232
+    },
+    {
+      "at": 1794678247501.0,
+      "champion": "Blitzcrank",
+      "gapSec": 4.0,
+      "model": 0.002,
+      "baseline": 0.002,
+      "errorPred": 0.059,
+      "errorBase": 0.156
+    },
+    {
+      "at": 1794678247501.0,
+      "champion": "Caitlyn",
+      "gapSec": 6.0,
+      "model": 0.315,
+      "baseline": 0.109,
+      "errorPred": 0.091,
+      "errorBase": 0.092
+    },
+    {
+      "at": 1794678247491.0,
+      "champion": "Irelia",
+      "gapSec": 5.0,
+      "model": 0.03,
+      "baseline": 0.042,
+      "errorPred": 0.068,
+      "errorBase": 0.126
+    },
+    {
+      "at": 1794678247469.0,
+      "champion": "Caitlyn",
+      "gapSec": 6.0,
+      "model": 0.318,
+      "baseline": 0.184,
+      "errorPred": 0.074,
+      "errorBase": 0.024
+    },
+    {
+      "at": 1794678247465.0,
+      "champion": "Renekton",
+      "gapSec": 40.0,
+      "model": 0.045,
+      "baseline": 0.005,
+      "errorPred": 0.203,
+      "errorBase": 0.153
+    },
+    {
+      "at": 1794678247464.0,
+      "champion": "Caitlyn",
+      "gapSec": 3.0,
+      "model": 0.539,
+      "baseline": 0.694,
+      "errorPred": 0.017,
+      "errorBase": 0.019
+    },
+    {
+      "at": 1794678247464.0,
+      "champion": "Renekton",
+      "gapSec": 39.0,
+      "model": 0.071,
+      "baseline": 0.006,
+      "errorPred": 0.19,
+      "errorBase": 0.166
+    },
+    {
+      "at": 1794678247460.0,
+      "champion": "Warwick",
+      "gapSec": 87.0,
+      "model": 0.028,
+      "baseline": 0.001,
+      "errorPred": 0.394,
+      "errorBase": 0.261
+    },
+    {
+      "at": 1794678247450.0,
+      "champion": "Caitlyn",
+      "gapSec": 7.0,
+      "model": 0.006,
+      "baseline": 0.142,
+      "errorPred": 0.086,
+      "errorBase": 0.033
+    },
+    {
+      "at": 1794678247449.0,
+      "champion": "Blitzcrank",
+      "gapSec": 4.0,
+      "model": 0.539,
+      "baseline": 0.21,
+      "errorPred": 0.061,
+      "errorBase": 0.066
+    },
+    {
+      "at": 1794678247447.0,
+      "champion": "Caitlyn",
+      "gapSec": 5.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.927,
+      "errorBase": 0.942
+    },
+    {
+      "at": 1794678247447.0,
+      "champion": "Warwick",
+      "gapSec": 79.0,
+      "model": 0.064,
+      "baseline": 0.001,
+      "errorPred": 0.37,
+      "errorBase": 0.249
+    },
+    {
+      "at": 1794678247447.0,
+      "champion": "Renekton",
+      "gapSec": 29.0,
+      "model": -0.0,
+      "baseline": 0.004,
+      "errorPred": 0.135,
+      "errorBase": 0.474
+    },
+    {
+      "at": 1794678247439.0,
+      "champion": "Blitzcrank",
+      "gapSec": 9.0,
+      "model": 0.01,
+      "baseline": 0.084,
+      "errorPred": 0.18,
+      "errorBase": 0.083
+    },
+    {
+      "at": 1794678247437.0,
+      "champion": "Caitlyn",
+      "gapSec": 7.0,
+      "model": 0.046,
+      "baseline": 0.147,
+      "errorPred": 0.133,
+      "errorBase": 0.058
+    },
+    {
+      "at": 1794678247428.0,
+      "champion": "Warwick",
+      "gapSec": 68.0,
+      "model": 0.085,
+      "baseline": 0.002,
+      "errorPred": 0.225,
+      "errorBase": 0.237
+    },
+    {
+      "at": 1794678247428.0,
+      "champion": "Renekton",
+      "gapSec": 18.0,
+      "model": 0.315,
+      "baseline": 0.0,
+      "errorPred": 0.615,
+      "errorBase": 0.844
+    },
+    {
+      "at": 1794678247425.0,
+      "champion": "Caitlyn",
+      "gapSec": 3.0,
+      "model": 0.402,
+      "baseline": 0.647,
+      "errorPred": 0.049,
+      "errorBase": 0.021
+    },
+    {
+      "at": 1794678247421.0,
+      "champion": "Blitzcrank",
+      "gapSec": 4.0,
+      "model": 0.54,
+      "baseline": 0.349,
+      "errorPred": 0.037,
+      "errorBase": 0.046
+    },
+    {
+      "at": 1794678247421.0,
+      "champion": "Irelia",
+      "gapSec": 33.0,
+      "model": 0.06,
+      "baseline": 0.007,
+      "errorPred": 0.063,
+      "errorBase": 0.181
+    },
+    {
+      "at": 1794678247414.0,
+      "champion": "Caitlyn",
+      "gapSec": 3.0,
+      "model": 0.739,
+      "baseline": 0.53,
+      "errorPred": 0.013,
+      "errorBase": 0.033
+    },
+    {
+      "at": 1794678247409.0,
+      "champion": "Irelia",
+      "gapSec": 26.0,
+      "model": -0.0,
+      "baseline": 0.007,
+      "errorPred": 0.135,
+      "errorBase": 0.355
+    },
+    {
+      "at": 1794678247409.0,
+      "champion": "Warwick",
+      "gapSec": 58.0,
+      "model": 0.116,
+      "baseline": 0.003,
+      "errorPred": 0.191,
+      "errorBase": 0.266
+    },
+    {
+      "at": 1794678247409.0,
+      "champion": "Renekton",
+      "gapSec": 8.0,
+      "model": 0.325,
+      "baseline": 0.112,
+      "errorPred": 0.073,
+      "errorBase": 0.074
+    },
+    {
+      "at": 1794678247407.0,
+      "champion": "Caitlyn",
+      "gapSec": 22.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.263,
+      "errorBase": 0.741
+    },
+    {
+      "at": 1794678247389.0,
+      "champion": "Caitlyn",
+      "gapSec": 12.0,
+      "model": -0.0,
+      "baseline": 0.001,
+      "errorPred": 0.121,
+      "errorBase": 0.43
+    },
+    {
+      "at": 1794678247389.0,
+      "champion": "Irelia",
+      "gapSec": 14.0,
+      "model": 0.156,
+      "baseline": 0.0,
+      "errorPred": 0.499,
+      "errorBase": 0.717
+    },
+    {
+      "at": 1794678247389.0,
+      "champion": "Warwick",
+      "gapSec": 46.0,
+      "model": 0.095,
+      "baseline": 0.004,
+      "errorPred": 0.029,
+      "errorBase": 0.23
+    },
+    {
+      "at": 1794678247366.0,
+      "champion": "Warwick",
+      "gapSec": 34.0,
+      "model": 0.001,
+      "baseline": 0.003,
+      "errorPred": 0.365,
+      "errorBase": 0.515
+    },
+    {
+      "at": 1794678247365.0,
+      "champion": "Renekton",
+      "gapSec": 6.0,
+      "model": 0.38,
+      "baseline": 0.209,
+      "errorPred": 0.054,
+      "errorBase": 0.029
+    },
+    {
+      "at": 1794678247359.0,
+      "champion": "Blitzcrank",
+      "gapSec": 3.0,
+      "model": 0.819,
+      "baseline": 0.79,
+      "errorPred": 0.007,
+      "errorBase": 0.012
+    },
+    {
+      "at": 1794678247345.0,
+      "champion": "Warwick",
+      "gapSec": 22.0,
+      "model": 0.047,
+      "baseline": 0.016,
+      "errorPred": 0.292,
+      "errorBase": 0.139
+    },
+    {
+      "at": 1794678247334.0,
+      "champion": "Irelia",
+      "gapSec": 3.0,
+      "model": 0.989,
+      "baseline": 0.79,
+      "errorPred": 0.016,
+      "errorBase": 0.024
+    },
+    {
+      "at": 1794678247329.0,
+      "champion": "Caitlyn",
+      "gapSec": 11.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.436,
+      "errorBase": 0.55
+    },
+    {
+      "at": 1794678247329.0,
+      "champion": "Warwick",
+      "gapSec": 11.0,
+      "model": 0.021,
+      "baseline": 0.042,
+      "errorPred": 0.286,
+      "errorBase": 0.139
+    },
+    {
+      "at": 1794678247328.0,
+      "champion": "Renekton",
+      "gapSec": 3.0,
+      "model": 0.12,
+      "baseline": 0.579,
+      "errorPred": 0.066,
+      "errorBase": 0.033
+    },
+    {
+      "at": 1794678247327.0,
+      "champion": "Irelia",
+      "gapSec": 5.0,
+      "model": 0.296,
+      "baseline": 0.392,
+      "errorPred": 0.035,
+      "errorBase": 0.018
+    },
+    {
+      "at": 1794678247308.0,
+      "champion": "Warwick",
+      "gapSec": 9.0,
+      "model": 0.012,
+      "baseline": 0.099,
+      "errorPred": 0.111,
+      "errorBase": 0.067
+    },
+    {
+      "at": 1794678247307.0,
+      "champion": "Blitzcrank",
+      "gapSec": 12.0,
+      "model": 0.193,
+      "baseline": 0.059,
+      "errorPred": 0.126,
+      "errorBase": 0.051
+    },
+    {
+      "at": 1794678247301.0,
+      "champion": "Caitlyn",
+      "gapSec": 6.0,
+      "model": 0.001,
+      "baseline": 0.16,
+      "errorPred": 0.098,
+      "errorBase": 0.05
+    }
+  ]
+}

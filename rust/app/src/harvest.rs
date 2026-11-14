@@ -1,8 +1,8 @@
 //! Replay harvesting (index.ts `harvestStart` / `harvestOpen` / queue): collect fog / no-fog
 //! minimap frames from League replays with `rc_core::harvest::Harvester`. The capture side
-//! feeds `Harvester::frame` from `vision::frame_loop`. We never send input to the game: the
-//! replay is controlled only through its Replay API, and the HUD fog team is switched by the
-//! user (state `waiting-fog`).
+//! feeds `Harvester::frame` from `vision::frame_loop`. Playback uses the Replay API;
+//! the existing replay-fog script switches only the HUD fog team. If verification fails,
+//! collection waits for the user (state `waiting-fog`).
 
 use crate::state::AppState;
 use rc_core::harvest::{HarvestRequest, LiveReplayApi, ReplayControl};
@@ -195,6 +195,16 @@ pub fn start(st: &Arc<AppState>, opts: &Value) -> Result<(), String> {
 pub fn smoke_start(st: &Arc<AppState>) {
     let st = st.clone();
     st.rt.clone().spawn(async move {
+        // Explicit opt-in: the regular smoke harvest still sends no HUD input.
+        if std::env::args().any(|a| a == "--smoke-harvest-auto") {
+            let game_id = open_replay_game_id(&st).await;
+            println!("SMOKE-HARVEST auto {game_id:?}");
+            match harvest_open(&st, 8.0, game_id).await {
+                Ok(()) => println!("SMOKE-HARVEST done"),
+                Err(e) => println!("SMOKE-HARVEST error {e}"),
+            }
+            return;
+        }
         st.vision.capture.set_fps(30.0);
         tokio::time::sleep(Duration::from_millis(1500)).await;
         let mut meta = Map::new();

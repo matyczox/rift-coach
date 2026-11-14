@@ -210,6 +210,20 @@ fn nearest(arr: &[u64], t: u64) -> u64 {
     a
 }
 
+// Harvester offsets come from js_round(f64), so serde writes e.g. 12000.0.
+// as_u64 alone rejects those and used to turn the entire API timeline into time zero.
+fn api_time_ms(v: &Value) -> Option<u64> {
+    v.as_u64().or_else(|| v.as_f64().filter(|t| t.is_finite() && *t >= 0.0).map(|t| t.round() as u64))
+}
+
+#[test]
+fn api_offsets_accept_harvester_floats_and_legacy_integers() {
+    assert_eq!(api_time_ms(&serde_json::json!(12000.0)), Some(12000));
+    assert_eq!(api_time_ms(&serde_json::json!(12000)), Some(12000));
+    assert_eq!(api_time_ms(&serde_json::json!(-1.0)), None);
+    assert_eq!(api_time_ms(&Value::Null), None);
+}
+
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let dir = session::session_dir(args.first().expect("usage: eval_tracker <session> [noFog]"));
@@ -231,8 +245,9 @@ fn main() {
         .trim()
         .lines()
         .filter_map(|l| serde_json::from_str::<Value>(l).ok())
-        .map(|mut v| (v["o"].as_u64().unwrap_or(0), v["d"].take()))
+        .filter_map(|mut v| Some((api_time_ms(&v["o"])?, v["d"].take())))
         .collect();
+    assert!(!api.is_empty(), "no valid API timeline in api.jsonl.gz");
     let red_times: Vec<u64> = red.keys().copied().collect();
     let blue_times: Vec<u64> = blue.keys().copied().collect();
 

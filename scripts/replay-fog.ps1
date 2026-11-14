@@ -66,13 +66,23 @@ if ($cmd -eq 'shot') {
     $rx = [int]($rc.X + 0.083 * $rc.Width); $ry = [int]($rc.Y + 0.939 * $rc.Height)
     $rw = [int](0.06 * $rc.Width); $rh = [int](0.017 * $rc.Height)
     $bmp = New-Object System.Drawing.Bitmap $rw, $rh
-    [System.Drawing.Graphics]::FromImage($bmp).CopyFromScreen($rx, $ry, 0, 0, $bmp.Size)
-    $r = 0; $g = 0; $b = 0; $n = 0
+    $graphics = [System.Drawing.Graphics]::FromImage($bmp)
+    $graphics.CopyFromScreen($rx, $ry, 0, 0, $bmp.Size)
+    $graphics.Dispose()
+    $red = 0; $blue = 0; $white = 0
     for ($y = 0; $y -lt $rh; $y++) { for ($x = 0; $x -lt $rw; $x++) {
-      $c = $bmp.GetPixel($x, $y); if (($c.R + $c.G + $c.B) -gt 330) { $r += $c.R; $g += $c.G; $b += $c.B; $n++ } } }
-    if ($n -lt 5) { return 'none' }
-    $r /= $n; $g /= $n; $b /= $n
-    if ($b -gt $r + 40) { 'blue' } elseif ($r -gt $b + 40) { 'red' } else { 'all' }
+      $c = $bmp.GetPixel($x, $y)
+      # Red text is darker than the old total-brightness threshold (330).
+      # Count coloured glyph pixels directly so a successful red switch is recognised.
+      if ($c.R -gt 90 -and $c.R -gt $c.B + 40 -and $c.R -gt $c.G + 25) { $red++ }
+      elseif ($c.B -gt 100 -and $c.B -gt $c.R + 40) { $blue++ }
+      elseif ($c.R -gt 75 -and $c.G -gt 75 -and $c.B -gt 75 -and [Math]::Abs([int]$c.R - [int]$c.B) -lt 30) { $white++ }
+    } }
+    $bmp.Dispose()
+    if ($red -ge 5 -and $red -gt $blue) { 'red' }
+    elseif ($blue -ge 5) { 'blue' }
+    elseif ($white -ge 5) { 'all' }
+    else { 'none' }
   }
   $got = 'none'
   [RcWin]::SetForegroundWindow($h) | Out-Null

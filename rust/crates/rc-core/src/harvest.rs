@@ -3,9 +3,9 @@
 //! Which champions the minimap draws depends on the team picked in the replay HUD
 //! ("Mgła wojny"), NOT on the Replay API fogOfWar flag. So the replay is played
 //! once per team view (blue pass → `frames/`, red pass → `red/`, all → `all/`).
-//! The HUD team can't be switched through the API and we never send input to the
-//! game, so between passes the harvester waits for the user (`waiting-fog`,
-//! resumed by [`Harvester::continue_pass`]).
+//! The HUD team can't be switched through the API, so the existing replay-fog
+//! script switches and verifies it. If unavailable, the harvester waits for the
+//! user (`waiting-fog`, resumed by [`Harvester::continue_pass`]).
 //!
 //! Output (normal recording folder, frames named by game time in ms):
 //!   frames/<gameMs>.png, red/<gameMs>.png, all/<gameMs>.png
