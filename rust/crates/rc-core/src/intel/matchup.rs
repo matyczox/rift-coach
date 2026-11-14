@@ -474,8 +474,11 @@ pub fn power_bar_near(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dy
             "Silniejszy teraz → trade'uj".into()
         }
     } else if p_me <= 0.4 {
-        match next_good_level(brief, me.level) {
-            Some(nl) => format!("Czekaj na {nl} lvl, farm bezpiecznie"),
+        // Only the very next level ("Czekaj na 16 lvl" at 13 said nothing); a support does not farm.
+        let support = me.role == "UTILITY";
+        match next_good_level(brief, me.level).filter(|l| *l == me.level + 1) {
+            Some(nl) => format!("Czekaj na {nl} lvl"),
+            None if support => "Słabszy → nie wchodź".into(),
             None => "Słabszy → farm pod wieżą, nie wchodź".into(),
         }
     } else {
