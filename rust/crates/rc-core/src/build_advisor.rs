@@ -291,7 +291,9 @@ pub fn purchase_cost(target: &ItemData, items: &HashMap<i64, ItemData>, owned: &
         d.from.iter().map(|&c| credit(c, items, owned, depth + 1)).sum::<f64>().min(d.total)
     }
     let mut remaining = owned.to_vec();
-    (target.total - credit(target.id, items, &mut remaining, 0)).max(0.0)
+    // This is the price of a NEW copy. Owning the same component does not make
+    // a second copy free; only its recipe components can reduce the price.
+    (target.total - target.from.iter().map(|&c|credit(c,items,&mut remaining,0)).sum::<f64>()).max(0.0)
 }
 
 pub fn buy_from_plan(names: &[String], items: &HashMap<i64, ItemData>, owned: &[i64], gold: f64, want_boots: bool) -> Vec<i64> {
@@ -423,6 +425,7 @@ mod tests {
         items.insert(3089, mk(3089, 3500.0, vec![1058, 1026, 1052]));
         let rab = items[&3089].clone();
         assert_eq!(purchase_cost(&rab, &items, &[1058,1026]),1450.0);
+        assert_eq!(purchase_cost(&items[&1058], &items, &[1058]),1200.0);
         // 1300 g: the biggest component that fits.
         assert_eq!(buy_now(&rab, &items, &[], 1300.0, false), vec![1058]);
         // 900 g: the rod does not fit, the wand does.

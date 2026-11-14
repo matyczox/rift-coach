@@ -1195,59 +1195,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         }
         f.toasts.push(Toast { id: now as u64 + 7 + f.toasts.len() as u64, kind: "push".into(), team: "enemy".into(), champion: Some(champ.clone()), text, expires_at: now + 5000.0 });
     }
-    // An ally fighting somewhere I can reach (jungler vs invader, skirmish): "go help" right away,
-    // locally. Not plain laning: a jungler involved, or 3+ champions in the scrap.
-    if let Some((mx, my)) = f.my_pos {
-        let me_c = intel.me.as_ref().map(|m| m.champion.clone()).unwrap_or_default();
-        let jungler = |c: &str| intel.players.iter().any(|p| p.champion == c && p.role == "JUNGLE");
-        for a in f.allies.iter().filter(|a| a.champion != me_c) {
-            let d_me = (a.x - mx).hypot(a.y - my);
-            let foes: Vec<&SeenUnit> = f.visible_enemies.iter().filter(|e| (e.x - a.x).hypot(e.y - a.y) < 0.045).collect();
-            let friends = f.allies.iter().filter(|b| b.champion != me_c && (b.x - a.x).hypot(b.y - a.y) < 0.045).count();
-            let Some(foe) = foes.first() else { continue };
-            // A teamfight (4+ champions in it) anywhere is worth walking to from further away (~half the
-            // map); a small skirmish only when I am close.
-            let teamfight = friends + foes.len() >= 4;
-            if !(0.12..if teamfight { 0.55 } else { 0.3 }).contains(&d_me) {
-                continue;
-            }
-            if !(jungler(&a.champion) || foes.iter().any(|e| jungler(&e.champion)) || friends + foes.len() >= 3) {
-                continue;
-            }
-            if f.fight_seen.iter().any(|(k, at)| *k == a.champion && now - at < 30000.0) {
-                continue;
-            }
-            f.fight_seen.retain(|(k, _)| *k != a.champion);
-            f.fight_seen.push((a.champion.clone(), now));
-            // Worth going? Count both sides around the fight: visible ones plus fogged enemies the tracker
-            // most likely puts there ("bił się z Kayle, a za nią cała zgraja"). Me arriving counts for us.
-            const AREA: f64 = 0.09;
-            let ours = 1 + f.allies.iter().filter(|b| b.champion != me_c && (b.x - a.x).hypot(b.y - a.y) < AREA).count();
-            let seen_foes = f.visible_enemies.iter().filter(|e| (e.x - a.x).hypot(e.y - a.y) < AREA).count();
-            let fog_foes = intel
-                .players
-                .iter()
-                .filter(|p| !p.is_ally && !p.is_dead && !f.visible_enemies.iter().any(|e| e.champion == p.champion))
-                .filter(|p| f.tracker.as_ref().and_then(|tr| tr.mass_near(&p.champion, (a.x, a.y), AREA)).is_some_and(|m| m > 0.4))
-                .count();
-            let theirs = seen_foes + fog_foes;
-            let more = if theirs > 1 { format!(" +{}", theirs - 1) } else { String::new() };
-            let fog = if fog_foes > 0 { format!(" ({fog_foes} we mgle)") } else { String::new() };
-            let _ = (&more, &fog, foe);
-            // Plain words: "Pomóż Sona — 2v2 z tobą" / "Nie idź do Sona — 1v3" (was "Sona vs X +1 → pomóż").
-            let (kind, team, text) = match (theirs > ours, teamfight) {
-                (true, true) => ("fight-bad", "enemy", format!("Teamfight {}v{} — nie idź", ours, theirs)),
-                (true, false) => ("fight-bad", "enemy", format!("Nie idź do {} — {}v{}", a.champion, ours, theirs)),
-                (false, true) => ("fight", "ally", format!("Teamfight → idź, {}v{} z tobą", ours, theirs)),
-                (false, false) => ("fight", "ally", format!("Pomóż {} — {}v{} z tobą", a.champion, ours, theirs)),
-            };
-            f.toasts.push(Toast { id: now as u64 + 13 + f.toasts.len() as u64, kind: kind.into(), team: team.into(), champion: Some(a.champion.clone()), text, expires_at: now + 6000.0 });
-            f.help = (theirs <= ours).then(|| (a.champion.clone(), now + 8000.0));
-            let id = f.toasts.last().map(|t| t.id).unwrap_or(0);
-            f.fight_toast = Some((id, f.visible_enemies.iter().filter(|e| (e.x - a.x).hypot(e.y - a.y) < AREA).map(|e| e.champion.clone()).collect()));
-            break;
-        }
-    }
+    // Support targets are selected by knowledge::support_plan for both HUD and coach.
     // Their laner seen on his lane pushing towards our tower (their wave on our side, or him walking at our
     // tower) with none of us near: warn before he is AT the tower.
     for (role, lane) in [("TOP", "top"), ("MIDDLE", "mid"), ("BOTTOM", "bot")] {

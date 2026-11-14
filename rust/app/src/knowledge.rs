@@ -8,7 +8,7 @@ use crate::vision::SeenUnit;
 use rc_core::build_advisor::{advise_build, build_context};
 use rc_core::intel::ddragon::patch_of;
 use rc_core::intel::game_intel::GameIntel;
-use rc_core::intel::matchup::{fetch_matchup, lane_opponent, load_cached_matchup, power_score, MatchupQuery};
+use rc_core::intel::matchup::{fetch_matchup, lane_opponent, load_cached_matchup, MatchupQuery};
 use rc_core::intel::situational::{self, fed_champions, FogEstimate, FogTrack, Pos};
 use rc_core::llm::caller::CliCaller;
 use rc_core::llm::profiles::{pick, Task};
@@ -445,9 +445,7 @@ pub fn fog_tracks(g: &Game) -> Vec<FogTrack> {
 /// P(I win the lane fight now), from the matchup curve and the live state.
 pub fn current_p_me(g: &Game) -> Option<f64> {
     let intel = g.intel.as_ref()?;
-    intel.me.as_ref()?;
-    let opp = lane_opponent(intel)?;
-    Some(power_score(intel, opp, g.matchup.as_ref()).0)
+    rc_core::intel::matchup::power_bar_near(intel,g.matchup.as_ref(),&|_|String::new(),&nearby(g)).filter(|p|p.local).map(|p|p.p_me)
 }
 
 /// Who is around me on the minimap, for the power bar's fight estimate (fast, local): allies and
@@ -487,6 +485,10 @@ pub fn standing_towers(g: &Game) -> Vec<(f64, f64, bool)> {
 }
 
 pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
+    nearby_at(g,g.field.my_pos,true)
+}
+
+fn nearby_at(g: &Game, center: Option<(f64,f64)>, here: bool) -> rc_core::intel::matchup::Nearby {
     // ~1/7 of the map: a whole dragon / baron pit fight with the bushes around it.
     const R: f64 = 0.15;
     let mut n = rc_core::intel::matchup::Nearby::default();
@@ -494,7 +496,7 @@ pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
     // hide under mine when we run together).
     // ...but only when the screen is around me: camera locked on me, or my own bar seen on it (a panned
     // camera looking at a far fight must not fill my fight bar).
-    let screen_is_mine = (g.field.cam_locked_at > 0.0 && g.field.cam_locked_at >= g.field.cam_unlocked_at) || g.field.pos_src == "screen";
+    let screen_is_mine = here && ((g.field.cam_locked_at > 0.0 && g.field.cam_locked_at >= g.field.cam_unlocked_at) || g.field.pos_src == "screen");
     if let Some(i) = g.intel.as_ref().filter(|_| screen_is_mine) {
         for p in i.players.iter().filter(|p| !p.is_me && !p.is_dead && p.onscreen_at.is_some_and(|t| (-1.0..=4.0).contains(&(i.game_time - t)))) {
             if p.is_ally {
@@ -512,12 +514,22 @@ pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
             n.unknown_enemies = bars.saturating_sub(named);
         }
     }
-    let Some((mx, my)) = g.field.my_pos else { return n };
+    let Some((mx, my)) = center else { return n };
     let me = g.intel.as_ref().and_then(|i| i.me.as_ref()).map(|m| m.champion.clone()).unwrap_or_default();
     for a in &g.field.allies {
         if a.champion != me && (a.x - mx).hypot(a.y - my) < R && !n.allies.contains(&a.champion) {
             n.allies.push(a.champion.clone());
+            if g.field.occluded_since.contains_key(&format!("ally:{}",a.champion)) { n.uncertain_allies.push(a.champion.clone()); }
         }
+    }
+    if let Some(i)=g.intel.as_ref() {
+        for (c,(x,y,at)) in &g.field.ally_last {
+            if !n.allies.contains(c) && i.players.iter().any(|p| p.champion==*c && p.is_ally && !p.is_me && !p.is_dead)
+                && (0.0..=2.0).contains(&(i.game_time-at)) && (x-mx).hypot(y-my)<R {
+                n.allies.push(c.clone());n.uncertain_allies.push(c.clone());
+            }
+        }
+        n.allies.retain(|c|i.players.iter().any(|p|p.champion==*c && p.is_ally && !p.is_dead && !p.is_me));
     }
     for e in &g.field.visible_enemies {
         if (e.x - mx).hypot(e.y - my) < R && !n.enemies.iter().any(|(c, _)| *c == e.champion) {
@@ -543,7 +555,7 @@ pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
     n.me_under_my_tower = in_range(mx, my, true);
     n.enemies_under_tower = g.field.visible_enemies.iter().filter(|e| (e.x - mx).hypot(e.y - my) < R && in_range(e.x, e.y, false)).map(|e| e.champion.clone()).collect();
     // Hold "under tower" 1.5 s: at the edge of tower range it flipped every frame (bar 44 % <-> 74 %).
-    if let Ok(mut memo) = g.field.tower_memo.lock() {
+    if let (true, Ok(mut memo)) = (here, g.field.tower_memo.lock()) {
         let t = crate::vision::now_ms();
         if n.me_under_enemy_tower { memo.insert(String::new(), t); }
         for c in &n.enemies_under_tower { memo.insert(c.clone(), t); }
@@ -556,7 +568,7 @@ pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
         }
     }
     // Near me a moment ago (icon flickered off the minimap): still in the fight.
-    if let Some(i) = g.intel.as_ref() {
+    if let Some(i) = g.intel.as_ref().filter(|_|here) {
         for (c, _) in g.field.near_seen.iter() {
             let alive = i.players.iter().any(|p| p.champion == *c && !p.is_ally && !p.is_dead);
             if alive && !n.enemies.iter().any(|(e, _)| e == c) {
@@ -566,7 +578,7 @@ pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
     }
     // A live gank / invade warning about X: X counts as next to me (in fog) for the fight bar too.
     let now = crate::vision::now_ms();
-    if let Some(i) = g.intel.as_ref() {
+    if let Some(i) = g.intel.as_ref().filter(|_|here) {
         for a in g.field.alerts.iter().filter(|a| (a.kind == "gank" || a.kind == "invade") && a.expires_at > now) {
             let Some(c) = i.players.iter().find(|p| !p.is_ally && !p.is_dead && a.text.starts_with(p.champion.as_str())).map(|p| p.champion.clone()) else { continue };
             if !n.enemies.iter().any(|(e, _)| *e == c) {
@@ -581,4 +593,33 @@ pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
         }
     }
     n
+}
+
+/// Shared support target for the HUD and coach. Every candidate uses the fight
+/// bar's participants, HP and score; distant fights include travel time.
+pub fn support_plan(g: &Game) -> Option<rc_core::teamplay::SupportDecision> {
+    let i=g.intel.as_ref()?;
+    let me=g.field.my_pos?;
+    let local=nearby(g);
+    let mut names=local.allies.clone();
+    for a in &g.field.allies { if !names.contains(&a.champion) { names.push(a.champion.clone()); } }
+    let mut candidates=Vec::new();
+    for c in names {
+        let pos=g.field.allies.iter().find(|a|a.champion==c).map(|a|(a.x,a.y))
+            .or_else(||g.field.ally_last.get(&c).filter(|(_,_,at)|(0.0..=2.0).contains(&(i.game_time-at))).map(|(x,y,_)|(*x,*y)));
+        let distance=pos.map_or(0.0,|p|(p.0-me.0).hypot(p.1-me.1));
+        let here=distance<=0.12;
+        let mut n=if here { local.clone() } else { nearby_at(g,pos,false) };
+        if !n.allies.contains(&c) { n.allies.push(c.clone()); }
+        let Some(bar)=rc_core::intel::matchup::power_bar_near(i,g.matchup.as_ref(),&|_|String::new(),&n) else {continue};
+        let threatened=bar.local && (n.unknown_enemies>0 || n.enemies.iter().any(|(enemy,_)| {
+            match (pos,g.field.visible_enemies.iter().find(|e| e.champion==*enemy)) {
+                (Some(p),Some(e))=>(p.0-e.x).hypot(p.1-e.y)<=0.13,
+                _=>true,
+            }
+        }));
+        candidates.push(rc_core::teamplay::SupportCandidate { champion:c,position:pos,distance,p_me:bar.p_me,threatened,
+            dive:n.me_under_enemy_tower || !n.enemies_under_tower.is_empty() });
+    }
+    rc_core::teamplay::choose_support(i,&candidates)
 }

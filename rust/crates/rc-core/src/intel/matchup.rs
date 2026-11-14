@@ -279,6 +279,7 @@ pub struct NearSide {
 #[derive(Clone, Debug, Default)]
 pub struct Nearby {
     pub allies: Vec<String>,
+    pub uncertain_allies: Vec<String>,
     /// (champion, seen now)
     pub enemies: Vec<(String, bool)>,
     /// A bit further away but heading to me (gank / collapse incoming): counted at half weight.
@@ -318,7 +319,7 @@ pub fn nearby_delta(intel: &GameIntel, opp: &PlayerIntel, near: &Nearby) -> f64 
     let mut d = 0.0;
     for a in &near.allies {
         if let Some(p) = find(a).filter(|p| p.is_ally && !p.is_me) {
-            d += unit_strength(p, avg_lvl, avg_gold, hp_eff(intel, p));
+            d += unit_strength(p, avg_lvl, avg_gold, hp_eff(intel, p)) * if near.uncertain_allies.contains(a) { 0.7 } else { 1.0 };
         }
     }
     for (e, sure) in &near.enemies {
@@ -417,7 +418,7 @@ pub fn power_bar_near(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dy
     };
     let side = |c: &str, sure: bool| intel.players.iter().find(|p| p.champion == c && !p.is_dead).map(|p| NearSide { champion: p.champion.clone(), icon_url: icon(&p.champion), level: p.level, sure });
     // Allies next to me only matter in a fight (an enemy near): in base / on the way it just confused.
-    let allies: Vec<NearSide> = if !local { Vec::new() } else { near.allies.iter().filter(|c| intel.players.iter().any(|p| &p.champion == *c && p.is_ally && !p.is_me)).filter_map(|c| side(c, true)).collect() };
+    let allies: Vec<NearSide> = if !local { Vec::new() } else { near.allies.iter().filter(|c| intel.players.iter().any(|p| &p.champion == *c && p.is_ally && !p.is_me)).filter_map(|c| side(c, !near.uncertain_allies.contains(c))).collect() };
     let enemies: Vec<NearSide> = near.enemies.iter().filter(|(c, _)| *c != primary.champion && intel.players.iter().any(|p| &p.champion == c && !p.is_ally)).filter_map(|(c, s)| side(c, *s)).collect();
     let gold = (js_round((me.item_gold - primary.item_gold) / 50.0) * 50.0) as i64;
     let cs = me.cs - primary.cs;
@@ -672,6 +673,22 @@ pub(crate) mod tests {
         assert!((s2 - (0.45 + 0.25 - 0.15)).abs() < 1e-9);
         assert_eq!(next_good_level(Some(&b), 3), Some(6));
         assert_eq!(next_good_level(Some(&b), 18), None);
+    }
+
+    #[test]
+    fn full_fight_keeps_all_participants_and_marks_uncertainty() {
+        let mut players=vec![player("Me",true,true,"UTILITY",10),player("Opp",false,false,"UTILITY",10)];
+        for c in ["A","B","C","D"] { players.push(player(c,true,false,"BOTTOM",10)); }
+        for c in ["E","F","G","H"] { players.push(player(c,false,false,"BOTTOM",10)); }
+        let i=intel(players);
+        let mut n=Nearby { allies:["A","B","C","D"].iter().map(|s|s.to_string()).collect(),
+            enemies:["Opp","E","F","G","H"].iter().map(|s|(s.to_string(),true)).collect(),..Default::default() };
+        let p=power_bar_near(&i,None,&|_|String::new(),&n).unwrap();
+        assert_eq!(p.allies.len(),4);assert_eq!(p.enemies.len(),4);
+        n.uncertain_allies.push("A".into());
+        let uncertain=power_bar_near(&i,None,&|_|String::new(),&n).unwrap();
+        assert!(!uncertain.allies.iter().find(|a|a.champion=="A").unwrap().sure);
+        assert!(uncertain.p_me<p.p_me);
     }
 
     #[test]

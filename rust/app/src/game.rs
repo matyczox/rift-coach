@@ -215,6 +215,7 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
                 let me = i.me.as_ref().map(|m| m.champion.clone()).unwrap_or_default();
                 let near = crate::knowledge::nearby(g);
                 let bar = rc_core::intel::matchup::power_bar_near(i, g.matchup.as_ref(), &|c: &str| c.to_string(), &near);
+                let support = crate::knowledge::support_plan(g);
                 let fight = bar.as_ref().filter(|p| p.local).map(|p| r2(p.p_me));
                 let tracks = crate::knowledge::fog_tracks(g);
                 let enemies_seen = crate::knowledge::seen(&g.field.visible_enemies);
@@ -225,11 +226,12 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
                     "allies": g.field.allies.iter().filter(|a| a.champion != me).map(pos).collect::<Vec<_>>(),
                     "visibleEnemies": g.field.visible_enemies.iter().map(pos).collect::<Vec<_>>(),
                     "fightHereNow": fight,
+                    "supportPlan": support,
                     // Same as the player's fight bar: who is next to me, towers, its own one-line advice.
                     "nearMe": {
                         "allies": near.allies, "enemies": near.enemies.iter().map(|(c, seen)| if *seen { c.clone() } else { format!("{c} (mgła)") }).collect::<Vec<_>>(),
                         "unnamedEnemyBars": near.unknown_enemies, "underEnemyTower": near.me_under_enemy_tower, "underMyTower": near.me_under_my_tower,
-                        "barTarget": bar.as_ref().filter(|p| p.local).map(|p| p.enemy.champion.clone()), "barAdvice": bar.as_ref().map(|p| p.advice.clone()),
+                        "barTarget": bar.as_ref().filter(|p| p.local).map(|p| p.enemy.champion.clone()), "barAdvice": support.as_ref().filter(|p|p.local).map(|p|p.text.clone()).or_else(||bar.as_ref().map(|p|p.advice.clone())),
                     },
                     "danger": danger.map(|d| serde_json::json!({ "label": d.label, "reasons": d.reasons })),
                     // Where each fogged enemy may be: the tracker's hypotheses (zones with probability).

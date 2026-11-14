@@ -10,7 +10,6 @@ const alert = $('alert');
 const alertTxt = $('alertTxt');
 const alertConf = $('alertConf');
 const edge = document.querySelector<HTMLElement>('#danger-edge');
-let contraSince = 0;
 const banner = document.querySelector<HTMLElement>('#obj-banner');
 const obj = $('obj');
 const objVerdict = $('objVerdict');
@@ -44,6 +43,19 @@ function alertColor(a: AlertState): 'red' | 'amber' | 'green' {
   }
 }
 
+function setParty(box: HTMLElement, party: Array<{champion: string; iconUrl: string; sure: boolean}> = []): void {
+  const key = party.map(p => `${p.champion}:${p.sure}`).join(',');
+  if (box.dataset.key === key) return;
+  box.dataset.key = key;
+  box.replaceChildren(...party.map(p => {
+    const img = document.createElement('img');
+    img.src = p.iconUrl; img.alt = p.champion;
+    img.title = p.champion + (p.sure ? '' : ' — pozycja niepewna');
+    img.className = 'mini-party' + (p.sure ? '' : ' uncertain');
+    return img;
+  }));
+}
+
 subscribe(({ state }) => {
   // Mini fight bar right above the call (the full panel stays on the right).
   // Only for a fight here: far from everyone it was a faded bar with two empty-looking circles.
@@ -57,9 +69,8 @@ subscribe(({ state }) => {
     miFill.style.width = `${(v * 100).toFixed(1)}%`;
     miFill.className = v < 0.4 ? 'low' : v < 0.6 ? 'mid' : '';
     miPct.textContent = `${Math.round(v * 100)}%`;
-    const al = (p.allies ?? []).length, en = (p.enemies ?? []).length;
-    miAl.textContent = al ? `+${al}` : '';
-    miEnN.textContent = en ? `+${en}` : '';
+    setParty(miAl, p.allies);
+    setParty(miEnN, p.enemies);
     $('mini').classList.toggle('far', !p.local);
     mini.classList.remove('hidden');
     // Tip: danger reason first when it is high, else the bar's own advice.
@@ -76,14 +87,8 @@ subscribe(({ state }) => {
   }
   // An answer without words (only a map hint) drew an empty bubble.
   const tb = state.visible && state.topBar && (state.topBar.call ?? '').trim() && isLive(state.topBar.expiresAt, state.gameTime) ? state.topBar : null;
-  // A delayed call that the fight bar has contradicted for 3 s ('Cofnij się' at 80 %, 'All-in' at 25 %)
-  // steps aside: the bar is what happens now.
-  const pl = state.power && state.power.local ? state.power.pMe : null;
-  const cl = (tb?.call ?? '').toLowerCase();
-  const against = pl != null && ((/cofnij|wycofaj|uciekaj|nie wchodź|odejdź/.test(cl) && pl >= 0.72) || (/all-in|wejdź|atakuj|zabij|trade/.test(cl) && pl <= 0.3));
-  if (against) { if (!contraSince) contraSince = performance.now(); } else contraSince = 0;
-  const hideCall = against && performance.now() - contraSince > 3000;
-  if (!tb || hideCall) {
+  // Backend resolves fight/support conflicts using the full context.
+  if (!tb) {
     bar.classList.add('hidden');
     lastCall = '';
   } else {

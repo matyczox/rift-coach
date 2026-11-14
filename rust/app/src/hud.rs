@@ -522,11 +522,22 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
                 let _ = plan;
             }
         }
-        // Fight worth joining: arrow on the minimap from me to that ally (follows him while he is seen).
-        if let (Some((ally, until)), Some((mx, my))) = (g.field.help.as_ref().filter(|h| h.1 > now), g.field.my_pos) {
-            if let (Some(a), Some(hints)) = (g.field.allies.iter().find(|a| a.champion == *ally), s.get_mut("hints").and_then(Value::as_array_mut)) {
-                hints.push(json!({ "kind": "move", "x": a.x, "y": a.y, "from": { "x": mx, "y": my }, "label": format!("Pomóż {ally}"), "expiresAt": until }));
+        // One shared, continuously refreshed support decision; no 30 s lockout.
+        if let Some(plan)=k::support_plan(g) {
+            s["supportPlan"]=json!(plan);
+            if plan.local && s["power"].is_object() { s["power"]["advice"]=json!(plan.text); }
+            let call=s["topBar"]["call"].as_str().unwrap_or("").to_lowercase();
+            let retreat=["cofnij","wycofaj","nie wchodź","back"].iter().any(|w|call.contains(w));
+            let old_support=call.starts_with("osłaniaj ") || call.starts_with("pomóż ") || call.starts_with("wycofaj się z ") || call.starts_with("nie idź do ");
+            if s["topBar"].is_null() || old_support || (plan.urgent && (!retreat || !plan.approach)) {
+                s["topBar"]=json!({"call":plan.text,"tone":if plan.approach {"wait"} else {"danger"},"expiresAt":now+2500.0});
             }
+            if let (true,Some((x,y)),Some((mx,my)),Some(hints))=(plan.approach,plan.position,g.field.my_pos,s.get_mut("hints").and_then(Value::as_array_mut)) {
+                hints.insert(0,json!({"kind":"move","x":x,"y":y,"from":{"x":mx,"y":my},"label":plan.text,"expiresAt":now+2500.0}));
+            }
+        } else {
+            let call=s["topBar"]["call"].as_str().unwrap_or("").to_lowercase();
+            if call.starts_with("osłaniaj ") || call.starts_with("pomóż ") { s["topBar"]=Value::Null; }
         }
         // One arrow at a time: a fight / help arrow beats the ward arrow, which beats "Fala" (three arrows
         // and labels at once was one of the "too much at once" moments).
@@ -534,7 +545,7 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
             let rank = |h: &Value| -> i32 {
                 let l = h["label"].as_str().unwrap_or("");
                 match h["kind"].as_str().unwrap_or("") {
-                    "move" | "objective" if l.starts_with("Pomóż") || l.starts_with("Teamfight") => 0,
+                    "move" | "objective" if l.starts_with("Pomóż") || l.starts_with("Osłaniaj") || l.starts_with("Teamfight") => 0,
                     "ward" => 1,
                     "move" | "objective" if l == "Fala" => 3,
                     "move" | "objective" => 2,

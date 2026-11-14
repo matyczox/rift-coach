@@ -314,6 +314,11 @@ canvas.full { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 /* Bottom: tip under the mini bar */
 .mini-wrap { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; }
 .mini-wrap.hidden { display: none; }
+.mini-n { display: flex; align-items: center; gap: 0.15rem; flex-shrink: 0; }
+.mini-track { min-width: 8rem; }
+.mini img { flex-shrink: 0; }
+.mini img.mini-party { width: 1.15rem; height: 1.15rem; border-radius: 50%; }
+.mini img.mini-party.uncertain { opacity: 0.5; border: 1px dashed #e8c25a; }
 .mini-tip { font-size: 0.95rem; font-weight: 700; color: #e9eef2; text-shadow: var(--shadow); white-space: nowrap; }
 .mini-tip.danger { color: #ff9a8f; }
 .mini-tip.warn { color: #ffd27a; }

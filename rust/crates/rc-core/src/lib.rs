@@ -21,4 +21,5 @@ pub mod runes;
 pub mod settings;
 pub mod sources;
 pub mod types;
+pub mod teamplay;
 pub mod wards;
