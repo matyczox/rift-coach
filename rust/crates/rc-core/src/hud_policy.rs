@@ -1,6 +1,26 @@
 //! Presentation rules shared by the HUD and regression tests.
 use serde_json::{json, Value};
 
+/// Recheck model answers against live objective state, including while their TTL runs.
+pub fn block_unavailable_objective(advice: &mut Value, objectives: &[crate::intel::game_intel::ObjectiveTimer], game_time: f64) -> bool {
+    let call = advice["call"].as_str().unwrap_or("").to_lowercase();
+    let target = advice.pointer("/mapHint/target").and_then(Value::as_str).unwrap_or("").to_lowercase();
+    let objective_hint = advice.pointer("/mapHint/type").and_then(Value::as_str) == Some("objective");
+    let negative = call.split_whitespace().any(|w| matches!(w,"nie"|"oddaj"|"odpuść"|"wycofaj"|"uciekaj"|"wróć"));
+    let mut blocked = false;
+    for (kind, aliases) in [("baron", &["baron"][..]), ("dragon", &["dragon","smok","elder"][..]), ("herald", &["herald"][..]), ("grubs", &["grubs","voidgrub"][..])] {
+        let hinted = objective_hint && aliases.iter().any(|a| target.contains(a));
+        let named = aliases.iter().any(|a| call.contains(a));
+        if !hinted && !named { continue; }
+        let ready = objectives.iter().find(|o| o.kind==kind).is_some_and(|o| o.alive || o.spawns_at.is_some_and(|at| at-game_time<=90.0));
+        if !ready {
+            if hinted { advice["mapHint"] = Value::Null; }
+            if !negative { advice["call"] = Value::Null; blocked = true; }
+        }
+    }
+    blocked
+}
+
 /// Danger takes effect immediately; optimistic changes need sustained evidence.
 pub fn stabilize_power(current: &mut Value, previous: Option<(&Value, f64)>) {
     let Some(raw) = current["pMe"].as_f64() else { return };
@@ -42,6 +62,24 @@ pub fn reconcile(state: &mut Value) {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn baron_killed_while_answer_is_in_flight_or_visible_invalidates_call() {
+        use crate::intel::game_intel::ObjectiveTimer;
+        let mut objectives=vec![ObjectiveTimer{kind:"baron",label:"Baron".into(),spawns_at:None,alive:true}];
+        let a=json!({"call":"Przygotuj Baron z Caitlyn","mapHint":{"type":"objective","target":"baron"},"item":"Kolczasta Kolczuga"});
+        let mut shown=a.clone();
+        assert!(!block_unavailable_objective(&mut shown,&objectives,1650.0));
+        objectives[0].alive=false;objectives[0].spawns_at=Some(2010.0);
+        assert!(block_unavailable_objective(&mut shown,&objectives,1653.0));
+        assert!(shown["call"].is_null() && shown["mapHint"].is_null());
+        assert_eq!(shown["item"],a["item"]);
+        let mut near=a.clone();
+        assert!(!block_unavailable_objective(&mut near,&objectives,1920.0));
+        let mut retreat=json!({"call":"Nie idź na Barona","mapHint":{"type":"objective","target":"baron"}});
+        assert!(!block_unavailable_objective(&mut retreat,&objectives,1653.0));
+        assert_eq!(retreat["call"],"Nie idź na Barona");
+        assert!(retreat["mapHint"].is_null());
+    }
     #[test]
     fn one_frame_low_hp_does_not_flip_to_all_in() {
         let old = json!({"pMe":0.23,"enemy":{"champion":"KaiSa"}});

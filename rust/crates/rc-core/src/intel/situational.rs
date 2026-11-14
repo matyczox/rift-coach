@@ -298,7 +298,7 @@ pub fn objective_call(intel: &GameIntel, tracks: &[FogTrack], allies: &[SeenUnit
 #[derive(Default)]
 pub struct TeamWatcher {
     last_ask: f64,
-    last_ally: f64,
+    last_ally: std::collections::HashMap<String, f64>,
 }
 
 impl TeamWatcher {
@@ -311,7 +311,7 @@ impl TeamWatcher {
         }
         let jungler = intel.players.iter().find(|p| p.is_ally && !p.is_me && p.role == "JUNGLE");
         let j_pos = jungler.and_then(|j| allies.iter().find(|a| a.champion == j.champion));
-        let enemy_near_me = visible_enemies.iter().any(|e| (e.x - me.x).hypot(e.y - me.y) < 0.12);
+        let enemy_near_me = visible_enemies.iter().any(|e| (e.x - me.x).hypot(e.y - me.y) < 0.18);
         if let (Some(j), Some(jp)) = (jungler, j_pos) {
             // Really coming to my lane: right next to me, or walking at me — not clearing his camp nearby
             // ("Zaahen obok" while he did Raptors). Not for me as the jungler (I gank, nobody gives me pings).
@@ -334,16 +334,22 @@ impl TeamWatcher {
                 if a.champion == mi.champion {
                     return false;
                 }
+                if !intel.players.iter().any(|p| p.champion == a.champion && p.is_ally && !p.is_dead) { return false; }
+                if self.last_ally.get(&a.champion).is_some_and(|at| now-at < 20_000.0) { return false; }
                 let (dx, dy) = (me.x - a.x, me.y - a.y);
                 let d = dx.hypot(dy);
                 let sp = vx.hypot(vy);
-                d < 0.25 && d > 0.1 && sp > 0.004 && (dx * vx + dy * vy) / (d * sp) > 0.8
+                if !(0.1..0.25).contains(&d) || sp <= 0.004 { return false; }
+                let dot = dx * vx + dy * vy;
+                let eta = (dot / (sp * sp)).clamp(0.0, 15.0);
+                // A teammate joins the fight area, not my exact moving pixel.
+                dot / (d * sp) > 0.6 && (dx-vx*eta).hypot(dy-vy*eta) <= 0.13
             })
             .collect();
         // The jungler just got "X obok": not "X idzie do ciebie" too (two lines about one champion).
         let coming: Vec<&SeenUnit> = coming.into_iter().filter(|c| !out.iter().any(|a: &AlertState| a.text.starts_with(c.champion.as_str())) && !(now - self.last_ask < 20_000.0 && jungler.is_some_and(|j| j.champion == c.champion))).collect();
-        if !coming.is_empty() && enemy_near_me && now - self.last_ally > 20_000.0 {
-            self.last_ally = now;
+        if !coming.is_empty() && enemy_near_me {
+            for c in coming.iter().take(2) { self.last_ally.insert(c.champion.clone(), now); }
             let names: Vec<&str> = coming.iter().take(2).map(|c| c.champion.as_str()).collect();
             out.push(AlertState { kind: "ally", text: format!("{} {} do ciebie", names.join(" i "), if coming.len() > 1 { "idą" } else { "idzie" }), confidence: 0.75, expires_at: now + 6000.0 });
         }
@@ -444,6 +450,22 @@ mod tests {
             j
         }, &[], &[], &[]).unwrap()).unwrap();
         assert_eq!(v["inSec"], 0);
+    }
+
+    #[test]
+    fn sett_approach_from_live_bot_fight_is_not_suppressed_by_another_ally() {
+        let i=intel(vec![player("Leona",true,true,"UTILITY",8),player("Sett",true,false,"TOP",13),player("Syndra",true,false,"MIDDLE",11),player("Mel",false,false,"UTILITY",9)]);
+        let me=Some(Pos{x:0.897,y:0.689});
+        let mut w=TeamWatcher::default();
+        let mut sett=SeenUnit {champion:"Sett".into(),x:0.792,y:0.572,vx:Some(-0.001),vy:Some(0.02)};
+        let mut syndra=sett.clone();syndra.champion="Syndra".into();
+        // Enemy a little beyond the former .12 limit is still in this lane fight.
+        let enemies=[unit("Mel",0.897,0.839)];
+        assert!(w.update(&i,me,&[syndra],&enemies,Some(0.3),40_000.0).iter().any(|a|a.text=="Syndra idzie do ciebie"));
+        assert!(w.update(&i,me,&[sett.clone()],&enemies,Some(0.3),41_000.0).iter().any(|a|a.text=="Sett idzie do ciebie"));
+        assert!(w.update(&i,me,&[sett.clone()],&enemies,Some(0.3),42_000.0).is_empty());
+        sett.vy=Some(-0.02); // Heading away: no notification.
+        assert!(w.update(&i,me,&[sett],&enemies,Some(0.3),80_000.0).is_empty());
     }
 
     #[test]

@@ -74,7 +74,7 @@ fn role_of(pos: &str) -> String {
 
 /// Fetch enemy profiles once per game (needs a Riot API key) — `maybeLoadProfiles`.
 pub fn maybe_load_profiles(st: &Arc<AppState>, g: &mut Game, d: &AllGameData, api_key_set: bool) {
-    let key = d.all_players.iter().map(|p| p.champion_name.as_str()).collect::<Vec<_>>().join("|");
+    let key = format!("{}|{}",g.profiles_generation,d.all_players.iter().map(|p| p.champion_name.as_str()).collect::<Vec<_>>().join("|"));
     if key == g.profiles_key {
         return;
     }
@@ -105,8 +105,10 @@ pub fn maybe_load_profiles(st: &Arc<AppState>, g: &mut Game, d: &AllGameData, ap
             return;
         };
         let st2 = st.clone();
+        let progress_key=key.clone();
         let opts = BuildProfilesOptions {
             on_progress: Some(Box::new(move |pr| {
+                if st2.game.lock().unwrap().profiles_key!=progress_key {return;}
                 // Late progress reports must not turn "ready" back into "loading".
                 let mut ui = st2.ui.lock().unwrap();
                 if ui.profiles.state == "loading" {
@@ -374,7 +376,7 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
                             Some(p) => { let it = b.items.remove(p); b.items.insert(0, it); }
                             None => {
                                 if let Some(d) = sd.items.values().find(|d| d.name.eq_ignore_ascii_case(&first) || d.name_en.as_deref().is_some_and(|e| e.eq_ignore_ascii_case(&first))) {
-                                    b.items.insert(0, rc_core::build_advisor::BuildItem { name: d.name_en.clone().unwrap_or(d.name.clone()), icon_url: format!("https://ddragon.leagueoflegends.com/cdn/{}/img/item/{}.png", sd.version, d.id), why: String::new(), cost: Some(d.total) });
+                                    b.items.insert(0, rc_core::build_advisor::BuildItem { name: d.name.clone(), icon_url: format!("https://ddragon.leagueoflegends.com/cdn/{}/img/item/{}.png", sd.version, d.id), why: String::new(), cost: Some(d.total) });
                                     b.items.truncate(3);
                                 }
                             }
@@ -541,7 +543,7 @@ fn nearby_at(g: &Game, center: Option<(f64,f64)>, here: bool) -> rc_core::intel:
         let (dx, dy) = (mx - u.x, my - u.y);
         let d = dx.hypot(dy);
         let v = u.vx.hypot(u.vy);
-        (R..0.3).contains(&d) && v > 0.001 && (u.vx * dx + u.vy * dy) / (d * v) > 0.7
+        (R..0.3).contains(&d) && v > 0.004 && (u.vx * dx + u.vy * dy) / (d * v) > 0.7
     };
     for a in g.field.allies.iter().filter(|a| a.champion != me && coming(a)) {
         n.allies_coming.push(a.champion.clone());

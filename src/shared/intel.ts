@@ -222,6 +222,7 @@ export interface PowerBarState {
   metaWinRate: number | null;
   /** Lead over the lane opponent (me minus them): item gold, CS, level. */
   lane?: { gold: number; cs: number; level: number };
+  botLevels?: { ours: Array<{ champion: string; level: number }>; theirs: Array<{ champion: string; level: number }>; difference: number } | null;
   /** Champions around me counted in pMe (fight here, now). sure=false: fresh fog estimate close by. */
   allies?: Array<{ champion: string; iconUrl: string; level: number; sure: boolean }>;
   enemies?: Array<{ champion: string; iconUrl: string; level: number; sure: boolean }>;

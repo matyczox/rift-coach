@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import type { Settings } from '../../shared/types';
-import { clamp, rc, useAction } from './util';
+import { clamp, rc, useAction, errText } from './util';
+import { createRiotAutosave, cleanRiotConfig, sameRiotConfig } from './riotAutosave';
 
 type Draft = Pick<Settings, 'autoRecord' | 'autoRunes' | 'launchAtLogin' | 'minimapFps' | 'recordFps' | 'sceneEverySec' | 'overlayVisible'> & {
   hotkeys: Settings['hotkeys'];
@@ -166,17 +167,45 @@ export const SettingsView = memo(function SettingsView({ settings }: { settings:
   const [showKey, setShowKey] = useState(false);
   const save = useAction();
   const [saved, setSaved] = useState(false);
+  const [riotState, setRiotState] = useState<'idle' | 'pending' | 'saving' | 'saved'>('idle');
+  const [riotError, setRiotError] = useState<string | null>(null);
+  const riotAutosave = useRef<ReturnType<typeof createRiotAutosave> | null>(null);
+  const draftRef=useRef(draft);
+  draftRef.current=draft;
+  useEffect(() => {
+    const controller=createRiotAutosave(incoming.riot,
+    async (riot) => (await rc().updateSettings({ riot })).riot, {
+      state: (state) => { setRiotState(state); setRiotError(null); },
+      saved: (value, submitted) => {
+        setBase((old) => ({ ...old, riot: value }));
+        setDraft((old) => sameRiotConfig(cleanRiotConfig(old.riot), submitted) ? { ...old, riot: value } : old);
+      },
+      error: (error) => { setRiotState('idle'); setRiotError(errText(error)); },
+    });
+    riotAutosave.current=controller;
+    controller.update(draftRef.current.riot);
+    return () => {
+      controller.update(draftRef.current.riot);
+      controller.dispose();
+      if(riotAutosave.current===controller)riotAutosave.current=null;
+    };
+  }, []);
+  useEffect(() => { riotAutosave.current?.update(draft.riot); }, [draft.riot.apiKey, draft.riot.platform]);
 
   const dirty = !sameDraft(draft, base);
   const dirtyRef = useRef(dirty);
   dirtyRef.current = dirty;
+  const lastIncoming = useRef(incoming);
 
   // Follow external changes (e.g. hotkey toggled overlay) unless the user is editing.
   useEffect(() => {
-    if (sameDraft(incoming, base)) return;
+    // A successful local save can precede the next status poll. Do not restore
+    // its stale settings merely because our local base has just changed.
+    if (sameDraft(incoming, lastIncoming.current)) return;
+    lastIncoming.current=incoming;
     setBase(incoming);
     if (!dirtyRef.current) setDraft(incoming);
-  }, [incoming, base]);
+  }, [incoming]);
 
   useEffect(() => {
     if (!saved) return;
@@ -201,6 +230,7 @@ export const SettingsView = memo(function SettingsView({ settings }: { settings:
   const setRiot = (patch: Partial<Settings['riot']>) => setDraft((d) => ({ ...d, riot: { ...d.riot, ...patch } }));
 
   const onSave = async () => {
+    if (!sameRiotConfig(cleanRiotConfig(draft.riot), cleanRiotConfig(base.riot))) await riotAutosave.current?.flush();
     const patch: Partial<Settings> = {
       autoRecord: draft.autoRecord,
       autoRunes: draft.autoRunes,
@@ -341,6 +371,12 @@ export const SettingsView = memo(function SettingsView({ settings }: { settings:
         </div>
         <div className="panel">
           <h2>Riot API</h2>
+          <div className="field-hint" role="status">
+            {riotError ? `Nie zapisano klucza: ${riotError}` : riotState === 'saving' || riotState === 'pending'
+              ? 'Zapisywanie klucza…' : riotState === 'saved'
+                ? (draft.riot.apiKey.trim() ? 'Klucz zapisany — aplikacja używa go od razu.' : 'Klucz usunięty.')
+                : 'Wklejenie klucza i zmiana serwera zapisują się automatycznie.'}
+          </div>
           <div className="field">
             <label htmlFor="riot-key">Klucz API</label>
             <div className="field-ctl">

@@ -256,6 +256,8 @@ pub struct PowerBarState {
     pub meta_win_rate: Option<f64>,
     /// Lead over the lane opponent (me minus them): item gold, CS, level.
     pub lane: LaneLead,
+    /// Both bot-lane pairs from live player levels, independent of proximity.
+    pub bot_levels: Option<BotLevels>,
     /// Allies next to me (minimap), counted in pMe.
     pub allies: Vec<NearSide>,
     /// Other enemies next to me: seen now (sure) or a fresh fog estimate close by (not sure).
@@ -349,6 +351,28 @@ pub struct LaneLead {
     pub gold: i64,
     pub cs: i64,
     pub level: i64,
+}
+
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BotLevels {
+    pub ours: Vec<PowerSide>,
+    pub theirs: Vec<PowerSide>,
+    pub difference: i64,
+}
+
+fn bot_levels(intel: &GameIntel, icon: &dyn Fn(&str) -> String) -> Option<BotLevels> {
+    if !matches!(intel.me.as_ref()?.role.as_str(), "BOTTOM" | "UTILITY") { return None; }
+    let pair = |ally: bool| -> Option<Vec<PowerSide>> {
+        ["BOTTOM", "UTILITY"].iter().map(|role| {
+            let p = intel.players.iter().find(|p| p.is_ally == ally && p.role == *role)?;
+            Some(PowerSide { champion: p.champion.clone(), icon_url: icon(&p.champion), level: p.level })
+        }).collect()
+    };
+    let ours = pair(true)?;
+    let theirs = pair(false)?;
+    let difference = ours.iter().map(|p| p.level).sum::<i64>() - theirs.iter().map(|p| p.level).sum::<i64>();
+    Some(BotLevels { ours, theirs, difference })
 }
 
 fn signed(n: i64) -> String {
@@ -464,6 +488,7 @@ pub fn power_bar_near(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dy
         advice,
         meta_win_rate: primary_brief.and_then(|b| b.win_rate),
         lane: LaneLead { gold: gold as i64, cs: cs as i64, level: me.level as i64 - primary.level as i64 },
+        bot_levels: bot_levels(intel, icon),
         allies,
         enemies,
         local,
@@ -689,6 +714,38 @@ pub(crate) mod tests {
         let uncertain=power_bar_near(&i,None,&|_|String::new(),&n).unwrap();
         assert!(!uncertain.allies.iter().find(|a|a.champion=="A").unwrap().sure);
         assert!(uncertain.p_me<p.p_me);
+    }
+
+    #[test]
+    fn bot_levels_compare_adc_and_support_on_both_sides() {
+        let i = intel(vec![player("Leona",true,true,"UTILITY",8),player("Caitlyn",true,false,"BOTTOM",8),player("Jhin",false,false,"BOTTOM",7),player("Mel",false,false,"UTILITY",9)]);
+        let near = Nearby { allies:vec!["Caitlyn".into()], enemies:vec![("Jhin".into(),true),("Mel".into(),true)], ..Default::default() };
+        let p = power_bar_near(&i,None,&|_|String::new(),&near).unwrap();
+        let b = p.bot_levels.unwrap();
+        assert_eq!(b.difference,0); // 8 + 8 versus 7 + 9, not +1 from Leona versus Jhin.
+        assert_eq!(b.ours.iter().map(|p|p.level).collect::<Vec<_>>(),vec![8,8]);
+        assert_eq!(b.theirs.iter().map(|p|p.level).collect::<Vec<_>>(),vec![7,9]);
+        let mut missing = i.clone();
+        missing.players.retain(|p|p.champion!="Mel");
+        assert!(bot_levels(&missing,&|_|String::new()).is_none());
+    }
+
+    #[test]
+    fn bot_fight_accounts_for_both_partner_levels_and_proximity() {
+        let mut i = intel(vec![player("Leona",true,true,"UTILITY",5),player("Caitlyn",true,false,"BOTTOM",5),player("Jhin",false,false,"BOTTOM",5),player("Mel",false,false,"UTILITY",5)]);
+        let near = Nearby { allies:vec!["Caitlyn".into()], enemies:vec![("Jhin".into(),true),("Mel".into(),true)], ..Default::default() };
+        let score = |i:&GameIntel,n:&Nearby| power_bar_near(i,None,&|_|String::new(),n).unwrap().p_me;
+        let baseline = score(&i,&near);
+        i.players[1].level = 7;
+        assert!(score(&i,&near)>baseline);
+        i.players[1].level = 5;
+        i.players[2].level = 7;
+        assert!(score(&i,&near)<baseline);
+        // A distant partner changes the lane summary, but adds no extra body to the local fight.
+        i.players[2].level = 5;
+        let alone = Nearby { allies:vec![], ..near.clone() };
+        let without = score(&i,&alone);
+        assert!(without<baseline);
     }
 
     #[test]

@@ -51,6 +51,8 @@ pub struct Game {
     pub profiles_key: String,
     /// Riot key the profiles were fetched with: a new key retries them.
     pub profiles_riot_key: String,
+    pub profiles_riot_platform: String,
+    pub profiles_generation: u64,
     pub patch_brief: Option<rc_core::patch_brief::PatchBrief>,
     pub patch_brief_requested: bool,
     pub matchup: Option<rc_core::intel::matchup::MatchupBrief>,
@@ -90,6 +92,8 @@ impl Game {
             profiles: Vec::new(),
             profiles_key: String::new(),
             profiles_riot_key: String::new(),
+            profiles_riot_platform: String::new(),
+            profiles_generation: 0,
             patch_brief: None,
             patch_brief_requested: false,
             matchup: None,
@@ -283,6 +287,9 @@ pub fn on_game_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>, raw: &AllGa
                     // The answer comes ~5 s late: a call about an enemy who died meanwhile ("Wejdź na Darius"
                     // after Darius is dead) is stale — drop the call, keep the rest.
                     if let (Some(a), Some(i)) = (advice.as_mut(), g.intel.as_ref()) {
+                        if rc_core::hud_policy::block_unavailable_objective(a, &i.objectives, i.game_time) {
+                            log::info!(target: "coach", "stale objective call dropped (objective unavailable)");
+                        }
                         let call = a.get("call").and_then(Value::as_str).unwrap_or("").to_lowercase();
                         let dead = i.players.iter().find(|p| !p.is_ally && p.is_dead && call.contains(&p.champion.to_lowercase()));
                         if let Some(p) = dead {
@@ -507,7 +514,7 @@ pub fn spawn_backend_detection(rt: &tokio::runtime::Handle, st: &Arc<AppState>) 
 pub fn spawn_static_data(rt: &tokio::runtime::Handle, st: &Arc<AppState>) {
     let st = st.clone();
     rt.spawn(async move {
-        match rc_core::intel::ddragon::load_static_data(&st.data_dir.join("ddragon"), "en_US").await {
+        match rc_core::intel::ddragon::load_static_data(&st.data_dir.join("ddragon"), "pl_PL").await {
             Ok(sd) => {
                 st.ui.lock().unwrap().ddragon_version = Some(sd.version.clone());
                 st.game.lock().unwrap().static_data = Some(Arc::new(sd));

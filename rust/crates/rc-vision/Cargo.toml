@@ -44,3 +44,4 @@ capture = ["dep:windows"]
 
 [dev-dependencies]
 flate2 = "1"
+base64 = "0.22"

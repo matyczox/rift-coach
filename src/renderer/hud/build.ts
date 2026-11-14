@@ -17,7 +17,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text?: s
 
 function render(b: BuildPanelState): void {
   phase.classList.add('hidden');
-  rows.replaceChildren(...b.items.slice(0, 1).map((it) => {
+  rows.replaceChildren(...b.items.slice(0, 3).map((it) => {
     const row = el('div', 'bd-row');
     const img = el('img', '');
     img.alt = '';
@@ -50,6 +50,6 @@ subscribe(({ state }) => {
   const b = state.visible ? state.build : null;
   setOn(root, !!b && (b.items.length > 0 || (b.buyNow?.length ?? 0) > 0));
   if (!b) return;
-  const key = JSON.stringify([b.items[0] ?? null, b.buyNow ?? null]);
+  const key = JSON.stringify([b.items, b.buyNow ?? null]);
   if (key !== lastKey) { lastKey = key; render(b); }
 });

@@ -1,5 +1,8 @@
 """Regression tests for replay labels, ensemble construction and warning metrics."""
 import importlib.util
+import base64
+import gzip
+import hashlib
 import json
 import math
 import sys
@@ -20,9 +23,43 @@ def module(name):
 labels = module('prepare-replay-labels')
 metrics = module('eval-gank-approaches')
 trainer = module('train-replay-tracker')
+importer = module('import-replay-training')
 
 
 class ReplayTrainingTests(unittest.TestCase):
+    def prepared_import(self, root):
+        prepared=root/'prepared';(prepared/'observations').mkdir(parents=True);(prepared/'replay-truth').mkdir()
+        frame=dict(t=0,d=[],m=base64.b64encode(bytes(128)).decode(),e=[[f'E{i}','MIDDLE',0,345,0] for i in range(5)],dr=None,br=None)
+        raw=gzip.compress(json.dumps(dict(gameId=123,team='ORDER',enemyTeam='CHAOS',frames=[dict(frame,t=t) for t in range(120)])).encode())
+        truth=gzip.compress(b'{}')
+        (prepared/'observations/123.json.gz').write_bytes(raw);(prepared/'replay-truth/123.json.gz').write_bytes(truth)
+        (prepared/'manifest.json').write_text(json.dumps(dict(games=[dict(gameId=123,frames=120,observationSha256=hashlib.sha256(raw).hexdigest(),truthSha256=hashlib.sha256(truth).hexdigest())])))
+        return prepared
+
+    def test_import_deduplicates_matches_and_backs_up_previous_observations(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);prepared=self.prepared_import(root);data=root/'app'
+            importer.import_data(prepared,data)
+            result=importer.import_data(prepared,data)
+            self.assertEqual(result['observedGames'],1)
+            self.assertTrue((Path(result['backup'])/'observations/123.json.gz').exists())
+
+    def test_import_checks_all_checksums_before_writing(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);prepared=self.prepared_import(root);data=root/'app'
+            (prepared/'observations/123.json.gz').write_bytes(b'corrupt')
+            with self.assertRaises(AssertionError):importer.import_data(prepared,data)
+            self.assertFalse((data/'model').exists())
+
+    def test_activating_weights_preserves_the_previous_model(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);prepared=self.prepared_import(root);data=root/'app';(data/'model').mkdir(parents=True)
+            (data/'model/fog-model.json').write_bytes(b'previous-model')
+            candidate=root/'candidate.json';candidate.write_text(json.dumps(dict(version=1,score=dict(n=5),multipliers={'JUNGLE|early':{'camp':1.1}},recent=[])))
+            result=importer.import_data(prepared,data,candidate)
+            self.assertTrue(result['modelActivated'])
+            self.assertEqual((Path(result['backup'])/'fog-model.json').read_bytes(),b'previous-model')
+            self.assertEqual((data/'model/fog-model.json').read_bytes(),candidate.read_bytes())
     def cache(self, folder, points, blue=None):
         red = {str(t): [dict(c='Enemy', t='CHAOS', x=x, y=y, s=s)] for t, x, y, s in points}
         (folder/'detections-red.json').write_text(json.dumps(red))

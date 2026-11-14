@@ -342,6 +342,9 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
         };
         // The ward the player just placed: its marker from the (still fresh) advice is gone, not back.
         let advice: Option<Value> = advice.clone().map(|mut a| {
+            if let Some(i) = g.intel.as_ref() {
+                rc_core::hud_policy::block_unavailable_objective(&mut a, &i.objectives, i.game_time);
+            }
             let done = g.ward_done.as_ref().filter(|(_, at)| now - at < 120_000.0).map(|(s, _)| s.clone());
             if done.is_some_and(|d| a.get("ward").and_then(|w| w.get("spot")).and_then(Value::as_str) == Some(d.as_str())) {
                 a["ward"] = Value::Null;

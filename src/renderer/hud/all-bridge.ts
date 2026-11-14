@@ -80,7 +80,7 @@ function layout(m: HudMessage, s: number): void {
   place(panels.get('death')!, { x: W - dw - W * 0.02, y: H * 0.42 - dh / 2, width: dw, height: dh });
   // Power/danger: compact, mid-height, left of the enemy portraits column on the right edge.
   // Gold / CS / lvl: one line right under the game's score (top right), where that kind of info lives.
-  const pw = 320 * s, ph = 150 * s;
+  const pw = 320 * s, ph = 240 * s;
   place(panels.get('power')!, { x: W - pw - 14 * s, y: 74 * s, width: pw, height: ph });
   const lw = 720 * s, lh = 480 * s;
   place(panels.get('loading')!, { x: (W - lw) / 2, y: (H - lh) / 2, width: lw, height: lh });
@@ -95,7 +95,7 @@ function layout(m: HudMessage, s: number): void {
   // seconds anyway (the top-right corner under the score is never looked at mid-fight).
   // Above the build panel (left of the minimap): right above the minimap it sat on the ally portraits.
   const nw = 300 * s, nh = 200 * s;
-  const bw = 250 * s, bh = 230 * s;
+  const bw = 250 * s, bh = 340 * s;
   // Pop-ups (objective soon, rival back, buffs): bottom centre right above the coach bar, where the eyes are.
   // Timers / rival back: top right under the gold / CS line (edges only: the centre covered the game).
   place(panels.get('notify')!, { x: W - 700 * s - 14 * s, y: 74 * s + 156 * s, width: 700 * s, height: 64 * s });

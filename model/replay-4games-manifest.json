@@ -1,0 +1,88 @@
+{
+  "version": 1,
+  "source": "two-pass-replays",
+  "games": [
+    {
+      "gameId": 4028222906,
+      "source": "replay",
+      "team": "ORDER",
+      "frames": 1668,
+      "start": 0.2,
+      "end": 1899.3,
+      "observationSha256": "f11929aced41886aca7d1466153613bbd7586157ceb95d6ca494319bd436b7d9",
+      "truthSha256": "cc6e1a0e00207e04d7aa60b307a8e37575f01f6f3d7705a9d643cfb96a864f4a",
+      "labelQuality": {
+        "raw": 9015,
+        "lowScore": 1936,
+        "accepted": 7050,
+        "noTemporalSupport": 29,
+        "minScore": 0.75,
+        "supportSeconds": 2,
+        "maxTimeAlignmentMs": 300,
+        "acceptedFraction": 0.7820299500831946
+      }
+    },
+    {
+      "gameId": 4028237949,
+      "source": "replay",
+      "team": "ORDER",
+      "frames": 800,
+      "start": 0.5,
+      "end": 1272.6,
+      "observationSha256": "d5ed228e70bfb3389fa20ae555fb4208c551d7e95e1f70ebdcc0da3f118923e2",
+      "truthSha256": "6ad2b13035c3dc778476cb778f0c99d7ed558bc536e661a5d7f7a716529e1182",
+      "labelQuality": {
+        "raw": 7033,
+        "lowScore": 1727,
+        "accepted": 5250,
+        "noTemporalSupport": 56,
+        "minScore": 0.75,
+        "supportSeconds": 2,
+        "maxTimeAlignmentMs": 300,
+        "acceptedFraction": 0.7464808758708944
+      }
+    },
+    {
+      "gameId": 4027181891,
+      "source": "replay",
+      "team": "ORDER",
+      "frames": 1461,
+      "start": 0.3,
+      "end": 2334.7,
+      "observationSha256": "c836f55bff81d51d3a370eaa5d081d5fb45fea1d122de2a789d167cc3543dfcf",
+      "truthSha256": "c95ab22f0f038f97a60068be22f53154ca536190fe0b5fd94f0c9030b4e0a9ce",
+      "labelQuality": {
+        "raw": 25695,
+        "lowScore": 3824,
+        "noTemporalSupport": 24,
+        "accepted": 21846,
+        "conflictsWithVisibleEnemy": 1,
+        "minScore": 0.75,
+        "supportSeconds": 2,
+        "maxTimeAlignmentMs": 300,
+        "acceptedFraction": 0.8502043199065966
+      }
+    },
+    {
+      "gameId": 4027208890,
+      "source": "replay",
+      "team": "ORDER",
+      "frames": 898,
+      "start": 0.5,
+      "end": 1439.6,
+      "observationSha256": "14af7c79629570f651e0eaed91f8c42662dbe089c871c8bfd2cc61871c346256",
+      "truthSha256": "9b18d8418e9e7f89e811f5e758606890f91f1d32d08643e0b33c03612011e3d2",
+      "labelQuality": {
+        "raw": 7460,
+        "lowScore": 983,
+        "noTemporalSupport": 18,
+        "accepted": 6458,
+        "conflictsWithVisibleEnemy": 1,
+        "minScore": 0.75,
+        "supportSeconds": 2,
+        "maxTimeAlignmentMs": 300,
+        "acceptedFraction": 0.8656836461126005
+      }
+    }
+  ]
+}

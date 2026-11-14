@@ -34,8 +34,8 @@ export function LearningView({ status }: { status: AppStatus }) {
     },
     {
       title: 'Trening na meczach', icon: ICONS.self,
-      value: n(s?.observedGames), sub: 'meczów do treningu',
-      text: 'Po meczu na Summoner’s Rift pobiera z Riot API oś czasu z prawdziwymi pozycjami wszystkich graczy co minutę i trenuje na nich tracker: odtwarza mecz i uczy się z każdej pomyłki.',
+      value: n(s?.observedGames), sub: 'meczów w zbiorze',
+      text: 'Zapisy z gry na żywo i zaimportowane powtórki do treningu trackera. Każdy mecz liczy się raz. Po meczu aplikacja może pobrać z Riot API oś czasu z prawdziwymi pozycjami i użyć jej do dalszego uczenia.',
     },
     {
       title: 'Profile przeciwników', icon: ICONS.people,

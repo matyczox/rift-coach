@@ -216,6 +216,51 @@ fn api_time_ms(v: &Value) -> Option<u64> {
     v.as_u64().or_else(|| v.as_f64().filter(|t| t.is_finite() && *t >= 0.0).map(|t| t.round() as u64))
 }
 
+fn export_observations(dir: &std::path::Path, target: &std::path::Path,
+    blue: &std::collections::BTreeMap<u64,Vec<session::CachedDet>>, api: &[(u64,Value)],
+    items: &HashMap<i64,ItemData>, champ_ms: &HashMap<String,f64>) {
+    use base64::Engine;
+    let meta: Value=serde_json::from_slice(&std::fs::read(dir.join("meta.json")).unwrap()).unwrap();
+    let game_id=meta["gameId"].as_i64().filter(|id|*id>0).expect("replay gameId required");
+    let (mut idx,mut last_t)=(0usize,-1.0);
+    let mut reader=None;
+    let mut frames=Vec::new();
+    for (&ms,detections) in blue {
+        let t=ms as f64/1000.0;
+        if t-last_t<1.0 {continue;}
+        last_t=t;
+        while idx+1<api.len() && api[idx+1].0<=ms {idx+=1;}
+        let it=intel(&api[idx].1,t,items,champ_ms);
+        let img=load_png(dir.join("frames").join(format!("{ms}.png"))).unwrap();
+        let r=reader.get_or_insert_with(||FogReader::new(&load_reference(img.width),64,FogParams::default()));
+        let mask=r.read(&img);
+        let mut bits=vec![0u8;128];
+        for y in 0..32 {for x in 0..32 {
+            if mask[(y*2)*64+x*2]>=0.5 {let i=y*32+x;bits[i>>3]|=1<<(i&7);}
+        }}
+        // Only blue-view sightings go into the observations. Red-view truth
+        // is retained separately and must never leak into inference inputs.
+        let d:Vec<_>=detections.iter().filter(|d|d.t=="CHAOS" && d.s>=0.75)
+            .map(|d|serde_json::json!([d.c,d.x,d.y])).collect();
+        let e:Vec<_>=it.players.iter().filter(|p|p.team==Team::Chaos)
+            .map(|p|serde_json::json!([p.champion,p.role.as_str(),u8::from(p.is_dead),p.move_speed,p.item_gold])).collect();
+        frames.push(serde_json::json!({"t":(t*10.0).round()/10.0,"d":d,
+            "m":base64::engine::general_purpose::STANDARD.encode(bits),"e":e,
+            "dr":if it.dragon.0 {Some(0.0)} else {it.dragon.1.map(|at|at-t)},
+            "br":if it.baron.0 {Some(0.0)} else {it.baron.1.map(|at|at-t)}}));
+    }
+    assert!(frames.len()>=120,"not enough replay observations");
+    let result=serde_json::json!({"gameId":game_id,"team":"ORDER","enemyTeam":"CHAOS","frames":frames,
+        "source":"replay","durationMs":meta["durationMs"]});
+    if let Some(parent)=target.parent(){std::fs::create_dir_all(parent).unwrap();}
+    let mut gz=flate2::write::GzEncoder::new(Vec::new(),flate2::Compression::default());
+    serde_json::to_writer(&mut gz,&result).unwrap();
+    let temp=target.with_extension("gz.tmp");
+    std::fs::write(&temp,gz.finish().unwrap()).unwrap();
+    std::fs::rename(temp,target).unwrap();
+    println!("EXPORT {}",serde_json::json!({"gameId":game_id,"frames":frames.len(),"first":frames[0]["t"],"last":frames.last().unwrap()["t"]}));
+}
+
 #[test]
 fn api_offsets_accept_harvester_floats_and_legacy_integers() {
     assert_eq!(api_time_ms(&serde_json::json!(12000.0)), Some(12000));
@@ -248,6 +293,11 @@ fn main() {
         .filter_map(|mut v| Some((api_time_ms(&v["o"])?, v["d"].take())))
         .collect();
     assert!(!api.is_empty(), "no valid API timeline in api.jsonl.gz");
+    if let Ok(path)=std::env::var("EXPORT_OBS") {
+        assert!(std::env::var("TRAIN").is_err(),"EXPORT_OBS does not train weights");
+        export_observations(&dir,std::path::Path::new(&path),&blue,&api,&items,&champ_ms);
+        return;
+    }
     let red_times: Vec<u64> = red.keys().copied().collect();
     let blue_times: Vec<u64> = blue.keys().copied().collect();
 

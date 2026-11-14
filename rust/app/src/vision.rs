@@ -955,10 +955,17 @@ fn apply_hp(g: &mut Game, bars: &[HealthBar]) {
     }
 }
 
-fn with_vel(prev: &[SeenUnit], d: &Detection) -> SeenUnit {
+fn with_vel(prev: &[SeenUnit], d: &Detection, dt: f64) -> SeenUnit {
     match prev.iter().find(|u| u.champion == d.champion) {
-        Some(p) => SeenUnit { champion: d.champion.clone(), x: d.x, y: d.y, vx: p.vx * 0.6 + (d.x - p.x) * 0.4, vy: p.vy * 0.6 + (d.y - p.y) * 0.4 },
-        None => SeenUnit { champion: d.champion.clone(), x: d.x, y: d.y, vx: 0.0, vy: 0.0 },
+        Some(p) if dt > 0.0 && dt <= 1.5 && (d.x-p.x).hypot(d.y-p.y)/dt <= 0.08 => {
+            // Minimap fractions per second, not per detector frame. Otherwise normal
+            // walking at 10-15 Hz never reaches TeamWatcher's movement threshold.
+            let alpha = 1.0 - (-dt / 0.35).exp();
+            SeenUnit { champion: d.champion.clone(), x: d.x, y: d.y,
+                vx: p.vx*(1.0-alpha)+(d.x-p.x)/dt*alpha,
+                vy: p.vy*(1.0-alpha)+(d.y-p.y)/dt*alpha }
+        },
+        _ => SeenUnit { champion: d.champion.clone(), x: d.x, y: d.y, vx: 0.0, vy: 0.0 },
     }
 }
 
@@ -1008,6 +1015,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     let Game { intel, field: f, team_watcher, obs, obs_game_key, profiles, .. } = &mut *guard;
     let intel = intel.as_ref().unwrap();
     let now = now_ms();
+    let motion_dt = (now - f.last_vision_at) / 1000.0;
     f.last_vision_at = now;
     let my_team = intel.me.as_ref().map(|m| m.team.as_str()).unwrap_or("ORDER");
     let my_team_t = Team::parse(my_team).unwrap_or(Team::Order);
@@ -1087,7 +1095,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         f.cam_size = (x1 - x0, y1 - y0);
     }
     let prev_allies = std::mem::take(&mut f.allies);
-    f.allies = r.detections.iter().filter(|d| d.team == my_team_t).map(|d| with_vel(&prev_allies, d)).collect();
+    f.allies = r.detections.iter().filter(|d| d.team == my_team_t).map(|d| with_vel(&prev_allies, d, motion_dt)).collect();
     // An ally right next to me hides under my portrait (or another one): still there, not gone. Keep him
     // at his last spot for up to 5 s so the fight bar counts him ("Sejuani was with me, not counted").
     let tnow = intel.game_time;
@@ -1106,7 +1114,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         }
     }
     f.occluded_since.retain(|k, _| !k.starts_with("ally:") || kept.contains(k));
-    f.visible_enemies = r.detections.iter().filter(|d| d.team != my_team_t).map(|d| with_vel(&f.visible_enemies, d)).collect();
+    f.visible_enemies = r.detections.iter().filter(|d| d.team != my_team_t).map(|d| with_vel(&f.visible_enemies, d, motion_dt)).collect();
     for a in &f.allies {
         f.ally_last.insert(a.champion.clone(), (a.x, a.y, intel.game_time));
     }
@@ -1242,7 +1250,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             continue;
         }
         let speed = v.vx.hypot(v.vy);
-        let heading = speed > 0.0008 && ((tower.0 - v.x) * v.vx + (tower.1 - v.y) * v.vy) / (d.max(1e-6) * speed) > 0.6;
+        let heading = speed > 0.004 && ((tower.0 - v.x) * v.vx + (tower.1 - v.y) * v.vy) / (d.max(1e-6) * speed) > 0.6;
         let wave_ours = f.waves.as_ref().and_then(|w| w.lanes.iter().find(|l| l.lane == lane)).is_some_and(|l| matches!(l.state.as_str(), "our_side" | "under_our_tower"));
         // Someone of us next to him now, or a moment ago (icon hidden under his): no warning.
         let guarded = f.allies.iter().any(|a| (a.x - v.x).hypot(a.y - v.y) < 0.18)
@@ -1710,6 +1718,21 @@ pub fn smoke_summary(st: &AppState) -> Value {
 #[cfg(test)]
 mod push_tests {
     use super::*;
+    #[test]
+    fn walking_velocity_uses_seconds_at_every_capture_rate() {
+        for hz in [5.0, 10.0, 15.0, 30.0] {
+            let dt=1.0/hz;
+            let mut prev=vec![u("Sett",0.8,0.5)];
+            for n in 1..=(hz*2.0) as usize {
+                let d=Detection {champion:"Sett".into(),team:Team::Order,x:0.8,y:0.5+0.02*n as f64*dt,score:1.0,margin:1.0,votes:1.0};
+                prev=vec![with_vel(&prev,&d,dt)];
+            }
+            assert!((prev[0].vy-0.02).abs()<0.001,"{hz} Hz: {}",prev[0].vy);
+            let jump=Detection {champion:"Sett".into(),team:Team::Order,x:0.1,y:0.1,score:1.0,margin:1.0,votes:1.0};
+            assert_eq!(with_vel(&prev,&jump,dt).vy,0.0);
+        }
+    }
+
     fn u(c: &str, x: f64, y: f64) -> SeenUnit {
         SeenUnit { champion: c.into(), x, y, vx: 0.0, vy: 0.0 }
     }

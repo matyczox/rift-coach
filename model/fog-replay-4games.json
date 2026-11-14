@@ -1,0 +1,1993 @@
+{
+  "version": 1,
+  "multipliers": {
+    "JUNGLE|early": {
+      "lane-mid": 0.9911829855818389,
+      "lane-top": 1.000148679680498,
+      "stay": 1.0098405902872445,
+      "base": 0.9977005598682834,
+      "camp": 1.0416074229373187,
+      "lane-bot": 0.96534158578935,
+      "river": 0.9870269501856702,
+      "invade": 0.9941091335989699,
+      "baron": 1.0070846372148248,
+      "dragon": 1.0075726352601724
+    },
+    "JUNGLE|mid": {
+      "lane-mid": 0.9879871521910601,
+      "lane-top": 0.9977886863148188,
+      "stay": 1.0068425454119747,
+      "base": 0.9830842757695324,
+      "camp": 1.0470333120819435,
+      "lane-bot": 0.9730571333889757,
+      "river": 1.0009287816032062,
+      "invade": 1.0117551594913285,
+      "baron": 1.032527269884613,
+      "dragon": 0.9618181665470061
+    },
+    "BOTTOM|early": {
+      "lane-mid": 0.9874254878200824,
+      "lane-top": 0.997269676859892,
+      "stay": 1.0701578971520895,
+      "base": 0.9715135912364358,
+      "camp": 0.9924634124126261,
+      "lane-bot": 1.0495537973587898,
+      "river": 0.9908501166572352,
+      "invade": 0.9986090437338963,
+      "baron": 0.9959703719560193,
+      "dragon": 0.9520539161790808
+    },
+    "TOP|late": {
+      "lane-mid": 0.9976064082602862,
+      "lane-top": 1.0401702247235842,
+      "stay": 0.984728452263774,
+      "base": 1.0071276235183833,
+      "camp": 0.9993355040363167,
+      "lane-bot": 0.9797914156163996,
+      "river": 1.0084549916976173,
+      "invade": 0.9981339145674665,
+      "baron": 0.997147653993098,
+      "dragon": 0.988781927491968
+    },
+    "MIDDLE|early": {
+      "lane-mid": 1.0665136127680321,
+      "lane-top": 0.9826640418264977,
+      "stay": 1.0296693148417904,
+      "base": 1.0006321678202583,
+      "camp": 0.9825459906252794,
+      "lane-bot": 0.9812542720832166,
+      "river": 1.0003985830095237,
+      "invade": 1.0000720984261346,
+      "baron": 0.9974166402970693,
+      "dragon": 0.9626065619339403
+    },
+    "UTILITY|mid": {
+      "lane-mid": 0.9855539503784535,
+      "lane-top": 0.9798127382661518,
+      "stay": 1.1065073261275047,
+      "base": 0.9884411043324003,
+      "camp": 0.9888400530382493,
+      "lane-bot": 1.0587123462068166,
+      "river": 0.9736342844572554,
+      "invade": 1.0020649997233781,
+      "baron": 0.979371216296322,
+      "dragon": 0.9465801759820244
+    },
+    "TOP|early": {
+      "lane-mid": 0.9983073753866243,
+      "lane-top": 0.9835604847104255,
+      "stay": 1.03877786170307,
+      "base": 0.9747275912817092,
+      "camp": 0.9950184316447558,
+      "lane-bot": 0.9992133702804933,
+      "river": 1.007020070318734,
+      "invade": 1.0013356978272547,
+      "baron": 1.0031159472690467,
+      "dragon": 1.0002002856718162
+    },
+    "BOTTOM|mid": {
+      "lane-mid": 0.9895187298355448,
+      "lane-top": 0.9822320666310053,
+      "stay": 0.9884867965347519,
+      "base": 0.9676644355638748,
+      "camp": 0.9983361784570363,
+      "lane-bot": 1.1260189284750803,
+      "river": 0.9949036616602299,
+      "invade": 0.9999307309287673,
+      "baron": 0.9926278058554175,
+      "dragon": 0.9687065440337697
+    },
+    "JUNGLE|late": {
+      "lane-mid": 1.0032350213119492,
+      "lane-top": 0.9920865620208011,
+      "stay": 1.0018923510982454,
+      "base": 1.014513929833988,
+      "camp": 1.0116554465581564,
+      "lane-bot": 1.0348192055242769,
+      "river": 0.9943660864271991,
+      "invade": 1.002507117862531,
+      "baron": 0.9821766666556401,
+      "dragon": 0.9643968261562299
+    },
+    "UTILITY|early": {
+      "lane-mid": 0.9926761666212558,
+      "lane-top": 0.9964052891214114,
+      "stay": 1.0594962337373377,
+      "base": 0.9583757460040856,
+      "camp": 0.989296918505599,
+      "lane-bot": 1.0312844223837532,
+      "river": 0.9761157320979125,
+      "invade": 1.004203889048098,
+      "baron": 0.9950807871451228,
+      "dragon": 1.0007954691167742
+    },
+    "BOTTOM|late": {
+      "lane-mid": 0.9964459337825785,
+      "lane-top": 1.0157464174912518,
+      "stay": 0.9962297417132606,
+      "base": 0.979574265040936,
+      "camp": 1.0004450180328495,
+      "lane-bot": 1.02264357540547,
+      "river": 0.9987392230774494,
+      "invade": 1.0010623043348046,
+      "baron": 1.0015885619129217,
+      "dragon": 0.9882269519837761
+    },
+    "UTILITY|late": {
+      "lane-mid": 1.0011235676525718,
+      "lane-top": 1.032234396043909,
+      "stay": 0.992488684057204,
+      "base": 0.9600080119050765,
+      "camp": 0.9964532687948958,
+      "lane-bot": 1.0374056865353214,
+      "river": 1.005184922724446,
+      "invade": 1.0002952969358616,
+      "baron": 0.9976795214486242,
+      "dragon": 0.9791011043877305
+    },
+    "TOP|mid": {
+      "lane-mid": 1.0034663387637588,
+      "lane-top": 0.9546914392728627,
+      "stay": 1.0407124583193312,
+      "base": 0.9682340832303553,
+      "camp": 0.9943040866583105,
+      "lane-bot": 1.05747996612141,
+      "river": 0.9942983760694837,
+      "invade": 0.9987794111568571,
+      "baron": 0.9800581535202526,
+      "dragon": 1.0124144686440126
+    },
+    "MIDDLE|mid": {
+      "lane-mid": 0.9970432079112173,
+      "lane-top": 1.0185264751293528,
+      "stay": 0.9767519545862048,
+      "base": 1.0019277437718443,
+      "camp": 0.998796819874067,
+      "lane-bot": 1.0106068922450746,
+      "river": 1.0048604140116246,
+      "invade": 1.0073319395947498,
+      "baron": 0.9790211241834097,
+      "dragon": 1.005885622610128
+    },
+    "MIDDLE|late": {
+      "lane-mid": 0.9979034960862884,
+      "lane-top": 1.0207192100639981,
+      "stay": 0.9835618012326616,
+      "base": 1.00898141770542,
+      "camp": 1.0133492715413726,
+      "lane-bot": 0.9908009035799227,
+      "river": 1.0000619844664762,
+      "invade": 1.000581523944475,
+      "baron": 1.0012536417486302,
+      "dragon": 0.9834394190442218
+    }
+  },
+  "score": {
+    "n": 1770,
+    "logModel": -6192.768247203407,
+    "logBaseline": -5913.765355011487,
+    "hits": 1000
+  },
+  "recent": [
+    {
+      "at": 1794682908451.0,
+      "champion": "Nautilus",
+      "gapSec": 3.0,
+      "model": 0.042,
+      "baseline": 0.276,
+      "errorPred": 0.085,
+      "errorBase": 0.058
+    },
+    {
+      "at": 1794682908356.0,
+      "champion": "Nautilus",
+      "gapSec": 6.0,
+      "model": 0.037,
+      "baseline": 0.145,
+      "errorPred": 0.086,
+      "errorBase": 0.063
+    },
+    {
+      "at": 1794682908349.0,
+      "champion": "Irelia",
+      "gapSec": 3.0,
+      "model": 0.15,
+      "baseline": 0.156,
+      "errorPred": 0.101,
+      "errorBase": 0.07
+    },
+    {
+      "at": 1794682908343.0,
+      "champion": "Nautilus",
+      "gapSec": 3.0,
+      "model": 0.497,
+      "baseline": 0.18,
+      "errorPred": 0.043,
+      "errorBase": 0.067
+    },
+    {
+      "at": 1794682908337.0,
+      "champion": "Irelia",
+      "gapSec": 5.0,
+      "model": 0.354,
+      "baseline": 0.323,
+      "errorPred": 0.024,
+      "errorBase": 0.013
+    },
+    {
+      "at": 1794682908328.0,
+      "champion": "Master Yi",
+      "gapSec": 6.0,
+      "model": 0.038,
+      "baseline": 0.187,
+      "errorPred": 0.12,
+      "errorBase": 0.037
+    },
+    {
+      "at": 1794682908325.0,
+      "champion": "Nautilus",
+      "gapSec": 56.0,
+      "model": -0.0,
+      "baseline": 0.002,
+      "errorPred": 0.207,
+      "errorBase": 0.631
+    },
+    {
+      "at": 1794682908322.0,
+      "champion": "Master Yi",
+      "gapSec": 3.0,
+      "model": 0.678,
+      "baseline": 0.551,
+      "errorPred": 0.024,
+      "errorBase": 0.038
+    },
+    {
+      "at": 1794682908306.0,
+      "champion": "Sylas",
+      "gapSec": 14.0,
+      "model": -0.0,
+      "baseline": 0.042,
+      "errorPred": 0.187,
+      "errorBase": 0.09
+    },
+    {
+      "at": 1794682908293.0,
+      "champion": "Yasuo",
+      "gapSec": 24.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.568,
+      "errorBase": 0.867
+    },
+    {
+      "at": 1794682908269.0,
+      "champion": "Sylas",
+      "gapSec": 3.0,
+      "model": 0.657,
+      "baseline": 0.07,
+      "errorPred": 0.029,
+      "errorBase": 0.085
+    },
+    {
+      "at": 1794682908265.0,
+      "champion": "Master Yi",
+      "gapSec": 10.0,
+      "model": -0.0,
+      "baseline": 0.033,
+      "errorPred": 0.309,
+      "errorBase": 0.156
+    },
+    {
+      "at": 1794682908253.0,
+      "champion": "Yasuo",
+      "gapSec": 14.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.338,
+      "errorBase": 0.492
+    },
+    {
+      "at": 1794682908242.0,
+      "champion": "Master Yi",
+      "gapSec": 4.0,
+      "model": 0.035,
+      "baseline": 0.461,
+      "errorPred": 0.095,
+      "errorBase": 0.029
+    },
+    {
+      "at": 1794682908229.0,
+      "champion": "Nautilus",
+      "gapSec": 28.0,
+      "model": 0.174,
+      "baseline": 0.002,
+      "errorPred": 0.455,
+      "errorBase": 0.657
+    },
+    {
+      "at": 1794682908222.0,
+      "champion": "Yasuo",
+      "gapSec": 3.0,
+      "model": 0.004,
+      "baseline": 0.02,
+      "errorPred": 0.141,
+      "errorBase": 0.103
+    },
+    {
+      "at": 1794682908222.0,
+      "champion": "Sylas",
+      "gapSec": 35.0,
+      "model": 0.0,
+      "baseline": 0.003,
+      "errorPred": 0.325,
+      "errorBase": 0.425
+    },
+    {
+      "at": 1794682908201.0,
+      "champion": "Master Yi",
+      "gapSec": 3.0,
+      "model": 0.186,
+      "baseline": 0.574,
+      "errorPred": 0.058,
+      "errorBase": 0.017
+    },
+    {
+      "at": 1794682908193.0,
+      "champion": "Sylas",
+      "gapSec": 26.0,
+      "model": 0.093,
+      "baseline": 0.003,
+      "errorPred": 0.032,
+      "errorBase": 0.507
+    },
+    {
+      "at": 1794682908176.0,
+      "champion": "Master Yi",
+      "gapSec": 44.0,
+      "model": -0.0,
+      "baseline": 0.001,
+      "errorPred": 0.4,
+      "errorBase": 0.865
+    },
+    {
+      "at": 1794682908166.0,
+      "champion": "Nautilus",
+      "gapSec": 6.0,
+      "model": 0.345,
+      "baseline": 0.027,
+      "errorPred": 0.084,
+      "errorBase": 0.143
+    },
+    {
+      "at": 1794682908166.0,
+      "champion": "Sylas",
+      "gapSec": 15.0,
+      "model": 0.078,
+      "baseline": 0.0,
+      "errorPred": 0.644,
+      "errorBase": 0.852
+    },
+    {
+      "at": 1794682908141.0,
+      "champion": "Sylas",
+      "gapSec": 3.0,
+      "model": 0.597,
+      "baseline": 0.315,
+      "errorPred": 0.018,
+      "errorBase": 0.054
+    },
+    {
+      "at": 1794682908140.0,
+      "champion": "Master Yi",
+      "gapSec": 27.0,
+      "model": 0.006,
+      "baseline": 0.003,
+      "errorPred": 0.316,
+      "errorBase": 0.555
+    },
+    {
+      "at": 1794682908118.0,
+      "champion": "Master Yi",
+      "gapSec": 17.0,
+      "model": -0.0,
+      "baseline": 0.004,
+      "errorPred": 0.319,
+      "errorBase": 0.389
+    },
+    {
+      "at": 1794682908108.0,
+      "champion": "Irelia",
+      "gapSec": 6.0,
+      "model": 0.083,
+      "baseline": 0.024,
+      "errorPred": 0.096,
+      "errorBase": 0.147
+    },
+    {
+      "at": 1794682908105.0,
+      "champion": "Nautilus",
+      "gapSec": 5.0,
+      "model": 0.733,
+      "baseline": 0.279,
+      "errorPred": 0.031,
+      "errorBase": 0.04
+    },
+    {
+      "at": 1794682908105.0,
+      "champion": "Sylas",
+      "gapSec": 6.0,
+      "model": 0.004,
+      "baseline": 0.029,
+      "errorPred": 0.183,
+      "errorBase": 0.157
+    },
+    {
+      "at": 1794682908090.0,
+      "champion": "Master Yi",
+      "gapSec": 6.0,
+      "model": -0.0,
+      "baseline": 0.226,
+      "errorPred": 0.308,
+      "errorBase": 0.012
+    },
+    {
+      "at": 1794682908090.0,
+      "champion": "Irelia",
+      "gapSec": 7.0,
+      "model": 0.43,
+      "baseline": 0.148,
+      "errorPred": 0.048,
+      "errorBase": 0.015
+    },
+    {
+      "at": 1794682908085.0,
+      "champion": "Sylas",
+      "gapSec": 6.0,
+      "model": 0.018,
+      "baseline": 0.042,
+      "errorPred": 0.212,
+      "errorBase": 0.146
+    },
+    {
+      "at": 1794682908075.0,
+      "champion": "Sylas",
+      "gapSec": 3.0,
+      "model": 0.045,
+      "baseline": 0.04,
+      "errorPred": 0.125,
+      "errorBase": 0.093
+    },
+    {
+      "at": 1794682908068.0,
+      "champion": "Irelia",
+      "gapSec": 6.0,
+      "model": 0.068,
+      "baseline": 0.192,
+      "errorPred": 0.108,
+      "errorBase": 0.047
+    },
+    {
+      "at": 1794682908055.0,
+      "champion": "Irelia",
+      "gapSec": 6.0,
+      "model": 0.259,
+      "baseline": 0.087,
+      "errorPred": 0.076,
+      "errorBase": 0.101
+    },
+    {
+      "at": 1794682908037.0,
+      "champion": "Irelia",
+      "gapSec": 28.0,
+      "model": -0.0,
+      "baseline": 0.009,
+      "errorPred": 0.536,
+      "errorBase": 0.1
+    },
+    {
+      "at": 1794682908015.0,
+      "champion": "Nautilus",
+      "gapSec": 3.0,
+      "model": 0.795,
+      "baseline": 0.805,
+      "errorPred": 0.028,
+      "errorBase": 0.009
+    },
+    {
+      "at": 1794682907996.0,
+      "champion": "Nautilus",
+      "gapSec": 13.0,
+      "model": 0.0,
+      "baseline": 0.024,
+      "errorPred": 0.17,
+      "errorBase": 0.193
+    },
+    {
+      "at": 1794682907976.0,
+      "champion": "Nautilus",
+      "gapSec": 3.0,
+      "model": 0.003,
+      "baseline": 0.357,
+      "errorPred": 0.104,
+      "errorBase": 0.05
+    },
+    {
+      "at": 1794682907976.0,
+      "champion": "Irelia",
+      "gapSec": 7.0,
+      "model": 0.706,
+      "baseline": 0.134,
+      "errorPred": 0.021,
+      "errorBase": 0.033
+    },
+    {
+      "at": 1794682907965.0,
+      "champion": "Sylas",
+      "gapSec": 3.0,
+      "model": 0.133,
+      "baseline": 0.139,
+      "errorPred": 0.093,
+      "errorBase": 0.072
+    },
+    {
+      "at": 1794682907960.0,
+      "champion": "Master Yi",
+      "gapSec": 28.0,
+      "model": -0.0,
+      "baseline": 0.001,
+      "errorPred": 0.466,
+      "errorBase": 0.905
+    },
+    {
+      "at": 1794682907955.0,
+      "champion": "Nautilus",
+      "gapSec": 6.0,
+      "model": 0.187,
+      "baseline": 0.222,
+      "errorPred": 0.089,
+      "errorBase": 0.035
+    },
+    {
+      "at": 1794682907952.0,
+      "champion": "Master Yi",
+      "gapSec": 24.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.145,
+      "errorBase": 0.788
+    },
+    {
+      "at": 1794682907952.0,
+      "champion": "Sylas",
+      "gapSec": 46.0,
+      "model": 0.028,
+      "baseline": 0.003,
+      "errorPred": 0.074,
+      "errorBase": 0.22
+    },
+    {
+      "at": 1794682907950.0,
+      "champion": "Nautilus",
+      "gapSec": 3.0,
+      "model": 0.27,
+      "baseline": 0.127,
+      "errorPred": 0.068,
+      "errorBase": 0.073
+    },
+    {
+      "at": 1794682907945.0,
+      "champion": "Yasuo",
+      "gapSec": 4.0,
+      "model": 0.096,
+      "baseline": 0.044,
+      "errorPred": 0.064,
+      "errorBase": 0.106
+    },
+    {
+      "at": 1794682907943.0,
+      "champion": "Yasuo",
+      "gapSec": 3.0,
+      "model": 0.757,
+      "baseline": 0.06,
+      "errorPred": 0.046,
+      "errorBase": 0.087
+    },
+    {
+      "at": 1794682907929.0,
+      "champion": "Master Yi",
+      "gapSec": 14.0,
+      "model": 0.101,
+      "baseline": 0.001,
+      "errorPred": 0.091,
+      "errorBase": 0.437
+    },
+    {
+      "at": 1794682907927.0,
+      "champion": "Nautilus",
+      "gapSec": 22.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.52,
+      "errorBase": 0.811
+    },
+    {
+      "at": 1794682907912.0,
+      "champion": "Irelia",
+      "gapSec": 3.0,
+      "model": 0.258,
+      "baseline": 0.313,
+      "errorPred": 0.052,
+      "errorBase": 0.054
+    },
+    {
+      "at": 1794682907906.0,
+      "champion": "Nautilus",
+      "gapSec": 14.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.367,
+      "errorBase": 0.536
+    },
+    {
+      "at": 1794682907903.0,
+      "champion": "Master Yi",
+      "gapSec": 3.0,
+      "model": -0.0,
+      "baseline": 0.015,
+      "errorPred": 0.09,
+      "errorBase": 0.106
+    },
+    {
+      "at": 1794682907901.0,
+      "champion": "Sylas",
+      "gapSec": 24.0,
+      "model": 0.008,
+      "baseline": 0.003,
+      "errorPred": 0.445,
+      "errorBase": 0.51
+    },
+    {
+      "at": 1794682907878.0,
+      "champion": "Nautilus",
+      "gapSec": 3.0,
+      "model": 0.11,
+      "baseline": 0.0,
+      "errorPred": 0.151,
+      "errorBase": 0.162
+    },
+    {
+      "at": 1794682907873.0,
+      "champion": "Sylas",
+      "gapSec": 14.0,
+      "model": 0.067,
+      "baseline": 0.0,
+      "errorPred": 0.699,
+      "errorBase": 0.756
+    },
+    {
+      "at": 1794682907870.0,
+      "champion": "Irelia",
+      "gapSec": 23.0,
+      "model": -0.0,
+      "baseline": 0.013,
+      "errorPred": 0.231,
+      "errorBase": 0.115
+    },
+    {
+      "at": 1794682907865.0,
+      "champion": "Yasuo",
+      "gapSec": 3.0,
+      "model": 0.15,
+      "baseline": 0.158,
+      "errorPred": 0.075,
+      "errorBase": 0.069
+    },
+    {
+      "at": 1794682907852.0,
+      "champion": "Irelia",
+      "gapSec": 14.0,
+      "model": 0.003,
+      "baseline": 0.046,
+      "errorPred": 0.151,
+      "errorBase": 0.065
+    },
+    {
+      "at": 1794682907849.0,
+      "champion": "Yasuo",
+      "gapSec": 44.0,
+      "model": -0.0,
+      "baseline": 0.002,
+      "errorPred": 0.472,
+      "errorBase": 0.661
+    },
+    {
+      "at": 1794682907831.0,
+      "champion": "Sylas",
+      "gapSec": 3.0,
+      "model": 0.216,
+      "baseline": 0.028,
+      "errorPred": 0.07,
+      "errorBase": 0.098
+    },
+    {
+      "at": 1794682907831.0,
+      "champion": "Irelia",
+      "gapSec": 3.0,
+      "model": 0.403,
+      "baseline": 0.368,
+      "errorPred": 0.039,
+      "errorBase": 0.05
+    },
+    {
+      "at": 1794682907819.0,
+      "champion": "Irelia",
+      "gapSec": 5.0,
+      "model": 0.386,
+      "baseline": 0.196,
+      "errorPred": 0.039,
+      "errorBase": 0.063
+    },
+    {
+      "at": 1794682907812.0,
+      "champion": "Yasuo",
+      "gapSec": 26.0,
+      "model": 0.012,
+      "baseline": 0.013,
+      "errorPred": 0.592,
+      "errorBase": 0.003
+    },
+    {
+      "at": 1794682907796.0,
+      "champion": "Sylas",
+      "gapSec": 3.0,
+      "model": 0.341,
+      "baseline": 0.095,
+      "errorPred": 0.093,
+      "errorBase": 0.088
+    },
+    {
+      "at": 1794682907786.0,
+      "champion": "Sylas",
+      "gapSec": 10.0,
+      "model": 0.01,
+      "baseline": 0.047,
+      "errorPred": 0.157,
+      "errorBase": 0.085
+    },
+    {
+      "at": 1794682907768.0,
+      "champion": "Sylas",
+      "gapSec": 3.0,
+      "model": 0.41,
+      "baseline": 0.163,
+      "errorPred": 0.025,
+      "errorBase": 0.069
+    },
+    {
+      "at": 1794682907761.0,
+      "champion": "Irelia",
+      "gapSec": 4.0,
+      "model": 0.987,
+      "baseline": 0.322,
+      "errorPred": 0.016,
+      "errorBase": 0.045
+    },
+    {
+      "at": 1794682907754.0,
+      "champion": "Nautilus",
+      "gapSec": 6.0,
+      "model": -0.0,
+      "baseline": 0.056,
+      "errorPred": 0.199,
+      "errorBase": 0.127
+    },
+    {
+      "at": 1794682907749.0,
+      "champion": "Nautilus",
+      "gapSec": 5.0,
+      "model": 0.176,
+      "baseline": 0.056,
+      "errorPred": 0.152,
+      "errorBase": 0.11
+    },
+    {
+      "at": 1794682907733.0,
+      "champion": "Nautilus",
+      "gapSec": 18.0,
+      "model": -0.0,
+      "baseline": 0.013,
+      "errorPred": 0.436,
+      "errorBase": 0.252
+    },
+    {
+      "at": 1794682907733.0,
+      "champion": "Sylas",
+      "gapSec": 6.0,
+      "model": 0.12,
+      "baseline": 0.028,
+      "errorPred": 0.074,
+      "errorBase": 0.159
+    },
+    {
+      "at": 1794682907728.0,
+      "champion": "Sylas",
+      "gapSec": 3.0,
+      "model": 0.752,
+      "baseline": 0.037,
+      "errorPred": 0.037,
+      "errorBase": 0.094
+    },
+    {
+      "at": 1794682907725.0,
+      "champion": "Irelia",
+      "gapSec": 4.0,
+      "model": 0.076,
+      "baseline": 0.293,
+      "errorPred": 0.082,
+      "errorBase": 0.05
+    },
+    {
+      "at": 1794682907723.0,
+      "champion": "Nautilus",
+      "gapSec": 14.0,
+      "model": -0.0,
+      "baseline": 0.027,
+      "errorPred": 0.199,
+      "errorBase": 0.174
+    },
+    {
+      "at": 1794682907723.0,
+      "champion": "Irelia",
+      "gapSec": 3.0,
+      "model": 0.187,
+      "baseline": 0.642,
+      "errorPred": 0.064,
+      "errorBase": 0.031
+    },
+    {
+      "at": 1794682907705.0,
+      "champion": "Irelia",
+      "gapSec": 4.0,
+      "model": 0.027,
+      "baseline": 0.06,
+      "errorPred": 0.099,
+      "errorBase": 0.104
+    },
+    {
+      "at": 1794682907702.0,
+      "champion": "Nautilus",
+      "gapSec": 3.0,
+      "model": 0.783,
+      "baseline": 0.329,
+      "errorPred": 0.019,
+      "errorBase": 0.053
+    },
+    {
+      "at": 1794682907690.0,
+      "champion": "Irelia",
+      "gapSec": 16.0,
+      "model": 0.002,
+      "baseline": 0.001,
+      "errorPred": 0.379,
+      "errorBase": 0.513
+    },
+    {
+      "at": 1794682907685.0,
+      "champion": "Irelia",
+      "gapSec": 14.0,
+      "model": 0.008,
+      "baseline": 0.001,
+      "errorPred": 0.356,
+      "errorBase": 0.46
+    },
+    {
+      "at": 1794682907664.0,
+      "champion": "Sylas",
+      "gapSec": 3.0,
+      "model": 0.516,
+      "baseline": 0.458,
+      "errorPred": 0.048,
+      "errorBase": 0.032
+    },
+    {
+      "at": 1794682907658.0,
+      "champion": "Irelia",
+      "gapSec": 3.0,
+      "model": 0.039,
+      "baseline": 0.021,
+      "errorPred": 0.074,
+      "errorBase": 0.102
+    },
+    {
+      "at": 1794682907637.0,
+      "champion": "Sylas",
+      "gapSec": 4.0,
+      "model": -0.0,
+      "baseline": 0.07,
+      "errorPred": 0.1,
+      "errorBase": 0.106
+    },
+    {
+      "at": 1794682907635.0,
+      "champion": "Sylas",
+      "gapSec": 3.0,
+      "model": -0.0,
+      "baseline": 0.055,
+      "errorPred": 0.086,
+      "errorBase": 0.088
+    },
+    {
+      "at": 1794682907635.0,
+      "champion": "Nautilus",
+      "gapSec": 18.0,
+      "model": -0.0,
+      "baseline": 0.005,
+      "errorPred": 0.17,
+      "errorBase": 0.394
+    },
+    {
+      "at": 1794682907631.0,
+      "champion": "Nautilus",
+      "gapSec": 16.0,
+      "model": -0.0,
+      "baseline": 0.006,
+      "errorPred": 0.146,
+      "errorBase": 0.36
+    },
+    {
+      "at": 1794682907622.0,
+      "champion": "Sylas",
+      "gapSec": 24.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.8,
+      "errorBase": 0.92
+    },
+    {
+      "at": 1794682907612.0,
+      "champion": "Yasuo",
+      "gapSec": 7.0,
+      "model": 0.459,
+      "baseline": 0.094,
+      "errorPred": 0.039,
+      "errorBase": 0.098
+    },
+    {
+      "at": 1794682907610.0,
+      "champion": "Nautilus",
+      "gapSec": 6.0,
+      "model": 0.6,
+      "baseline": 0.038,
+      "errorPred": 0.039,
+      "errorBase": 0.133
+    },
+    {
+      "at": 1794682907604.0,
+      "champion": "Yasuo",
+      "gapSec": 3.0,
+      "model": 0.701,
+      "baseline": 0.326,
+      "errorPred": 0.031,
+      "errorBase": 0.053
+    },
+    {
+      "at": 1794682907597.0,
+      "champion": "Sylas",
+      "gapSec": 14.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.634,
+      "errorBase": 0.641
+    },
+    {
+      "at": 1794682907594.0,
+      "champion": "Nautilus",
+      "gapSec": 7.0,
+      "model": 0.177,
+      "baseline": 0.157,
+      "errorPred": 0.067,
+      "errorBase": 0.0
+    },
+    {
+      "at": 1794682907586.0,
+      "champion": "Yasuo",
+      "gapSec": 34.0,
+      "model": 0.028,
+      "baseline": 0.008,
+      "errorPred": 0.189,
+      "errorBase": 0.103
+    },
+    {
+      "at": 1794682907585.0,
+      "champion": "Nautilus",
+      "gapSec": 3.0,
+      "model": 0.295,
+      "baseline": 0.916,
+      "errorPred": 0.027,
+      "errorBase": 0.003
+    },
+    {
+      "at": 1794682907570.0,
+      "champion": "Sylas",
+      "gapSec": 3.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.194,
+      "errorBase": 0.217
+    },
+    {
+      "at": 1794682907570.0,
+      "champion": "Master Yi",
+      "gapSec": 24.0,
+      "model": -0.0,
+      "baseline": 0.002,
+      "errorPred": 0.425,
+      "errorBase": 0.56
+    },
+    {
+      "at": 1794682907559.0,
+      "champion": "Yasuo",
+      "gapSec": 24.0,
+      "model": 0.005,
+      "baseline": 0.016,
+      "errorPred": 0.172,
+      "errorBase": 0.048
+    },
+    {
+      "at": 1794682907545.0,
+      "champion": "Nautilus",
+      "gapSec": 35.0,
+      "model": 0.0,
+      "baseline": 0.004,
+      "errorPred": 0.436,
+      "errorBase": 0.482
+    },
+    {
+      "at": 1794682907536.0,
+      "champion": "Yasuo",
+      "gapSec": 14.0,
+      "model": 0.0,
+      "baseline": 0.048,
+      "errorPred": 0.162,
+      "errorBase": 0.048
+    },
+    {
+      "at": 1794682907524.0,
+      "champion": "Nautilus",
+      "gapSec": 26.0,
+      "model": -0.0,
+      "baseline": 0.003,
+      "errorPred": 0.334,
+      "errorBase": 0.555
+    },
+    {
+      "at": 1794682907521.0,
+      "champion": "Master Yi",
+      "gapSec": 3.0,
+      "model": 0.747,
+      "baseline": 0.255,
+      "errorPred": 0.025,
+      "errorBase": 0.059
+    },
+    {
+      "at": 1794682907512.0,
+      "champion": "Yasuo",
+      "gapSec": 3.0,
+      "model": 0.608,
+      "baseline": 0.252,
+      "errorPred": 0.031,
+      "errorBase": 0.059
+    },
+    {
+      "at": 1794682907510.0,
+      "champion": "Irelia",
+      "gapSec": 31.0,
+      "model": 0.0,
+      "baseline": 0.007,
+      "errorPred": 0.261,
+      "errorBase": 0.129
+    },
+    {
+      "at": 1794682907502.0,
+      "champion": "Nautilus",
+      "gapSec": 16.0,
+      "model": 0.157,
+      "baseline": 0.0,
+      "errorPred": 0.578,
+      "errorBase": 0.824
+    },
+    {
+      "at": 1794682907497.0,
+      "champion": "Irelia",
+      "gapSec": 25.0,
+      "model": 0.006,
+      "baseline": 0.008,
+      "errorPred": 0.075,
+      "errorBase": 0.337
+    },
+    {
+      "at": 1794682907495.0,
+      "champion": "Master Yi",
+      "gapSec": 6.0,
+      "model": -0.0,
+      "baseline": 0.06,
+      "errorPred": 0.081,
+      "errorBase": 0.123
+    },
+    {
+      "at": 1794682907489.0,
+      "champion": "Master Yi",
+      "gapSec": 3.0,
+      "model": 0.973,
+      "baseline": 0.111,
+      "errorPred": 0.036,
+      "errorBase": 0.077
+    },
+    {
+      "at": 1794682907477.0,
+      "champion": "Nautilus",
+      "gapSec": 6.0,
+      "model": 0.137,
+      "baseline": 0.269,
+      "errorPred": 0.086,
+      "errorBase": 0.031
+    },
+    {
+      "at": 1794682907471.0,
+      "champion": "Irelia",
+      "gapSec": 15.0,
+      "model": 0.35,
+      "baseline": 0.0,
+      "errorPred": 0.484,
+      "errorBase": 0.744
+    },
+    {
+      "at": 1794682907465.0,
+      "champion": "Yasuo",
+      "gapSec": 3.0,
+      "model": 0.926,
+      "baseline": 0.901,
+      "errorPred": 0.008,
+      "errorBase": 0.008
+    },
+    {
+      "at": 1794682907461.0,
+      "champion": "Master Yi",
+      "gapSec": 51.0,
+      "model": 0.0,
+      "baseline": 0.002,
+      "errorPred": 0.444,
+      "errorBase": 0.283
+    },
+    {
+      "at": 1794682907459.0,
+      "champion": "Nautilus",
+      "gapSec": 6.0,
+      "model": 0.05,
+      "baseline": 0.181,
+      "errorPred": 0.114,
+      "errorBase": 0.03
+    },
+    {
+      "at": 1794682907452.0,
+      "champion": "Nautilus",
+      "gapSec": 3.0,
+      "model": 0.327,
+      "baseline": 0.917,
+      "errorPred": 0.033,
+      "errorBase": 0.003
+    },
+    {
+      "at": 1794682907445.0,
+      "champion": "Irelia",
+      "gapSec": 3.0,
+      "model": 0.645,
+      "baseline": 0.697,
+      "errorPred": 0.003,
+      "errorBase": 0.025
+    },
+    {
+      "at": 1794682907425.0,
+      "champion": "Irelia",
+      "gapSec": 4.0,
+      "model": 0.73,
+      "baseline": 0.407,
+      "errorPred": 0.013,
+      "errorBase": 0.028
+    },
+    {
+      "at": 1794682907423.0,
+      "champion": "Irelia",
+      "gapSec": 3.0,
+      "model": 0.648,
+      "baseline": 0.81,
+      "errorPred": 0.006,
+      "errorBase": 0.013
+    },
+    {
+      "at": 1794682907411.0,
+      "champion": "Nautilus",
+      "gapSec": 42.0,
+      "model": 0.0,
+      "baseline": 0.004,
+      "errorPred": 0.235,
+      "errorBase": 0.326
+    },
+    {
+      "at": 1794682907408.0,
+      "champion": "Sylas",
+      "gapSec": 19.0,
+      "model": -0.0,
+      "baseline": 0.015,
+      "errorPred": 0.807,
+      "errorBase": 0.131
+    },
+    {
+      "at": 1794682907399.0,
+      "champion": "Master Yi",
+      "gapSec": 24.0,
+      "model": 0.154,
+      "baseline": 0.015,
+      "errorPred": 0.022,
+      "errorBase": 0.114
+    },
+    {
+      "at": 1794682907394.0,
+      "champion": "Sylas",
+      "gapSec": 14.0,
+      "model": 0.146,
+      "baseline": 0.03,
+      "errorPred": 0.067,
+      "errorBase": 0.16
+    },
+    {
+      "at": 1794682907385.0,
+      "champion": "Irelia",
+      "gapSec": 3.0,
+      "model": 0.359,
+      "baseline": 0.529,
+      "errorPred": 0.057,
+      "errorBase": 0.034
+    },
+    {
+      "at": 1794682907375.0,
+      "champion": "Master Yi",
+      "gapSec": 14.0,
+      "model": 0.222,
+      "baseline": 0.041,
+      "errorPred": 0.033,
+      "errorBase": 0.098
+    },
+    {
+      "at": 1794682907369.0,
+      "champion": "Sylas",
+      "gapSec": 3.0,
+      "model": 0.98,
+      "baseline": 0.221,
+      "errorPred": 0.022,
+      "errorBase": 0.062
+    },
+    {
+      "at": 1794682907362.0,
+      "champion": "Nautilus",
+      "gapSec": 21.0,
+      "model": -0.0,
+      "baseline": 0.001,
+      "errorPred": 0.413,
+      "errorBase": 0.6
+    },
+    {
+      "at": 1794682907362.0,
+      "champion": "Yasuo",
+      "gapSec": 3.0,
+      "model": 0.07,
+      "baseline": 0.157,
+      "errorPred": 0.1,
+      "errorBase": 0.07
+    },
+    {
+      "at": 1794682907354.0,
+      "champion": "Irelia",
+      "gapSec": 6.0,
+      "model": 0.02,
+      "baseline": 0.038,
+      "errorPred": 0.067,
+      "errorBase": 0.147
+    },
+    {
+      "at": 1794682907352.0,
+      "champion": "Master Yi",
+      "gapSec": 3.0,
+      "model": 0.385,
+      "baseline": 0.025,
+      "errorPred": 0.051,
+      "errorBase": 0.1
+    },
+    {
+      "at": 1794682907347.0,
+      "champion": "Irelia",
+      "gapSec": 3.0,
+      "model": 0.598,
+      "baseline": 0.065,
+      "errorPred": 0.049,
+      "errorBase": 0.086
+    },
+    {
+      "at": 1794682907340.0,
+      "champion": "Nautilus",
+      "gapSec": 10.0,
+      "model": 0.051,
+      "baseline": 0.0,
+      "errorPred": 0.758,
+      "errorBase": 0.885
+    },
+    {
+      "at": 1794682907340.0,
+      "champion": "Yasuo",
+      "gapSec": 18.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.199,
+      "errorBase": 0.651
+    },
+    {
+      "at": 1794682907340.0,
+      "champion": "Irelia",
+      "gapSec": 7.0,
+      "model": 0.02,
+      "baseline": 0.037,
+      "errorPred": 0.095,
+      "errorBase": 0.153
+    },
+    {
+      "at": 1794682907338.0,
+      "champion": "Master Yi",
+      "gapSec": 6.0,
+      "model": -0.0,
+      "baseline": 0.025,
+      "errorPred": 0.257,
+      "errorBase": 0.173
+    },
+    {
+      "at": 1794682907330.0,
+      "champion": "Yasuo",
+      "gapSec": 14.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.118,
+      "errorBase": 0.497
+    },
+    {
+      "at": 1794682907323.0,
+      "champion": "Master Yi",
+      "gapSec": 10.0,
+      "model": 0.038,
+      "baseline": 0.046,
+      "errorPred": 0.163,
+      "errorBase": 0.121
+    },
+    {
+      "at": 1794682907319.0,
+      "champion": "Master Yi",
+      "gapSec": 8.0,
+      "model": 0.057,
+      "baseline": 0.092,
+      "errorPred": 0.168,
+      "errorBase": 0.089
+    },
+    {
+      "at": 1794682907319.0,
+      "champion": "Irelia",
+      "gapSec": 5.0,
+      "model": 0.354,
+      "baseline": 0.298,
+      "errorPred": 0.068,
+      "errorBase": 0.029
+    },
+    {
+      "at": 1794682907316.0,
+      "champion": "Irelia",
+      "gapSec": 3.0,
+      "model": 0.103,
+      "baseline": 0.309,
+      "errorPred": 0.071,
+      "errorBase": 0.055
+    },
+    {
+      "at": 1794682907315.0,
+      "champion": "Nautilus",
+      "gapSec": 3.0,
+      "model": 0.686,
+      "baseline": 0.635,
+      "errorPred": 0.03,
+      "errorBase": 0.031
+    },
+    {
+      "at": 1794682907307.0,
+      "champion": "Irelia",
+      "gapSec": 5.0,
+      "model": 0.147,
+      "baseline": 0.302,
+      "errorPred": 0.084,
+      "errorBase": 0.028
+    },
+    {
+      "at": 1794682907304.0,
+      "champion": "Yasuo",
+      "gapSec": 3.0,
+      "model": 0.213,
+      "baseline": 0.031,
+      "errorPred": 0.06,
+      "errorBase": 0.097
+    },
+    {
+      "at": 1794682907298.0,
+      "champion": "Nautilus",
+      "gapSec": 12.0,
+      "model": -0.0,
+      "baseline": 0.037,
+      "errorPred": 0.203,
+      "errorBase": 0.133
+    },
+    {
+      "at": 1794682907296.0,
+      "champion": "Master Yi",
+      "gapSec": 15.0,
+      "model": 0.005,
+      "baseline": 0.028,
+      "errorPred": 0.087,
+      "errorBase": 0.085
+    },
+    {
+      "at": 1794682907295.0,
+      "champion": "Master Yi",
+      "gapSec": 14.0,
+      "model": 0.005,
+      "baseline": 0.043,
+      "errorPred": 0.086,
+      "errorBase": 0.084
+    },
+    {
+      "at": 1794682907282.0,
+      "champion": "Nautilus",
+      "gapSec": 5.0,
+      "model": 0.004,
+      "baseline": 0.096,
+      "errorPred": 0.155,
+      "errorBase": 0.095
+    },
+    {
+      "at": 1794682907280.0,
+      "champion": "Irelia",
+      "gapSec": 4.0,
+      "model": 0.603,
+      "baseline": 0.474,
+      "errorPred": 0.02,
+      "errorBase": 0.006
+    },
+    {
+      "at": 1794682907270.0,
+      "champion": "Master Yi",
+      "gapSec": 3.0,
+      "model": 0.454,
+      "baseline": 0.504,
+      "errorPred": 0.037,
+      "errorBase": 0.04
+    },
+    {
+      "at": 1794682907249.0,
+      "champion": "Sylas",
+      "gapSec": 7.0,
+      "model": -0.0,
+      "baseline": 0.017,
+      "errorPred": 0.202,
+      "errorBase": 0.205
+    },
+    {
+      "at": 1794682907244.0,
+      "champion": "Master Yi",
+      "gapSec": 6.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.305,
+      "errorBase": 0.369
+    },
+    {
+      "at": 1794682907242.0,
+      "champion": "Sylas",
+      "gapSec": 3.0,
+      "model": 0.137,
+      "baseline": 0.051,
+      "errorPred": 0.088,
+      "errorBase": 0.089
+    },
+    {
+      "at": 1794682907238.0,
+      "champion": "Irelia",
+      "gapSec": 6.0,
+      "model": 0.041,
+      "baseline": 0.03,
+      "errorPred": 0.065,
+      "errorBase": 0.146
+    },
+    {
+      "at": 1794682907233.0,
+      "champion": "Irelia",
+      "gapSec": 3.0,
+      "model": 0.685,
+      "baseline": 0.038,
+      "errorPred": 0.042,
+      "errorBase": 0.092
+    },
+    {
+      "at": 1794682907230.0,
+      "champion": "Nautilus",
+      "gapSec": 5.0,
+      "model": 0.229,
+      "baseline": 0.036,
+      "errorPred": 0.057,
+      "errorBase": 0.137
+    },
+    {
+      "at": 1794682907226.0,
+      "champion": "Nautilus",
+      "gapSec": 3.0,
+      "model": 0.836,
+      "baseline": 0.069,
+      "errorPred": 0.031,
+      "errorBase": 0.084
+    },
+    {
+      "at": 1794682907224.0,
+      "champion": "Master Yi",
+      "gapSec": 24.0,
+      "model": -0.0,
+      "baseline": 0.003,
+      "errorPred": 0.19,
+      "errorBase": 0.513
+    },
+    {
+      "at": 1794682907212.0,
+      "champion": "Sylas",
+      "gapSec": 18.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.485,
+      "errorBase": 0.719
+    },
+    {
+      "at": 1794682907207.0,
+      "champion": "Irelia",
+      "gapSec": 5.0,
+      "model": 0.592,
+      "baseline": 0.242,
+      "errorPred": 0.038,
+      "errorBase": 0.048
+    },
+    {
+      "at": 1794682907204.0,
+      "champion": "Sylas",
+      "gapSec": 14.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.401,
+      "errorBase": 0.597
+    },
+    {
+      "at": 1794682907204.0,
+      "champion": "Master Yi",
+      "gapSec": 14.0,
+      "model": 0.051,
+      "baseline": 0.001,
+      "errorPred": 0.077,
+      "errorBase": 0.43
+    },
+    {
+      "at": 1794682907178.0,
+      "champion": "Sylas",
+      "gapSec": 3.0,
+      "model": 0.035,
+      "baseline": 0.0,
+      "errorPred": 0.152,
+      "errorBase": 0.176
+    },
+    {
+      "at": 1794682907178.0,
+      "champion": "Master Yi",
+      "gapSec": 3.0,
+      "model": 0.002,
+      "baseline": 0.0,
+      "errorPred": 0.068,
+      "errorBase": 0.162
+    },
+    {
+      "at": 1794682907177.0,
+      "champion": "Irelia",
+      "gapSec": 21.0,
+      "model": -0.0,
+      "baseline": 0.001,
+      "errorPred": 0.206,
+      "errorBase": 0.698
+    },
+    {
+      "at": 1794682907172.0,
+      "champion": "Yasuo",
+      "gapSec": 10.0,
+      "model": 0.01,
+      "baseline": 0.09,
+      "errorPred": 0.115,
+      "errorBase": 0.041
+    },
+    {
+      "at": 1794682907168.0,
+      "champion": "Yasuo",
+      "gapSec": 8.0,
+      "model": 0.194,
+      "baseline": 0.129,
+      "errorPred": 0.092,
+      "errorBase": 0.045
+    },
+    {
+      "at": 1794682907168.0,
+      "champion": "Nautilus",
+      "gapSec": 54.0,
+      "model": -0.0,
+      "baseline": 0.002,
+      "errorPred": 0.545,
+      "errorBase": 0.651
+    },
+    {
+      "at": 1794682907161.0,
+      "champion": "Irelia",
+      "gapSec": 14.0,
+      "model": -0.0,
+      "baseline": 0.0,
+      "errorPred": 0.116,
+      "errorBase": 0.53
+    },
+    {
+      "at": 1794682907147.0,
+      "champion": "Yasuo",
+      "gapSec": 5.0,
+      "model": 0.209,
+      "baseline": 0.344,
+      "errorPred": 0.068,
+      "errorBase": 0.031
+    },
+    {
+      "at": 1794682907144.0,
+      "champion": "Yasuo",
+      "gapSec": 3.0,
+      "model": 0.225,
+      "baseline": 0.509,
+      "errorPred": 0.057,
+      "errorBase": 0.04
+    },
+    {
+      "at": 1794682907137.0,
+      "champion": "Irelia",
+      "gapSec": 3.0,
+      "model": 0.901,
+      "baseline": 0.0,
+      "errorPred": 0.012,
+      "errorBase": 0.159
+    },
+    {
+      "at": 1794682907115.0,
+      "champion": "Nautilus",
+      "gapSec": 30.0,
+      "model": -0.0,
+      "baseline": 0.004,
+      "errorPred": 0.375,
+      "errorBase": 0.486
+    },
+    {
+      "at": 1794682907094.0,
+      "champion": "Nautilus",
+      "gapSec": 19.0,
+      "model": 0.096,
+      "baseline": 0.0,
+      "errorPred": 0.709,
+      "errorBase": 0.789
+    },
+    {
+      "at": 1794682907087.0,
+      "champion": "Master Yi",
+      "gapSec": 55.0,
+      "model": 0.0,
+      "baseline": 0.002,
+      "errorPred": 0.372,
+      "errorBase": 0.336
+    },
+    {
+      "at": 1794682907053.0,
+      "champion": "Nautilus",
+      "gapSec": 3.0,
+      "model": 0.808,
+      "baseline": 0.85,
+      "errorPred": 0.036,
+      "errorBase": 0.018
+    },
+    {
+      "at": 1794682907051.0,
+      "champion": "Sylas",
+      "gapSec": 31.0,
+      "model": 0.008,
+      "baseline": 0.006,
+      "errorPred": 0.126,
+      "errorBase": 0.033
+    },
+    {
+      "at": 1794682907046.0,
+      "champion": "Yasuo",
+      "gapSec": 10.0,
+      "model": 0.0,
+      "baseline": 0.093,
+      "errorPred": 0.119,
+      "errorBase": 0.036
+    },
+    {
+      "at": 1794682907039.0,
+      "champion": "Sylas",
+      "gapSec": 26.0,
+      "model": 0.098,
+      "baseline": 0.011,
+      "errorPred": 0.053,
+      "errorBase": 0.203
+    },
+    {
+      "at": 1794682907028.0,
+      "champion": "Nautilus",
+      "gapSec": 14.0,
+      "model": -0.0,
+      "baseline": 0.009,
+      "errorPred": 0.205,
+      "errorBase": 0.297
+    },
+    {
+      "at": 1794682907018.0,
+      "champion": "Master Yi",
+      "gapSec": 25.0,
+      "model": 0.073,
+      "baseline": 0.012,
+      "errorPred": 0.197,
+      "errorBase": 0.187
+    },
+    {
+      "at": 1794682907015.0,
+      "champion": "Sylas",
+      "gapSec": 14.0,
+      "model": 0.505,
+      "baseline": 0.0,
+      "errorPred": 0.465,
+      "errorBase": 0.61
+    },
+    {
+      "at": 1794682907015.0,
+      "champion": "Irelia",
+      "gapSec": 14.0,
+      "model": -0.0,
+      "baseline": 0.035,
+      "errorPred": 0.253,
+      "errorBase": 0.052
+    },
+    {
+      "at": 1794682907007.0,
+      "champion": "Nautilus",
+      "gapSec": 4.0,
+      "model": 0.813,
+      "baseline": 0.052,
+      "errorPred": 0.033,
+      "errorBase": 0.102
+    },
+    {
+      "at": 1794682906991.0,
+      "champion": "Master Yi",
+      "gapSec": 14.0,
+      "model": 0.05,
+      "baseline": 0.043,
+      "errorPred": 0.075,
+      "errorBase": 0.083
+    },
+    {
+      "at": 1794682906989.0,
+      "champion": "Sylas",
+      "gapSec": 3.0,
+      "model": 0.587,
+      "baseline": 0.152,
+      "errorPred": 0.022,
+      "errorBase": 0.071
+    },
+    {
+      "at": 1794682906987.0,
+      "champion": "Irelia",
+      "gapSec": 3.0,
+      "model": 0.854,
+      "baseline": 0.162,
+      "errorPred": 0.026,
+      "errorBase": 0.069
+    },
+    {
+      "at": 1794682906980.0,
+      "champion": "Yasuo",
+      "gapSec": 13.0,
+      "model": 0.012,
+      "baseline": 0.056,
+      "errorPred": 0.236,
+      "errorBase": 0.018
+    },
+    {
+      "at": 1794682906974.0,
+      "champion": "Yasuo",
+      "gapSec": 10.0,
+      "model": 0.073,
+      "baseline": 0.095,
+      "errorPred": 0.226,
+      "errorBase": 0.034
+    },
+    {
+      "at": 1794682906967.0,
+      "champion": "Master Yi",
+      "gapSec": 3.0,
+      "model": 0.291,
+      "baseline": 0.085,
+      "errorPred": 0.078,
+      "errorBase": 0.081
+    },
+    {
+      "at": 1794682906953.0,
+      "champion": "Yasuo",
+      "gapSec": 4.0,
+      "model": 0.589,
+      "baseline": 0.177,
+      "errorPred": 0.028,
+      "errorBase": 0.072
+    },
+    {
+      "at": 1794682906953.0,
+      "champion": "Irelia",
+      "gapSec": 3.0,
+      "model": 0.693,
+      "baseline": 0.45,
+      "errorPred": 0.038,
+      "errorBase": 0.041
+    },
+    {
+      "at": 1794682906952.0,
+      "champion": "Yasuo",
+      "gapSec": 3.0,
+      "model": 0.59,
+      "baseline": 0.195,
+      "errorPred": 0.028,
+      "errorBase": 0.065
+    },
+    {
+      "at": 1794682906930.0,
+      "champion": "Nautilus",
+      "gapSec": 39.0,
+      "model": 0.02,
+      "baseline": 0.004,
+      "errorPred": 0.12,
+      "errorBase": 0.297
+    },
+    {
+      "at": 1794682906908.0,
+      "champion": "Irelia",
+      "gapSec": 14.0,
+      "model": 0.007,
+      "baseline": 0.04,
+      "errorPred": 0.217,
+      "errorBase": 0.045
+    },
+    {
+      "at": 1794682906900.0,
+      "champion": "Nautilus",
+      "gapSec": 24.0,
+      "model": 0.479,
+      "baseline": 0.012,
+      "errorPred": 0.033,
+      "errorBase": 0.199
+    },
+    {
+      "at": 1794682906892.0,
+      "champion": "Master Yi",
+      "gapSec": 24.0,
+      "model": 0.053,
+      "baseline": 0.003,
+      "errorPred": 0.085,
+      "errorBase": 0.51
+    },
+    {
+      "at": 1794682906892.0,
+      "champion": "Yasuo",
+      "gapSec": 4.0,
+      "model": 0.547,
+      "baseline": 0.08,
+      "errorPred": 0.059,
+      "errorBase": 0.097
+    },
+    {
+      "at": 1794682906889.0,
+      "champion": "Yasuo",
+      "gapSec": 3.0,
+      "model": 0.547,
+      "baseline": 0.089,
+      "errorPred": 0.045,
+      "errorBase": 0.081
+    },
+    {
+      "at": 1794682906882.0,
+      "champion": "Irelia",
+      "gapSec": 3.0,
+      "model": 0.544,
+      "baseline": 0.288,
+      "errorPred": 0.025,
+      "errorBase": 0.056
+    },
+    {
+      "at": 1794682906871.0,
+      "champion": "Nautilus",
+      "gapSec": 14.0,
+      "model": 0.064,
+      "baseline": 0.019,
+      "errorPred": 0.067,
+      "errorBase": 0.218
+    },
+    {
+      "at": 1794682906864.0,
+      "champion": "Master Yi",
+      "gapSec": 14.0,
+      "model": 0.003,
+      "baseline": 0.001,
+      "errorPred": 0.187,
+      "errorBase": 0.444
+    },
+    {
+      "at": 1794682906850.0,
+      "champion": "Yasuo",
+      "gapSec": 5.0,
+      "model": 0.151,
+      "baseline": 0.056,
+      "errorPred": 0.063,
+      "errorBase": 0.118
+    },
+    {
+      "at": 1794682906847.0,
+      "champion": "Nautilus",
+      "gapSec": 3.0,
+      "model": 0.654,
+      "baseline": 0.098,
+      "errorPred": 0.04,
+      "errorBase": 0.079
+    },
+    {
+      "at": 1794682906847.0,
+      "champion": "Yasuo",
+      "gapSec": 3.0,
+      "model": 0.761,
+      "baseline": 0.088,
+      "errorPred": 0.042,
+      "errorBase": 0.081
+    }
+  ]
+}

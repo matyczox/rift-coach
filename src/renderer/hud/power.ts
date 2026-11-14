@@ -27,16 +27,16 @@ const DANGER_COLOR: Record<DangerState['label'], string> = {
 };
 
 /** Small icons of the champions around me; fog ones faded with a '?'. */
-function setNear(box: HTMLElement, list: Array<{ champion: string; iconUrl: string; sure: boolean }> | undefined): void {
+function setNear(box: HTMLElement, list: Array<{ champion: string; iconUrl: string; level: number; sure: boolean }> | undefined): void {
   const items = (list ?? []).slice(0, 4);
-  const key = items.map((n) => `${n.champion}:${n.sure}`).join(',');
+  const key = items.map((n) => `${n.champion}:${n.level}:${n.sure}`).join(',');
   if (box.dataset.k === key) return;
   box.dataset.k = key;
   box.replaceChildren(...items.map((n) => {
     const s = document.createElement('span');
     s.className = 'pw-mini' + (n.sure ? '' : ' fog');
     const img = document.createElement('img');
-    img.src = n.iconUrl; img.alt = ''; img.title = n.champion;
+    img.src = n.iconUrl; img.alt = ''; img.title = `${n.champion} · lvl ${n.level}`;
     s.append(img);
     return s;
   }));
@@ -107,6 +107,18 @@ subscribe(({ state }) => {
     top.className = 'bm-top';
     top.append(cell(ln.gold, 'złoto', k), cell(ln.cs, 'cs', (x) => `${Math.abs(x)}`), cell(ln.level, 'lvl', (x) => `${Math.abs(x)}`));
     const rows: HTMLElement[] = [top];
+    const target = document.createElement('div');
+    target.className = 'bm-row';
+    target.textContent = `${p.me.champion} ${p.me.level} vs ${p.enemy.champion} ${p.enemy.level} lvl`;
+    rows.push(target);
+    if (p.botLevels) {
+      const pair = document.createElement('div');
+      pair.className = 'bm-row bm-bot';
+      const b = p.botLevels;
+      const levels = (side: typeof b.ours) => side.map(x => `${x.champion} ${x.level}`).join(' + ');
+      pair.textContent = `Bot: ${levels(b.ours)} vs ${levels(b.theirs)} · suma ${sign(b.difference)}${Math.abs(b.difference)} lvl`;
+      rows.push(pair);
+    }
     if (p.csMin && p.csMin.opp != null) {
       const r = document.createElement('div');
       const diff = p.csMin.me - p.csMin.opp;

@@ -24,7 +24,8 @@ pub async fn refresh(st: Arc<AppState>, force: bool) {
     let reviews_dir = st.reviews_dir();
     let lessons = tokio::task::spawn_blocking(move || lessons_from(&rc_core::files::list_reviews(&reviews_dir))).await.unwrap_or_default();
     let now = rc_core::jsutil::now_ms();
-    let key_set = !st.settings.lock().unwrap().value().riot.api_key.is_empty();
+    let riot=st.settings.lock().unwrap().value().riot.clone();
+    let key_set = !riot.api_key.is_empty();
     let riot_id = my_riot_id(&st);
     let need_load = st.ui.lock().unwrap().player_profile.is_none();
     let loaded = if need_load { load_self_profile(&file(&st)) } else { None };
@@ -52,8 +53,10 @@ pub async fn refresh(st: Arc<AppState>, force: bool) {
         }
         None => Err("no Riot client".into()),
     };
+    let stale=st.settings.lock().unwrap().value().riot!=riot;
     let mut ui = st.ui.lock().unwrap();
     ui.self_profile_busy = false;
+    if stale {return;}
     match result {
         Ok(Some(p)) => {
             if let Err(e) = save_self_profile(&file(&st), &p) {
@@ -66,6 +69,24 @@ pub async fn refresh(st: Arc<AppState>, force: bool) {
         Ok(None) => log::warn!("player profile failed: account not found"),
         Err(e) => log::warn!("player profile failed: {e}"),
     }
+}
+
+/// A newly pasted key should take effect now, including after an old request fails.
+pub fn settings_changed(st: &Arc<AppState>) {
+    if crate::smoke() {return;}
+    let wanted=st.settings.lock().unwrap().value().riot.clone();
+    if wanted.api_key.is_empty() {return;}
+    let st=st.clone();
+    st.rt.clone().spawn(async move {
+        for _ in 0..120 {
+            if st.settings.lock().unwrap().value().riot!=wanted {return;}
+            if !st.ui.lock().unwrap().self_profile_busy {
+                refresh(st.clone(),true).await;
+                return;
+            }
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+    });
 }
 
 /// Background loop: load the saved profile at once, then check every 2 min (the LCU refreshes
