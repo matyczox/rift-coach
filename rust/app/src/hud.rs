@@ -236,7 +236,11 @@ fn buy_now_json(g: &crate::game::Game) -> Option<Value> {
     let gold = intel.my_stats.as_ref()?.gold;
     // Only in base, dead or at game start: on lane it was one more list on screen all game.
     let base = if me.team == "CHAOS" { (0.96, 0.04) } else { (0.04, 0.96) };
-    let in_base = g.field.my_pos.is_some_and(|(x, y)| (x - base.0).hypot(y - base.1) < 0.12);
+    // In base: my icon near the fountain, or lost there (it hides under the base buildings) after I was
+    // last seen near it in the last 20 s ("itemy z backów nie działają").
+    let near_base = |(x, y): (f64, f64)| (x - base.0).hypot(y - base.1) < 0.2;
+    let in_base = g.field.my_pos.is_some_and(|(x, y)| (x - base.0).hypot(y - base.1) < 0.12)
+        || (g.field.my_pos.is_none() && g.field.my_last_real.is_some_and(|(x, y, at)| crate::vision::now_ms() - at < 20_000.0 && near_base((x, y))));
     if !(me.is_dead || in_base || intel.game_time < 90.0) || gold < 300.0 {
         return None;
     }
