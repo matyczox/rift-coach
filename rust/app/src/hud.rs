@@ -241,7 +241,9 @@ fn buy_now_json(g: &crate::game::Game) -> Option<Value> {
     let near_base = |(x, y): (f64, f64)| (x - base.0).hypot(y - base.1) < 0.2;
     let in_base = g.field.my_pos.is_some_and(|(x, y)| (x - base.0).hypot(y - base.1) < 0.12)
         || (g.field.my_pos.is_none() && g.field.my_last_real.is_some_and(|(x, y, at)| crate::vision::now_ms() - at < 20_000.0 && near_base((x, y))));
-    if !(me.is_dead || in_base || intel.game_time < 90.0) || gold < 300.0 {
+    // Pressing B (recall) shows it during the channel already.
+    let recalling = recalling_now(g.field.my_pos);
+    if !(me.is_dead || in_base || recalling || intel.game_time < 90.0) || gold < 300.0 {
         return None;
     }
     // No free slot and nothing to finish: nothing to "buy now" (it listed an item there was no room for).
@@ -689,8 +691,53 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
     }
 }
 
+/// Last press of the recall key (B) while the game window is in front, Date.now() ms; 0 = none / cancelled.
+static RECALL_AT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+/// Where I stood when that recall started (moving cancels a recall).
+static RECALL_POS: Mutex<Option<(f64, f64)>> = Mutex::new(None);
+
+/// Reads only the state of the B key (no hook, nothing sent), and only while the game is in front.
+#[cfg(windows)]
+fn spawn_recall_key() {
+    use windows_sys::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
+    let _ = std::thread::Builder::new().name("rc-recall-key".into()).spawn(|| {
+        let mut down = false;
+        loop {
+            std::thread::sleep(Duration::from_millis(40));
+            let front = game_client_rect().is_some_and(|r| r.foreground);
+            // SAFETY: plain Win32 query of one key's state.
+            let pressed = front && (unsafe { GetAsyncKeyState(0x42) } as u16 & 0x8000) != 0;
+            if pressed && !down {
+                RECALL_AT.store(now_ms() as u64, std::sync::atomic::Ordering::Relaxed);
+                *RECALL_POS.lock().unwrap() = None;
+            }
+            down = pressed;
+        }
+    });
+}
+#[cfg(not(windows))]
+fn spawn_recall_key() {}
+
+/// Recalling now: B pressed in the last 8.5 s and I have not moved since (a move cancels the channel).
+fn recalling_now(my_pos: Option<(f64, f64)>) -> bool {
+    let at = RECALL_AT.load(std::sync::atomic::Ordering::Relaxed) as f64;
+    if at <= 0.0 || now_ms() - at > 8500.0 {
+        return false;
+    }
+    let mut anchor = RECALL_POS.lock().unwrap();
+    match (*anchor, my_pos) {
+        (None, Some(p)) => { *anchor = Some(p); true }
+        (Some(a), Some(p)) if (a.0 - p.0).hypot(a.1 - p.1) > 0.012 => {
+            RECALL_AT.store(0, std::sync::atomic::Ordering::Relaxed);
+            false
+        }
+        _ => true,
+    }
+}
+
 /// Window tracker (1 s, read-only Win32 like winrect.ts) + HUD pushes every 100 ms.
 pub fn spawn(app: &tauri::AppHandle, st: &Arc<AppState>) {
+    spawn_recall_key();
     let (app, st) = (app.clone(), st.clone());
     std::thread::Builder::new()
         .name("rc-hud".into())

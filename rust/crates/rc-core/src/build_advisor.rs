@@ -304,6 +304,9 @@ pub fn buy_from_plan(names: &[String], items: &HashMap<i64, ItemData>, owned: &[
         if let Some(target) = target {
             let buy = buy_now(target, items, owned, gold, false);
             if !buy.is_empty() { return buy; }
+            // I already hold this item's components and only lack gold to combine it: wait for it, do not jump
+            // to the next item (it listed Ruby Crystal + Null-Magic Mantle that were inside my Kindlegem / Negatron).
+            if !owned.contains(&target.id) && owned_share(target, items, owned) >= 0.4 { return vec![]; }
         }
     }
     if want_boots && !owned.contains(&1001) && items.get(&1001).is_some_and(|d| d.purchasable && d.total <= gold) { vec![1001] } else { vec![] }
