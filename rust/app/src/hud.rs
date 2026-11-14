@@ -532,7 +532,14 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
             if s["topBar"].is_null() || old_support || (plan.urgent && (!retreat || !plan.approach)) {
                 s["topBar"]=json!({"call":plan.text,"tone":if plan.approach {"wait"} else {"danger"},"expiresAt":now+2500.0});
             }
-            if let (true,Some((x,y)),Some((mx,my)),Some(hints))=(plan.approach,plan.position,g.field.my_pos,s.get_mut("hints").and_then(Value::as_array_mut)) {
+            if !plan.approach {
+                let base=if g.intel.as_ref().and_then(|i|i.me.as_ref()).is_some_and(|m|m.team=="CHAOS") {(0.96,0.04)} else {(0.04,0.96)};
+                if let Some(hints)=s.get_mut("hints").and_then(Value::as_array_mut) {
+                    hints.retain(|h| !matches!(h["kind"].as_str(),Some("move"|"objective"|"ward"))
+                        || h["x"].as_f64().zip(h["y"].as_f64()).is_some_and(|(x,y)|(x-base.0).hypot(y-base.1)<0.12));
+                }
+            }
+            if let (true,Some((x,y)),Some((mx,my)),Some(hints))=(plan.approach && !retreat,plan.position,g.field.my_pos,s.get_mut("hints").and_then(Value::as_array_mut)) {
                 hints.insert(0,json!({"kind":"move","x":x,"y":y,"from":{"x":mx,"y":my},"label":plan.text,"expiresAt":now+2500.0}));
             }
         } else {
