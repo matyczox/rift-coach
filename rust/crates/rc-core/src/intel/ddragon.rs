@@ -80,7 +80,11 @@ pub fn parse_items(j: &Value) -> HashMap<i64, ItemData> {
         let tags: Vec<String> = it.get("tags").and_then(Value::as_array).map(|a| a.iter().filter_map(|t| t.as_str().map(String::from)).collect()).unwrap_or_default();
         let has = |t: &str| tags.iter().any(|x| x == t);
         let total = it.pointer("/gold/total").and_then(Value::as_f64).unwrap_or(0.0);
-        let purchasable = it.pointer("/gold/purchasable").and_then(Value::as_bool).unwrap_or(false);
+        // Free recipe upgrades (e.g. quest boots) are earned, not normal shop purchases.
+        // Keep their stats for inventory recognition, but exclude them from shopping plans.
+        let free_upgrade = it.pointer("/gold/base").and_then(Value::as_f64) == Some(0.0)
+            && it.get("from").and_then(Value::as_array).is_some_and(|a| !a.is_empty());
+        let purchasable = it.pointer("/gold/purchasable").and_then(Value::as_bool).unwrap_or(false) && !free_upgrade;
         let consumed = it.get("consumed").and_then(Value::as_bool).unwrap_or(false);
         let builds_into = it.get("into").and_then(Value::as_array).is_some_and(|a| !a.is_empty());
         let completed = purchasable && !consumed && !builds_into && !has("Trinket") && !has("Consumable") && if has("Boots") { total >= 900.0 } else { total >= 2000.0 };
@@ -236,6 +240,18 @@ pub mod tests {
         assert!(items[&6333].purchasable);
         let pet = parse_items(&json!({ "data": { "1101": { "name": "Pet", "gold": { "total": 450, "purchasable": false } } } }));
         assert!(!pet[&1101].purchasable && !pet[&1101].completed);
+    }
+
+    #[test]
+    fn free_boot_upgrade_is_recognized_but_not_sold() {
+        let items = parse_items(&json!({"data": {
+            "3111": {"name":"Mercury's Treads", "gold":{"base":550,"total":1250,"purchasable":true}, "from":["1001","1033"], "tags":["Boots"]},
+            "3173": {"name":"Chainlaced Crushers", "gold":{"base":0,"total":1250,"purchasable":true}, "from":["3111"], "tags":["Boots"]}
+        }}));
+        assert!(items[&3111].purchasable);
+        assert!(!items[&3173].purchasable);
+        assert_eq!(items[&3173].total, 1250.0);
+        assert!(items[&3173].tags.iter().any(|t| t == "Boots"));
     }
 
     #[test]

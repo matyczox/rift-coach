@@ -33,7 +33,7 @@ function render(b: BuildPanelState): void {
   if (buy.length) {
     const box = el('div', 'bd-buy');
     const total = buy.reduce((a, it) => a + (it.cost || 0), 0);
-    box.append(el('div', 'bd-buy-label', `Kup teraz · ${total} g`));
+    box.append(el('div', 'bd-buy-label', `Dostępne zakupy · ${total} g`));
     for (const it of buy) {
       const r = el('div', 'bd-buy-row');
       const im = el('img', '');

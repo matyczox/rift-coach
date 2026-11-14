@@ -96,7 +96,7 @@ pub fn build_context(intel: &GameIntel, items: &HashMap<i64, ItemData>, profiles
     if let Some(b) = patch_brief {
         o.insert("patch".into(), json!(b));
     }
-    o.insert("availableItems".into(), json!(sorted_items(items).into_iter().filter(|i| (i.completed || i.tags.iter().any(|t| t == "Boots")) && i.total >= 900.0).map(|i| &i.name).collect::<Vec<_>>()));
+    o.insert("availableItems".into(), json!(sorted_items(items).into_iter().filter(|i| i.purchasable && (i.completed || i.tags.iter().any(|t| t == "Boots")) && i.total >= 900.0).map(|i| &i.name).collect::<Vec<_>>()));
     Some(crate::jsutil::js_numbers(Value::Object(o)))
 }
 
@@ -144,11 +144,12 @@ pub async fn advise_build(caller: &dyn ModelCaller, ctx: &Value, items: &HashMap
             .items
             .iter()
             .take(3)
-            .map(|it| {
+            .filter_map(|it| {
                 let lc = it.name.to_lowercase();
                 let data = by_name.get(&lc).copied().or_else(|| all.iter().copied().find(|i| i.name.to_lowercase().contains(&lc)));
+                if data.is_some_and(|d| !d.purchasable) { return None; }
                 // Only the item: the user asked for no descriptions in the panel.
-                BuildItem { name: data.map(|d| d.name.clone()).unwrap_or_else(|| it.name.clone()), icon_url: data.map(|d| icon_url(d.id)).unwrap_or_default(), why: String::new(), cost: data.map(|d| d.total) }
+                Some(BuildItem { name: data.map(|d| d.name.clone()).unwrap_or_else(|| it.name.clone()), icon_url: data.map(|d| icon_url(d.id)).unwrap_or_default(), why: String::new(), cost: data.map(|d| d.total) })
             })
             .collect(),
     })
@@ -216,6 +217,7 @@ pub fn committed<'a>(items: &'a HashMap<i64, ItemData>, owned: &[i64]) -> Option
 /// that does not fit). Components I already own count towards the target. Boots are added when I have
 /// none and gold is left.
 pub fn buy_now(target: &ItemData, items: &std::collections::HashMap<i64, ItemData>, owned: &[i64], gold: f64, want_boots: bool) -> Vec<i64> {
+    if !target.purchasable || owned.contains(&target.id) { return vec![]; }
     let price = |id: i64| items.get(&id).map_or(0.0, |i| i.total);
     let by_price_desc = |v: &mut Vec<i64>| v.sort_by(|a, b| price(*b).total_cmp(&price(*a)));
     // Recipe parts still missing (an owned component counts once).
@@ -277,6 +279,30 @@ pub fn buy_now(target: &ItemData, items: &std::collections::HashMap<i64, ItemDat
         out.push(1001);
     }
     out
+}
+
+/// First actionable purchase in plan order. An earned upgrade or finished item
+/// must not hide affordable components of the next planned item.
+pub fn purchase_cost(target: &ItemData, items: &HashMap<i64, ItemData>, owned: &[i64]) -> f64 {
+    fn credit(id: i64, items: &HashMap<i64, ItemData>, owned: &mut Vec<i64>, depth: usize) -> f64 {
+        if depth > 16 { return 0.0; }
+        let Some(d) = items.get(&id) else { return 0.0 };
+        if let Some(p) = owned.iter().position(|&o| o == id) { owned.remove(p); return d.total; }
+        d.from.iter().map(|&c| credit(c, items, owned, depth + 1)).sum::<f64>().min(d.total)
+    }
+    let mut remaining = owned.to_vec();
+    (target.total - credit(target.id, items, &mut remaining, 0)).max(0.0)
+}
+
+pub fn buy_from_plan(names: &[String], items: &HashMap<i64, ItemData>, owned: &[i64], gold: f64, want_boots: bool) -> Vec<i64> {
+    for name in names {
+        let target = items.values().find(|d| d.name.eq_ignore_ascii_case(name) || d.name_en.as_deref().is_some_and(|n| n.eq_ignore_ascii_case(name)));
+        if let Some(target) = target {
+            let buy = buy_now(target, items, owned, gold, false);
+            if !buy.is_empty() { return buy; }
+        }
+    }
+    if want_boots && !owned.contains(&1001) && items.get(&1001).is_some_and(|d| d.purchasable && d.total <= gold) { vec![1001] } else { vec![] }
 }
 
 /// Decides when the build should be re-evaluated.
@@ -368,6 +394,25 @@ mod tests {
     }
 
     #[test]
+    fn purchases_continue_after_owned_or_earned_boots() {
+        let mut items = db();
+        let mut upgrade = item(3173, "Chainlaced Crushers", 1250.0, false);
+        upgrade.purchasable = false;
+        upgrade.from = vec![3111];
+        items.insert(3173, upgrade);
+        items.insert(3111, item(3111, "Obuwie Merkurego", 1250.0, true));
+        items.get_mut(&3111).unwrap().name_en = Some("Mercury's Treads".into());
+        items.insert(1033, item(1033, "Opończa", 450.0, false));
+        items.insert(3000, item(3000, "Next item", 2400.0, true));
+        items.get_mut(&3000).unwrap().from = vec![1033];
+        for first in ["Chainlaced Crushers", "Mercury's Treads"] {
+            let plan = vec![first.into(), "Next item".into()];
+            assert_eq!(buy_from_plan(&plan, &items, &[3111], 1870.0, false), vec![1033]);
+        }
+        assert_eq!(buy_from_plan(&["Next item".into()], &items, &[3111,1033], 500.0, false), Vec::<i64>::new());
+    }
+
+    #[test]
     fn buy_now_whole_item_or_components() {
         let mut items = std::collections::HashMap::new();
         let mk = |id: i64, total: f64, from: Vec<i64>| ItemData { id, name: format!("i{id}"), total, completed: from.len() > 1, tags: vec![], name_en: None, flat_ms: 0.0, pct_ms: 0.0, purchasable: true, from };
@@ -377,6 +422,7 @@ mod tests {
         items.insert(1001, mk(1001, 300.0, vec![]));
         items.insert(3089, mk(3089, 3500.0, vec![1058, 1026, 1052]));
         let rab = items[&3089].clone();
+        assert_eq!(purchase_cost(&rab, &items, &[1058,1026]),1450.0);
         // 1300 g: the biggest component that fits.
         assert_eq!(buy_now(&rab, &items, &[], 1300.0, false), vec![1058]);
         // 900 g: the rod does not fit, the wand does.

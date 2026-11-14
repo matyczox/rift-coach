@@ -6,6 +6,7 @@ pub mod build_advisor;
 pub mod coach;
 pub mod files;
 pub mod harvest;
+pub mod hud_policy;
 pub mod intel;
 pub mod jsutil;
 pub mod llm;

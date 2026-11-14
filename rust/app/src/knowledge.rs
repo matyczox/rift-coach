@@ -232,8 +232,11 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
     }
     // Just bought something from the plan: drop it from the panel now, not after the next answer.
     if let (Some(b), Some(me)) = (g.build.as_mut(), g.intel.as_ref().and_then(|i| i.me.as_ref())) {
-        let owned: Vec<String> = me.items.iter().map(|i| i.name.to_lowercase()).collect();
-        b.items.retain(|it| !owned.contains(&it.name.to_lowercase()));
+        b.items.retain(|it| !me.items.iter().any(|owned| {
+            sd.items.get(&owned.id).is_some_and(|d| {
+                d.name.eq_ignore_ascii_case(&it.name) || d.name_en.as_deref().is_some_and(|en| en.eq_ignore_ascii_case(&it.name))
+            }) || owned.name.eq_ignore_ascii_case(&it.name)
+        }));
         if b.items.is_empty() {
             g.build = None;
         }

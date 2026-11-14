@@ -419,9 +419,9 @@ pub fn power_bar_near(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dy
     // Allies next to me only matter in a fight (an enemy near): in base / on the way it just confused.
     let allies: Vec<NearSide> = if !local { Vec::new() } else { near.allies.iter().filter(|c| intel.players.iter().any(|p| &p.champion == *c && p.is_ally && !p.is_me)).filter_map(|c| side(c, true)).collect() };
     let enemies: Vec<NearSide> = near.enemies.iter().filter(|(c, _)| *c != primary.champion && intel.players.iter().any(|p| &p.champion == c && !p.is_ally)).filter_map(|(c, s)| side(c, *s)).collect();
-    let gold = (js_round((me.item_gold - opp.item_gold) / 50.0) * 50.0) as i64;
-    let cs = me.cs - opp.cs;
-    let detail = format!("lvl {} vs {} · {} g · CS {}", me.level, opp.level, signed(gold), signed(cs));
+    let gold = (js_round((me.item_gold - primary.item_gold) / 50.0) * 50.0) as i64;
+    let cs = me.cs - primary.cs;
+    let detail = format!("lvl {} vs {} · {} g · CS {}", me.level, primary.level, signed(gold), signed(cs));
     let advice = if my_hp < 0.2 {
         format!("Masz {}% HP → wycofaj się / back", js_round(my_hp * 100.0) as i64)
     } else if dive && p_me < 0.75 {
@@ -461,8 +461,8 @@ pub fn power_bar_near(intel: &GameIntel, brief: Option<&MatchupBrief>, icon: &dy
         p_me,
         detail,
         advice,
-        meta_win_rate: brief.and_then(|b| b.win_rate),
-        lane: LaneLead { gold: gold as i64, cs: cs as i64, level: me.level as i64 - opp.level as i64 },
+        meta_win_rate: primary_brief.and_then(|b| b.win_rate),
+        lane: LaneLead { gold: gold as i64, cs: cs as i64, level: me.level as i64 - primary.level as i64 },
         allies,
         enemies,
         local,
@@ -672,6 +672,18 @@ pub(crate) mod tests {
         assert!((s2 - (0.45 + 0.25 - 0.15)).abs() < 1e-9);
         assert_eq!(next_good_level(Some(&b), 3), Some(6));
         assert_eq!(next_good_level(Some(&b), 18), None);
+    }
+
+    #[test]
+    fn local_target_uses_its_own_level_and_gold() {
+        let mut i = intel(vec![player("Leona", true, true, "UTILITY", 4), player("Sona", false, false, "UTILITY", 4), player("KaiSa", false, false, "BOTTOM", 5)]);
+        i.players[2].item_gold = 1700.0;
+        let near = Nearby { enemies: vec![("KaiSa".into(),true)], ..Default::default() };
+        let p = power_bar_near(&i, Some(&brief(0.6)), &|_| String::new(), &near).unwrap();
+        assert_eq!(p.enemy.champion,"KaiSa");
+        assert!(p.detail.starts_with("lvl 4 vs 5"));
+        assert_eq!(p.lane.level,-1);
+        assert_eq!(p.meta_win_rate,None);
     }
 
     #[test]

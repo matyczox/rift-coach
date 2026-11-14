@@ -40,7 +40,6 @@ pub struct HudCtl {
     last_emit: Option<Instant>,
     /// Last fight bar / shopping list shown, to bridge a missing frame or two (no flicker).
     last_power: Option<(Value, Instant)>,
-    last_buy: Option<(Value, Instant)>,
     /// Last HUD state written to the log file (logged again only when it changes).
     log_hud: String,
     log_field_at: Option<Instant>,
@@ -235,14 +234,9 @@ fn buy_now_json(g: &crate::game::Game) -> Option<Value> {
     let (intel, sd) = (g.intel.as_ref()?, g.static_data.as_ref()?);
     let me = intel.me.as_ref()?;
     let gold = intel.my_stats.as_ref()?.gold;
-    let base = if me.team == "CHAOS" { (0.96, 0.04) } else { (0.04, 0.96) };
-    let in_base = g.field.my_pos.is_some_and(|(x, y)| (x - base.0).hypot(y - base.1) < 0.12);
-    // Standing still for 2+ s (recall channel): what to buy shows already while backing, not in base.
-    let tr = &g.field.my_trail;
-    let recalling = tr.len() >= 3 && tr[tr.len() - 3..].iter().all(|(t, x, y)| intel.game_time - t <= 4.0 && (x - tr[tr.len() - 1].1).hypot(y - tr[tr.len() - 1].2) < 0.008);
-    // Not while "recalling": standing still on lane (waiting for the wave) flashed it for a second.
-    let _ = recalling;
-    if !(me.is_dead || in_base || intel.game_time < 90.0) || gold < 300.0 {
+    // A purchase preview, available before and during recall too. Minimap position
+    // and standing still cannot reliably prove recall or shop access.
+    if gold < 300.0 {
         return None;
     }
     // No free slot and nothing to finish: nothing to "buy now" (it listed an item there was no room for).
@@ -276,10 +270,10 @@ fn buy_now_json(g: &crate::game::Game) -> Option<Value> {
         };
         std::iter::once(start).chain(std::iter::repeat_n(2003, pots)).filter(|id| sd.items.contains_key(id)).collect()
     } else {
-        let Some(target) = target else { return None };
         let owned: Vec<i64> = me.items.iter().map(|i| i.id).collect();
         let has_boots = me.items.iter().any(|i| sd.items.get(&i.id).is_some_and(|d| d.tags.iter().any(|t| t == "Boots")));
-        rc_core::build_advisor::buy_now(target, &sd.items, &owned, gold, !has_boots && intel.game_time > 4.0 * 60.0)
+        let names = g.build.as_ref().map(|b| b.items.iter().map(|i| i.name.clone()).collect::<Vec<_>>()).unwrap_or_default();
+        rc_core::build_advisor::buy_from_plan(&names, &sd.items, &owned, gold, !has_boots && intel.game_time > 4.0 * 60.0)
     };
     if ids.is_empty() {
         return None;
@@ -288,7 +282,7 @@ fn buy_now_json(g: &crate::game::Game) -> Option<Value> {
     Some(Value::Array(
         ids.iter()
             .filter_map(|id| sd.items.get(id))
-            .map(|i| serde_json::json!({ "name": i.name, "iconUrl": format!("https://ddragon.leagueoflegends.com/cdn/{version}/img/item/{}.png", i.id), "cost": i.total }))
+            .map(|i| serde_json::json!({ "name": i.name, "iconUrl": format!("https://ddragon.leagueoflegends.com/cdn/{version}/img/item/{}.png", i.id), "cost": rc_core::build_advisor::purchase_cost(i, &sd.items, &me.items.iter().map(|i| i.id).collect::<Vec<_>>()) }))
             .collect(),
     ))
 }
@@ -310,7 +304,6 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
     let advice = st.ui.lock().unwrap().last_advice.clone();
     let mut field_line: Option<String> = None;
     let mut in_game_log = false;
-    let pos_unknown = st.game.lock().unwrap().field.my_pos.is_none();
     let mut log_t = 0.0;
     let mut state = {
         let mut g = st.game.lock().unwrap();
@@ -479,7 +472,8 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
             // Benchmarks (Blitz-like): CS per minute me vs my lane rival, item value of both teams.
             let mins = (i.game_time / 60.0).max(1.0);
             if let Some(me) = i.me.as_ref() {
-                let opp = i.players.iter().find(|x| !x.is_ally && !me.role.is_empty() && x.role == me.role);
+                let target = p.get("enemy").and_then(|e| e.get("champion")).and_then(Value::as_str);
+                let opp = i.players.iter().find(|x| !x.is_ally && Some(x.champion.as_str()) == target);
                 let r1 = |v: f64| (v * 10.0).round() / 10.0;
                 p.insert("csMin".into(), json!({ "me": r1(me.cs as f64 / mins), "opp": opp.map(|o| r1(o.cs as f64 / mins)) }));
             }
@@ -604,18 +598,15 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
     if state["deathCard"].is_null() {
         let hold = Duration::from_millis(2500);
         if state["power"].is_object() {
+            rc_core::hud_policy::stabilize_power(&mut state["power"], h.last_power.as_ref().filter(|(_, at)| at.elapsed() < hold).map(|(v, at)| (v, at.elapsed().as_secs_f64())));
             h.last_power = Some((state["power"].clone(), Instant::now()));
         } else if let Some((v, _)) = h.last_power.as_ref().filter(|(_, at)| at.elapsed() < hold) {
             state["power"] = v.clone();
         }
-        if state["build"]["buyNow"].is_array() {
-            h.last_buy = Some((state["build"]["buyNow"].clone(), Instant::now()));
-        } else if let (Some((v, _)), true) = (h.last_buy.as_ref().filter(|(_, at)| at.elapsed() < hold), state["build"].is_object() && pos_unknown) {
-            state["build"]["buyNow"] = v.clone();
-        }
     } else {
         h.last_power = None;
     }
+    rc_core::hud_policy::reconcile(&mut state);
     // Log file: what the overlay shows (on change) and where everyone is (every 2 s), in game only.
     if in_game_log {
         let shown = crate::applog::strip(&state).to_string();
