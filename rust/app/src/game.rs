@@ -68,7 +68,7 @@ pub struct Game {
     pub build_seen_t: f64,
     pub build_first_at: f64,
     /// Enemy finished items when the first item was locked: a new one lets the plan change at once.
-    pub build_enemy_items: usize,
+    pub build_enemy_sig: String,
     pub build_busy: bool,
     // ---- post-game ----
     pub match_log: MatchLog,
@@ -105,7 +105,7 @@ impl Game {
             build_key: String::new(),
             build_seen_t: 0.0,
             build_first_at: 0.0,
-            build_enemy_items: 0,
+            build_enemy_sig: String::new(),
             build_busy: false,
             match_log: MatchLog::new(),
             obs: ObsRecorder::default(),

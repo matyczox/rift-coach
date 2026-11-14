@@ -317,7 +317,7 @@ impl TeamWatcher {
             // ("Zaahen obok" while he did Raptors). Not for me as the jungler (I gank, nobody gives me pings).
             let d = (jp.x - me.x).hypot(jp.y - me.y);
             let heading = match (jp.vx, jp.vy) {
-                (Some(vx), Some(vy)) => { let sp = vx.hypot(vy); sp > 0.003 && d > 1e-6 && ((me.x - jp.x) * vx + (me.y - jp.y) * vy) / (d * sp) > 0.7 }
+                (Some(vx), Some(vy)) => { let sp = vx.hypot(vy); sp > 0.012 && d > 1e-6 && ((me.x - jp.x) * vx + (me.y - jp.y) * vy) / (d * sp) > 0.7 }
                 _ => false,
             };
             let ganking = d < 0.08 || (d < 0.18 && heading);
@@ -339,7 +339,7 @@ impl TeamWatcher {
                 let (dx, dy) = (me.x - a.x, me.y - a.y);
                 let d = dx.hypot(dy);
                 let sp = vx.hypot(vy);
-                if !(0.1..0.25).contains(&d) || sp <= 0.004 { return false; }
+                if !(0.1..0.25).contains(&d) || sp <= 0.015 { return false; }
                 let dot = dx * vx + dy * vy;
                 let eta = (dot / (sp * sp)).clamp(0.0, 15.0);
                 // A teammate joins the fight area, not my exact moving pixel.
@@ -348,7 +348,7 @@ impl TeamWatcher {
             .collect();
         // The jungler just got "X obok": not "X idzie do ciebie" too (two lines about one champion).
         let coming: Vec<&SeenUnit> = coming.into_iter().filter(|c| !out.iter().any(|a: &AlertState| a.text.starts_with(c.champion.as_str())) && !(now - self.last_ask < 20_000.0 && jungler.is_some_and(|j| j.champion == c.champion))).collect();
-        if !coming.is_empty() && enemy_near_me {
+        if !coming.is_empty() && enemy_near_me && self.last_ally.values().all(|at| now - at > 20_000.0) {
             for c in coming.iter().take(2) { self.last_ally.insert(c.champion.clone(), now); }
             let names: Vec<&str> = coming.iter().take(2).map(|c| c.champion.as_str()).collect();
             out.push(AlertState { kind: "ally", text: format!("{} {} do ciebie", names.join(" i "), if coming.len() > 1 { "idą" } else { "idzie" }), confidence: 0.75, expires_at: now + 6000.0 });
@@ -462,8 +462,9 @@ mod tests {
         // Enemy a little beyond the former .12 limit is still in this lane fight.
         let enemies=[unit("Mel",0.897,0.839)];
         assert!(w.update(&i,me,&[syndra],&enemies,Some(0.3),40_000.0).iter().any(|a|a.text=="Syndra idzie do ciebie"));
-        assert!(w.update(&i,me,&[sett.clone()],&enemies,Some(0.3),41_000.0).iter().any(|a|a.text=="Sett idzie do ciebie"));
-        assert!(w.update(&i,me,&[sett.clone()],&enemies,Some(0.3),42_000.0).is_empty());
+        // One "idzie do ciebie" per 20 s for everyone (they stacked): Sett waits.
+        assert!(w.update(&i,me,&[sett.clone()],&enemies,Some(0.3),41_000.0).is_empty());
+        assert!(w.update(&i,me,&[sett.clone()],&enemies,Some(0.3),61_000.0).iter().any(|a|a.text=="Sett idzie do ciebie"));
         sett.vy=Some(-0.02); // Heading away: no notification.
         assert!(w.update(&i,me,&[sett],&enemies,Some(0.3),80_000.0).is_empty());
     }
@@ -473,7 +474,7 @@ mod tests {
         let i = intel(vec![player("Ahri", true, true, "MIDDLE", 9), player("Vi", true, false, "JUNGLE", 9), player("Zed", false, false, "MIDDLE", 10)]);
         let me = Some(Pos { x: 0.5, y: 0.5 });
         let mut w = TeamWatcher::default();
-        let vi = SeenUnit { champion: "Vi".into(), x: 0.35, y: 0.5, vx: Some(0.01), vy: Some(0.0) };
+        let vi = SeenUnit { champion: "Vi".into(), x: 0.35, y: 0.5, vx: Some(0.03), vy: Some(0.0) };
         let a = w.update(&i, me, &[vi.clone()], &[unit("Zed", 0.55, 0.5)], Some(0.6), 40_000.0);
         assert_eq!(a.iter().map(|x| x.text.as_str()).collect::<Vec<_>>(), ["Vi obok"]);
         assert!(w.update(&i, me, &[vi.clone()], &[unit("Zed", 0.55, 0.5)], Some(0.6), 50_000.0).is_empty());

@@ -1515,7 +1515,8 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
         let mut a = tracker_alerts(&tracks, f.my_pos, my_team_t, my_role, t, now, &near_me);
         if a.is_empty() {
             if let Some(w)=f.gank_forecasts.iter().filter(|w|tracks.iter().any(|tr|tr.state==TrackState::Fog && w.text.starts_with(&format!("{}:",tr.champion))))
-                .chain(approaches.iter()).filter(|w| w.expires_at>now)
+                // "X idzie w twoją stronę" only while laning and not with 2+ enemies already around me.
+                .chain(approaches.iter().filter(|_| t < 840.0 && f.my_pos.is_none_or(|(mx,my)| f.visible_enemies.iter().filter(|e| (e.x-mx).hypot(e.y-my) < 0.2).count() < 2))).filter(|w| w.expires_at>now)
                 .max_by(|a,b|a.confidence.total_cmp(&b.confidence)) { a.push(w.clone()); }
         }
         // C. Risk without a precise ghost (logs: deaths deep in their jungle with the jungler unseen 45 s,

@@ -311,6 +311,7 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
     if let (Some(t), Some(o)) = (rc_core::build_advisor::in_progress(&prev, &sd.items, &owned_ids).map(|t| t.name.clone()).or_else(|| locked.as_ref().map(|l| l.0.clone())), ctx.as_object_mut()) {
         o.insert("finishFirst".into(), serde_json::json!(t));
     }
+    let team_sig = ctx.get("enemyTeam").map(|v| v.to_string()).unwrap_or_default();
     g.build_busy = true;
     // Who asked: same game + same champion when the answer comes back, or it is dropped.
     let asked_for = build_session(intel);
@@ -368,8 +369,9 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
                 // The first item holds 150 s (unless bought): the model flipped it every answer.
                 if let (Some(first), true) = (prev.first().cloned(), locked.is_none()) {
                     // ...unless the enemies finished a new item since (their build is a reason to change it).
-                    let enemy_items: usize = intel.players.iter().filter(|p| !p.is_ally).map(|p| p.completed_items as usize).sum();
-                    let fresh = now - g.build_first_at < 150_000.0 && enemy_items <= g.build_enemy_items;
+                    // ...unless the enemy team profile changed (damage mix, who has armor / MR, who heals): any
+                    // enemy item broke it before and the plan flipped Locket <-> Zeke's every answer.
+                    let fresh = now - g.build_first_at < 150_000.0 && team_sig == g.build_enemy_sig;
                     let owned_first = intel.me.as_ref().is_some_and(|m| m.items.iter().any(|i| sd.items.get(&i.id).is_some_and(|d| d.name.eq_ignore_ascii_case(&first) || d.name_en.as_deref().is_some_and(|e| e.eq_ignore_ascii_case(&first)))));
                     if fresh && !owned_first && b.items.first().is_some_and(|it| !it.name.eq_ignore_ascii_case(&first)) {
                         match b.items.iter().position(|it| it.name.eq_ignore_ascii_case(&first)) {
@@ -383,7 +385,6 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
                         }
                     }
                 }
-                let enemy_items_now: usize = intel.players.iter().filter(|p| !p.is_ally).map(|p| p.completed_items as usize).sum();
                 let first_changed = g.build.as_ref().and_then(|o| o.items.first()).map(|i| i.name.clone()) != b.items.first().map(|i| i.name.clone());
                 // Full inventory: the plan is a swap. Say what goes (the cheapest finished item, never boots).
                 if let Some(me) = intel.me.as_ref() {
@@ -401,7 +402,7 @@ pub fn maybe_build(st: &Arc<AppState>, g: &mut Game, live_model: &str, now: f64)
                 g.build = if b.items.is_empty() { None } else { Some(b) };
                 if first_changed {
                     g.build_first_at = now;
-                    g.build_enemy_items = enemy_items_now;
+                    g.build_enemy_sig = team_sig.clone();
                 }
             }
             Err(e) => log::warn!(target: "build", "error {e}"),
@@ -447,7 +448,8 @@ pub fn fog_tracks(g: &Game) -> Vec<FogTrack> {
 /// P(I win the lane fight now), from the matchup curve and the live state.
 pub fn current_p_me(g: &Game) -> Option<f64> {
     let intel = g.intel.as_ref()?;
-    rc_core::intel::matchup::power_bar_near(intel,g.matchup.as_ref(),&|_|String::new(),&nearby(g)).filter(|p|p.local).map(|p|p.p_me)
+    // Outside a fight here the lane score stands in (None made "p_me >= 0.42" checks pass on a lost lane).
+    rc_core::intel::matchup::power_bar_near(intel,g.matchup.as_ref(),&|_|String::new(),&nearby(g)).map(|p|p.p_me)
 }
 
 /// Who is around me on the minimap, for the power bar's fight estimate (fast, local): allies and
@@ -574,7 +576,7 @@ fn nearby_at(g: &Game, center: Option<(f64,f64)>, here: bool) -> rc_core::intel:
         for (c, _) in g.field.near_seen.iter() {
             let alive = i.players.iter().any(|p| p.champion == *c && !p.is_ally && !p.is_dead);
             if alive && !n.enemies.iter().any(|(e, _)| e == c) {
-                n.enemies.push((c.clone(), false));
+                n.enemies.push((c.clone(), true));
             }
         }
     }

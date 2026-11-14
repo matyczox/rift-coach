@@ -41,7 +41,7 @@ pub fn gank_ready(t: &EnemyTrack, my_role: Option<Role>, game_time: f64) -> bool
 /// Early amber risk, distinct from an enemy inferred to be next to the player.
 pub fn forecast_warning(champion:&str, current:f64, forecast:(f64,u32), now:f64) -> Option<AlertState> {
     let (mass,sec)=forecast;
-    if (1..=6).contains(&sec) && current<0.6 && mass>=0.4 && mass-current>=0.15 {
+    if (1..=6).contains(&sec) && current<0.6 && mass>=0.6 && mass-current>=0.15 {
         Some(AlertState {kind:AlertKind::Missing,text:format!("{champion}: możliwy gank w ciągu 6 s"),confidence:mass.min(0.9),expires_at:now+1800.0})
     } else {None}
 }

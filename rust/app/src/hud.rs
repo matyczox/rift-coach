@@ -234,9 +234,10 @@ fn buy_now_json(g: &crate::game::Game) -> Option<Value> {
     let (intel, sd) = (g.intel.as_ref()?, g.static_data.as_ref()?);
     let me = intel.me.as_ref()?;
     let gold = intel.my_stats.as_ref()?.gold;
-    // A purchase preview, available before and during recall too. Minimap position
-    // and standing still cannot reliably prove recall or shop access.
-    if gold < 300.0 {
+    // Only in base, dead or at game start: on lane it was one more list on screen all game.
+    let base = if me.team == "CHAOS" { (0.96, 0.04) } else { (0.04, 0.96) };
+    let in_base = g.field.my_pos.is_some_and(|(x, y)| (x - base.0).hypot(y - base.1) < 0.12);
+    if !(me.is_dead || in_base || intel.game_time < 90.0) || gold < 300.0 {
         return None;
     }
     // No free slot and nothing to finish: nothing to "buy now" (it listed an item there was no room for).
@@ -528,11 +529,12 @@ pub fn push(app: &tauri::AppHandle, st: &Arc<AppState>) {
         // One shared, continuously refreshed support decision; no 30 s lockout.
         if let Some(plan)=k::support_plan(g) {
             s["supportPlan"]=json!(plan);
-            if plan.local && s["power"].is_object() { s["power"]["advice"]=json!(plan.text); }
+            // Not into the tip too (same words twice on screen).
             let call=s["topBar"]["call"].as_str().unwrap_or("").to_lowercase();
             let retreat=["cofnij","wycofaj","nie wchodź","back"].iter().any(|w|call.contains(w));
             let old_support=call.starts_with("osłaniaj ") || call.starts_with("pomóż ") || call.starts_with("wycofaj się z ") || call.starts_with("nie idź do ");
-            if s["topBar"].is_null() || old_support || (plan.urgent && (!retreat || !plan.approach)) {
+            // Only when urgent: "Osłaniaj Caitlyn" filled every empty moment of laning phase.
+            if plan.urgent && (s["topBar"].is_null() || old_support || !retreat || !plan.approach) {
                 s["topBar"]=json!({"call":plan.text,"tone":if plan.approach {"wait"} else {"danger"},"expiresAt":now+2500.0});
             }
             if !plan.approach {

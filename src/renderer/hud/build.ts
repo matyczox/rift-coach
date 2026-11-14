@@ -17,7 +17,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, text?: s
 
 function render(b: BuildPanelState): void {
   phase.classList.add('hidden');
-  rows.replaceChildren(...b.items.slice(0, 3).map((it) => {
+  rows.replaceChildren(...b.items.slice(0, 1).map((it) => {
     const row = el('div', 'bd-row');
     const img = el('img', '');
     img.alt = '';
