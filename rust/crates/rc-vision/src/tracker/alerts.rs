@@ -94,7 +94,11 @@ impl ApproachGate {
 /// given it decides gank warnings, so the warning agrees with the zones drawn on the minimap.
 pub fn tracker_alerts(tracks: &[EnemyTrack], me: Option<(f64, f64)>, my_team: Team, my_role: Option<Role>, game_time: f64, now: f64, near_me: &dyn Fn(&str) -> Option<f64>) -> Vec<AlertState> {
     let mut out = Vec::new();
-    let fog: Vec<&EnemyTrack> = tracks.iter().filter(|t| t.state == TrackState::Fog && t.estimate.is_some() && t.fog_since.is_some() && gank_ready(t, my_role, game_time)).collect();
+    let fog: Vec<&EnemyTrack> = tracks.iter().filter(|t| t.state == TrackState::Fog && t.estimate.is_some() && t.fog_since.is_some() && gank_ready(t, my_role, game_time))
+        // Seen next to me in the last 8 s (he just stepped into a bush beside me): I saw him, not a gank from
+        // the fog (most "Warwick gank" alerts as support were this).
+        .filter(|t| !t.last.zip(me).is_some_and(|(l, m)| game_time - l.t < 8.0 && (l.x - m.0).hypot(l.y - m.1) < 0.2))
+        .collect();
     let near = |t: &EnemyTrack, p: (f64, f64), r: f64| {
         let e = t.estimate.unwrap();
         let d = (e.x - p.0).hypot(e.y - p.1);
