@@ -1034,6 +1034,9 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             }
             _ => None,
         };
+        if r.camera.is_some_and(|p| !rc_vision::camera::plausible_player_step(f.my_pos.filter(|_| now-f.my_pos_at < 3000.0),p)) {
+            f.cam_unlocked_at = now;
+        }
         if let Some(d) = pick {
             f.my_pos = Some((d.x, d.y));
             f.my_pos_at = now;
@@ -1117,6 +1120,13 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
                 }
                 let area = crate::game::area_name(a.x, a.y, red);
                 let lane: &'static str = match area.as_str() { "linia top" => "top", "linia mid" => "mid", "linia bot" => "bot", _ => continue };
+                let lane_role = Role::parse(match lane { "top" => "TOP", "mid" => "MIDDLE", _ => "BOTTOM" });
+                let enemy_role = intel.players.iter().find(|p| p.champion == e.champion && !p.is_ally).map(|p| Role::parse(&p.role)).unwrap_or(Role::Unknown);
+                // Bot ADC + support are ordinary lane opponents, not repeat gankers.
+                if enemy_role == Role::Unknown || rc_vision::tracker::alerts::same_lane_roles(enemy_role,lane_role) { continue; }
+                let laner_here = f.visible_enemies.iter().any(|other| other.champion != e.champion && (other.x-a.x).hypot(other.y-a.y) < 0.1
+                    && intel.players.iter().any(|p| p.champion == other.champion && !p.is_ally && rc_vision::tracker::alerts::same_lane_roles(Role::parse(&p.role),lane_role)));
+                if !laner_here { continue; }
                 if h.last_gank.get(lane).is_some_and(|t| intel.game_time - t < 40.0) {
                     continue;
                 }
@@ -1510,9 +1520,7 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
     }
     let my_role = intel.me.as_ref().map(|m| rc_vision::tracker::Role::parse(&m.role));
     let new_alerts = {
-        let my_lane: Option<&'static str> = intel.me.as_ref().and_then(|m| match m.role.as_str() { "TOP" => Some("top"), "MIDDLE" => Some("mid"), "BOTTOM" | "UTILITY" => Some("bot"), _ => None });
-        let habit_boost = |c: &str| my_lane.and_then(|l| f.habits.get(c).and_then(|h| h.ganks.get(l))).map_or(1.0, |n| (1.0 + 0.15 * *n as f64).min(1.5));
-        let near_me = |c: &str| f.my_pos.and_then(|p| f.tracker.as_ref().and_then(|tr| tr.mass_near(c, p, 0.13))).map(|m| (m * habit_boost(c)).min(1.0));
+        let near_me = |c: &str| f.my_pos.and_then(|p| f.tracker.as_ref().and_then(|tr| tr.mass_near(c, p, 0.13)));
         let mut a = tracker_alerts(&tracks, f.my_pos, my_team_t, my_role, t, now, &near_me);
         // C. Risk without a precise ghost (logs: deaths deep in their jungle with the jungler unseen 45 s,
         // and at 16% HP with Wukong walking in from the fog): warn on the situation, not on the guess.
@@ -1530,12 +1538,12 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
                 // Deep = past their outer mid tower (the mid line itself counts there too).
                 let deep = (me.0 - me.1).abs() > 0.3;
                 if their_half && (off_lanes || deep) && !in_base && !ally_near && t > 150.0 {
-                    a.push(rc_vision::tracker::alerts::AlertState { kind: rc_vision::tracker::alerts::AlertKind::Gank, text: format!("{} nieznany — ich dżungla", j.champion), confidence: 0.6, expires_at: now + 4000.0 });
+                    a.push(rc_vision::tracker::alerts::AlertState { kind: rc_vision::tracker::alerts::AlertKind::Missing, text: format!("{} nieznany — ich dżungla", j.champion), confidence: 0.6, expires_at: now + 4000.0 });
                 }
             }
             if hp.is_some_and(|h| h < 0.35) && !in_base && a.is_empty() {
                 // An enemy from elsewhere in fog within ~0.35 and seen recently: low HP is a free kill for him.
-                let close = tracks.iter().filter(unseen).filter(|tr| t - tr.fog_since.unwrap_or(t) < 15.0 && my_role.is_none_or(|r| r == Role::Unknown || r != tr.role)).filter_map(|tr| tr.estimate.map(|e| ((e.x - me.0).hypot(e.y - me.1), tr))).filter(|(d, _)| *d < 0.25).min_by(|x, y| x.0.total_cmp(&y.0));
+                let close = tracks.iter().filter(unseen).filter(|tr| rc_vision::tracker::alerts::gank_ready(tr,my_role,t) && t - tr.fog_since.unwrap_or(t) < 15.0).filter_map(|tr| tr.estimate.map(|e| ((e.x - me.0).hypot(e.y - me.1), tr))).filter(|(d, tr)| *d < 0.25 && near_me(&tr.champion).is_some_and(|p| p > 0.6)).min_by(|x, y| x.0.total_cmp(&y.0));
                 if let Some((_, tr)) = close {
                     a.push(rc_vision::tracker::alerts::AlertState { kind: rc_vision::tracker::alerts::AlertKind::Gank, text: format!("{} blisko", tr.champion), confidence: 0.7, expires_at: now + 4000.0 });
                 }
@@ -1606,6 +1614,10 @@ pub fn on_vision(_app: &tauri::AppHandle, st: &Arc<AppState>, r: VisionResult) {
             }
         }
     }
+    // A fog warning must disappear once its subject is visible or dead.
+    f.alerts.retain(|a| !matches!(a.kind.as_str(), "gank" | "invade") || !intel.players.iter().any(|p| !p.is_ally
+        && a.text.starts_with(&format!("{} ",p.champion))
+        && (p.is_dead || f.visible_enemies.iter().any(|e| e.champion == p.champion))));
     for a in new_alerts {
         let kind = serde_json::to_value(a.kind).ok().and_then(|v| v.as_str().map(String::from)).unwrap_or_default();
         if kind == "invade" {

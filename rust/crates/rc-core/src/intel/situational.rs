@@ -136,7 +136,7 @@ fn ghost_threat(t: &FogTrack, me: Pos, r: f64) -> f64 {
         return 0.0;
     }
     if let Some(m) = t.near_me {
-        return (m / 0.6).min(1.0);
+        return m.clamp(0.0, 1.0);
     }
     let Some(e) = t.estimate.filter(|_| t.in_fog) else { return 0.0 };
     let d = (e.x - me.x).hypot(e.y - me.y);
@@ -401,6 +401,8 @@ mod tests {
         assert_eq!(d.reasons[0], "A gank");
         assert!(d.level > 0.5);
         assert!(danger_at(&i, None, &[], &[], None, &[]).is_none());
+        let mass = FogTrack { champion:"Jungler".into(), in_fog:true, gank_ready:true, near_me:Some(0.4), estimate:None };
+        assert_eq!(ghost_threat(&mass,Pos { x:0.5,y:0.5 },0.12),0.4);
     }
 
     /// Audit V3 F12: two live objectives -> the better one, not the first in the list.

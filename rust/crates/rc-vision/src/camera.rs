@@ -241,3 +241,17 @@ mod tests {
         assert!(camera_center(&Rgba { width: 341, height: 341, data: vec![50; 341 * 341 * 4] }).is_none());
     }
 }
+/// A fresh player position cannot follow a camera pan across the map.
+pub fn plausible_player_step(previous: Option<(f64, f64)>, next: (f64, f64)) -> bool {
+    previous.is_none_or(|p| (p.0-next.0).hypot(p.1-next.1) <= 0.3)
+}
+
+#[cfg(test)]
+mod player_position_tests {
+    use super::*;
+    #[test]
+    fn camera_pan_from_previous_game_is_not_player_motion() {
+        assert!(!plausible_player_step(Some((0.874,0.650)),(0.264,0.273)));
+        assert!(plausible_player_step(Some((0.874,0.650)),(0.816,0.677)));
+    }
+}

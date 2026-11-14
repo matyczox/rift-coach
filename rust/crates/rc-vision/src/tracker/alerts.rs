@@ -27,9 +27,14 @@ pub struct AlertState {
 /// A gank warning: someone from elsewhere (jungler, roamer) out of sight for at least 4 s. Never my lane
 /// opponent: him in a bush or behind his tower is lane play (his threat is in the fight bar), and
 /// "Sion gank" about my own laner only confused.
+pub fn same_lane_roles(a: Role, b: Role) -> bool {
+    a != Role::Unknown && b != Role::Unknown
+        && (a == b || matches!((a,b), (Role::Bottom,Role::Utility) | (Role::Utility,Role::Bottom)))
+}
+
 pub fn gank_ready(t: &EnemyTrack, my_role: Option<Role>, game_time: f64) -> bool {
     let age = game_time - t.fog_since.unwrap_or(game_time);
-    let lane_opp = my_role.is_some_and(|r| r != Role::Unknown && r == t.role);
+    let lane_opp = my_role.is_some_and(|r| same_lane_roles(r,t.role));
     !lane_opp && age >= if t.role == Role::Jungle { 1.5 } else { 4.0 }
 }
 
@@ -57,7 +62,7 @@ pub fn tracker_alerts(tracks: &[EnemyTrack], me: Option<(f64, f64)>, my_team: Te
         if let Some(j) = fog.iter().find(|t| t.role == Role::Jungle) {
             if in_my_jungle {
                 // Same source as the zones drawn on the minimap (all hypotheses), like the gank warning.
-                let p = near_me(&j.champion).map(|m| (m / 0.6).min(1.0)).unwrap_or_else(|| near(j, me, 0.14));
+                let p = near_me(&j.champion).unwrap_or_else(|| near(j, me, 0.14));
                 if p > 0.6 {
                     out.push(AlertState { kind: AlertKind::Invade, text: format!("{} invade", j.champion), confidence: p.min(0.9), expires_at: now + 4000.0 });
                 }
@@ -66,7 +71,7 @@ pub fn tracker_alerts(tracks: &[EnemyTrack], me: Option<(f64, f64)>, my_team: Te
         // Short on purpose ("Briar gank"): read at a glance, mid-fight.
         // Probability he is near me from all hypotheses ("Nami gank" while the drawn ghost sat in base:
         // one centre and the zones disagreed). Fallback: the centre/radius overlap.
-        let best = fog.iter().map(|t| (near_me(&t.champion).map(|m| (m / 0.6).min(1.0)).unwrap_or_else(|| near(t, me, 0.11)), t)).max_by(|a, b| a.0.total_cmp(&b.0));
+        let best = fog.iter().map(|t| (near_me(&t.champion).unwrap_or_else(|| near(t, me, 0.11)), t)).max_by(|a, b| a.0.total_cmp(&b.0));
         if let Some((p, t)) = best.filter(|b| out.is_empty() && b.0 > 0.6) {
             out.push(AlertState { kind: AlertKind::Gank, text: format!("{} gank", t.champion), confidence: p.min(0.9), expires_at: now + 4000.0 });
         }
@@ -77,4 +82,40 @@ pub fn tracker_alerts(tracks: &[EnemyTrack], me: Option<(f64, f64)>, my_team: Te
         out.push(AlertState { kind: AlertKind::Missing, text: format!("{long_missing} we mgle"), confidence: (long_missing as f64 / 5.0).min(1.0), expires_at: now + 4000.0 });
     }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tracker::predictor::Estimate;
+    fn track(role: Role) -> EnemyTrack {
+        EnemyTrack { champion: "Enemy".into(), team: Team::Chaos, role, state: TrackState::Fog,
+            last: None, vel:(0.0,0.0), fog_since:Some(100.0),
+            estimate:Some(Estimate { x:0.8,y:0.8,radius:0.03,confidence:0.9,spread:0.0 }),
+            recalled_at:None, flash_suspect_at:None }
+    }
+    #[test]
+    fn bot_duo_are_lane_opponents_not_gankers() {
+        assert!(!gank_ready(&track(Role::Bottom),Some(Role::Utility),110.0));
+        assert!(!gank_ready(&track(Role::Utility),Some(Role::Bottom),110.0));
+        assert!(gank_ready(&track(Role::Jungle),Some(Role::Utility),110.0));
+        assert!(gank_ready(&track(Role::Middle),Some(Role::Utility),110.0));
+        assert!(!same_lane_roles(Role::Unknown,Role::Unknown));
+    }
+    #[test]
+    fn probability_is_not_inflated_into_an_alarm() {
+        let tracks = [track(Role::Jungle)];
+        let ask = |mass| tracker_alerts(&tracks,Some((0.8,0.8)),Team::Order,Some(Role::Utility),110.0,1000.0,&|_|Some(mass));
+        assert!(ask(0.4).is_empty());
+        let a = ask(0.7);
+        assert_eq!(a.len(),1);
+        assert_eq!(a[0].confidence,0.7);
+    }
+    #[test]
+    fn visible_or_dead_is_not_a_fog_gank() {
+        for state in [TrackState::Visible, TrackState::Dead] {
+            let mut t = track(Role::Jungle); t.state=state;
+            assert!(tracker_alerts(&[t],Some((0.8,0.8)),Team::Order,Some(Role::Utility),110.0,1000.0,&|_|Some(0.9)).is_empty());
+        }
+    }
 }

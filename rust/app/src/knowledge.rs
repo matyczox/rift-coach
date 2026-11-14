@@ -494,7 +494,7 @@ pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
     // hide under mine when we run together).
     // ...but only when the screen is around me: camera locked on me, or my own bar seen on it (a panned
     // camera looking at a far fight must not fill my fight bar).
-    let screen_is_mine = g.field.cam_locked_at >= g.field.cam_unlocked_at || g.field.pos_src == "screen";
+    let screen_is_mine = (g.field.cam_locked_at > 0.0 && g.field.cam_locked_at >= g.field.cam_unlocked_at) || g.field.pos_src == "screen";
     if let Some(i) = g.intel.as_ref().filter(|_| screen_is_mine) {
         for p in i.players.iter().filter(|p| !p.is_me && !p.is_dead && p.onscreen_at.is_some_and(|t| (-1.0..=4.0).contains(&(i.game_time - t)))) {
             if p.is_ally {
@@ -505,7 +505,7 @@ pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
         }
     }
     // Enemy health bars on screen right now that got no name: someone is there all the same.
-    if let Some(i) = g.intel.as_ref() {
+    if let Some(i) = g.intel.as_ref().filter(|_| screen_is_mine) {
         let (bars, at) = g.field.enemy_bars;
         if i.game_time - at <= 1.5 {
             let named = i.players.iter().filter(|p| !p.is_ally && !p.is_dead && p.onscreen_at.is_some_and(|t| (-1.0..=4.0).contains(&(i.game_time - t)))).count();
@@ -560,7 +560,7 @@ pub fn nearby(g: &Game) -> rc_core::intel::matchup::Nearby {
         for (c, _) in g.field.near_seen.iter() {
             let alive = i.players.iter().any(|p| p.champion == *c && !p.is_ally && !p.is_dead);
             if alive && !n.enemies.iter().any(|(e, _)| e == c) {
-                n.enemies.push((c.clone(), true));
+                n.enemies.push((c.clone(), false));
             }
         }
     }
