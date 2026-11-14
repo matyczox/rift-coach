@@ -1,5 +1,13 @@
 # Import czterech powtórek i poprawki HUD
 
+## Wdrożenie — 20:33
+
+Zainstalowano i uruchomiono poprawioną aplikację. Kompilacja zakończyła się już po końcu gry, więc nie udało się podmienić jej w trakcie meczu. Zapis tej gry zachowano w całości: 1908 klatek obserwacji od 0,6 do 1979,4 s; rzeczywisty dekoder aplikacji potwierdził poprawność. Zbiór zawiera teraz 5 meczów: cztery zaimportowane powtórki oraz nową grę. **Aktywne wagi pochodzą z czterech powtórek i mają 1770 aktualizacji**, co potwierdził test zainstalowanego programu. Piąty zapis nie oznacza automatycznie piątego wytrenowanego meczu.
+
+Kopia starego modelu i poprzedniego programu pozostała w lokalnych backupach. SHA-256 zainstalowanego EXE jest zgodne z przetestowanym plikiem: `9A5D81E6A65F86C3AD01E4EDD9E2197CEC22519CE7C93950C3FBD57423738B9F`.
+
+Walidacja: 109 testów rc-core, 8 aplikacji Rust, 105 interfejsu, 10 narzędzi treningowych oraz uruchomienia testowe izolowane i zainstalowane — zaliczone. Klucz Riot nadal nie był zapisany w ustawieniach przy wdrożeniu; nowa wersja zapisuje następne wklejenie automatycznie. Przegląd wszystkich trzech dostępnych logów wykazał historyczne odrzucenia klucza kodem 401 i kosmetyczne błędy brakującej favicon; nie były to awarie pętli coacha.
+
 Poprzedni `RAPORT-ganki-2026-11-14.md` opisuje decyzję o zachowaniu modelu z 414 etykietami. Po tym audycie użytkownik wyraźnie wybrał import danych i włączenie nowych wag. Przygotowano model `fog-replay-4games.json`: cztery mecze, 1770 zaakceptowanych aktualizacji, równy udział meczów i kurczenie mnożników do wartości neutralnych.
 
 ## Dane
