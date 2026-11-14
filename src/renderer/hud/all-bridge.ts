@@ -80,7 +80,7 @@ function layout(m: HudMessage, s: number): void {
   place(panels.get('death')!, { x: W - dw - W * 0.02, y: H * 0.42 - dh / 2, width: dw, height: dh });
   // Power/danger: compact, mid-height, left of the enemy portraits column on the right edge.
   // Gold / CS / lvl: one line right under the game's score (top right), where that kind of info lives.
-  const pw = 320 * s, ph = 240 * s;
+  const pw = 320 * s, ph = 150 * s;
   place(panels.get('power')!, { x: W - pw - 14 * s, y: 74 * s, width: pw, height: ph });
   const lw = 720 * s, lh = 480 * s;
   place(panels.get('loading')!, { x: (W - lw) / 2, y: (H - lh) / 2, width: lw, height: lh });

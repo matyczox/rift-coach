@@ -105,20 +105,9 @@ subscribe(({ state }) => {
     };
     const top = document.createElement('div');
     top.className = 'bm-top';
-    top.append(cell(ln.gold, 'złoto', k), cell(ln.cs, 'cs', (x) => `${Math.abs(x)}`), cell(ln.level, 'lvl', (x) => `${Math.abs(x)}`));
+    const level = p.botLevels ? p.botLevels.difference : ln.level;
+    top.append(cell(ln.gold, 'złoto', k), cell(ln.cs, 'cs', (x) => `${Math.abs(x)}`), cell(level, p.botLevels ? 'lvl bot' : 'lvl', (x) => `${Math.abs(x)}`));
     const rows: HTMLElement[] = [top];
-    const target = document.createElement('div');
-    target.className = 'bm-row';
-    target.textContent = `${p.me.champion} ${p.me.level} vs ${p.enemy.champion} ${p.enemy.level} lvl`;
-    rows.push(target);
-    if (p.botLevels) {
-      const pair = document.createElement('div');
-      pair.className = 'bm-row bm-bot';
-      const b = p.botLevels;
-      const levels = (side: typeof b.ours) => side.map(x => `${x.champion} ${x.level}`).join(' + ');
-      pair.textContent = `Bot: ${levels(b.ours)} vs ${levels(b.theirs)} · suma ${sign(b.difference)}${Math.abs(b.difference)} lvl`;
-      rows.push(pair);
-    }
     if (p.csMin && p.csMin.opp != null) {
       const r = document.createElement('div');
       const diff = p.csMin.me - p.csMin.opp;
