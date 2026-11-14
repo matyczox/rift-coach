@@ -13,6 +13,10 @@ use std::time::Duration;
 pub struct RunesState {
     key: String,
     timer: Option<tokio::task::JoinHandle<()>>,
+    base_key: String,
+    base_timer: Option<tokio::task::JoinHandle<()>>,
+    refined_applied: bool,
+    apply_lock: Arc<tokio::sync::Mutex<()>>,
     /// Map of the current champion select (11 = Summoner's Rift), from the gameflow session.
     map_id: Option<i64>,
 }
@@ -30,7 +34,11 @@ fn role_name(pos: &str) -> Option<&'static str> {
 
 pub fn on_phase(rt: &tokio::runtime::Handle, st: &Arc<AppState>, rs: &Arc<Mutex<RunesState>>, phase: &str) {
     if phase != "ChampSelect" {
-        rs.lock().unwrap().key.clear();
+        let mut r = rs.lock().unwrap();
+        r.key.clear();
+        r.base_key.clear();
+        if let Some(t) = r.base_timer.take() { t.abort(); }
+        if let Some(t) = r.timer.take() { t.abort(); }
         return;
     }
     // Runes only on Summoner's Rift: remember this lobby's map (gameflow session).
@@ -85,6 +93,16 @@ pub fn on_champ_select(rt: &tokio::runtime::Handle, st: &Arc<AppState>, rs: &Arc
     sorted.sort();
     let key = format!("{champion}|{role}|{}", sorted.join(","));
     let mut r = rs.lock().unwrap();
+    let base_key = format!("{champion}|{role}");
+    if r.base_key != base_key {
+        if let Some(t) = r.base_timer.take() { t.abort(); }
+        r.base_key = base_key.clone();
+        r.refined_applied = false;
+        let (st, rs2, version, champ, role) = (st.clone(), rs.clone(), sd.version.clone(), champion.clone(), role.clone());
+        r.base_timer = Some(rt.spawn(async move {
+            set_base_runes(&st, &rs2, &base_key, &champ, &role, &version).await;
+        }));
+    }
     if key == r.key {
         return;
     }
@@ -93,11 +111,44 @@ pub fn on_champ_select(rt: &tokio::runtime::Handle, st: &Arc<AppState>, rs: &Arc
     if let Some(t) = r.timer.take() {
         t.abort();
     }
+    if enemies.is_empty() {
+        return; // The base request already handles this case.
+    }
     let (st, rs2, version) = (st.clone(), rs.clone(), sd.version.clone());
     r.timer = Some(rt.spawn(async move {
         tokio::time::sleep(Duration::from_millis(2500)).await;
         set_runes(&st, &rs2, &key, &champion, &role, &enemies, &version).await;
     }));
+}
+
+/// Prepare a basic page immediately, independently of changing enemy picks.
+async fn set_base_runes(st: &Arc<AppState>, rs: &Arc<Mutex<RunesState>>, key: &str, champion: &str, role: &str, version: &str) {
+    let result: anyhow::Result<()> = async {
+        let dir = st.data_dir.join("runes");
+        let trees = load_rune_trees(&st.data_dir.join("ddragon"), version).await?;
+        let draft = {
+            let cfg = st.settings.lock().unwrap().value().coach.draft_model.clone();
+            pick(&cfg, Task::Draft, st.game.lock().unwrap().backends)
+        };
+        let patch = patch_of(version);
+        let resolved;
+        let role = if role.is_empty() {
+            resolved = resolve_role(st, &dir, &patch, champion, &draft.model, draft.effort).await;
+            resolved.as_str()
+        } else { role };
+        let plan = advise_runes(&dir, &trees, &patch, champion, role, &[], None, &draft.model, draft.effort).await?;
+        let apply_lock = rs.lock().unwrap().apply_lock.clone();
+        let _guard = apply_lock.lock().await;
+        { let r = rs.lock().unwrap(); if r.base_key != key || r.refined_applied { return Ok(()); } }
+        let result = apply_rune_page(&st.lcu_client, &plan).await?;
+        if result == ApplyResult::NoSlot {
+            st.ui.lock().unwrap().runes = RunesStatus { state: "no-slot".into(), label: Some(plan.label), error: Some("Brak wolnej strony run — usuń jedną albo nazwij ją „Rift Coach”.".into()) };
+        } else {
+            st.ui.lock().unwrap().runes = RunesStatus { state: "set".into(), label: Some(plan.label), error: None };
+        }
+        Ok(())
+    }.await;
+    if let Err(e) = result { log::warn!("base runes: {e}"); }
 }
 
 /// No assigned position: the role picked in the lobby (Swiftplay / blind: first position preference),
@@ -139,10 +190,13 @@ async fn set_runes(st: &Arc<AppState>, rs: &Arc<Mutex<RunesState>>, key: &str, c
         let rates = if enemies.is_empty() { Default::default() } else { role_rates(&dir, &patch, enemies, &draft.model, draft.effort).await? };
         let opponent = lane_opponent_for(role, &assign_roles(enemies, &rates)).filter(|o| o.1 >= 0.6);
         let plan = advise_runes(&dir, &trees, &patch, champion, role, enemies, opponent, &draft.model, draft.effort).await?;
+        let apply_lock = rs.lock().unwrap().apply_lock.clone();
+        let _guard = apply_lock.lock().await;
         if rs.lock().unwrap().key != key {
             return Ok(()); // draft moved on; a newer request is coming
         }
         let r = apply_rune_page(&st.lcu_client, &plan).await?;
+        if r != ApplyResult::NoSlot { rs.lock().unwrap().refined_applied = true; }
         st.ui.lock().unwrap().runes = if r == ApplyResult::NoSlot {
             RunesStatus { state: "no-slot".into(), label: Some(plan.label.clone()), error: Some("Brak wolnej strony run — usuń jedną albo nazwij ją „Rift Coach”.".into()) }
         } else {
